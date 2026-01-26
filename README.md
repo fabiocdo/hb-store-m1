@@ -1,101 +1,130 @@
 # homebrew-store-cdn
 
-Local CDN with Docker Compose and Nginx in front of a static origin.
+Local CDN for PS4 homebrew packages using Docker Compose and Nginx, with automatic
+index generation and icon extraction.
 
-## Usage
+## What it does
 
-Set the variables in `.env`:
+- Serves `.pkg` files over HTTP.
+- Generates `index.json` for Homebrew Store clients.
+- Extracts `icon0.png` from each PKG and serves it from `_media`.
+- Organizes PKGs into `game/`, `update/`, `dlc/`, and `app/` folders.
+- Watches the `pkg/` tree and refreshes `index.json` after file changes.
 
-- `BASE_URL`: URL used in `index.json`
-- `CDN_DATA_DIR`: host path for data
-- `GENERATE_JSON_PERIOD`: delay before regenerating `index.json` after file changes
+## Requirements
 
-Start the container:
+- Docker + Docker Compose
+- A host directory to store PKGs and generated assets
+
+## Quick start
+
+1) Edit `.env`:
+
+```
+BASE_URL=http://127.0.0.1:8080
+CDN_DATA_DIR=/opt/cdn
+GENERATE_JSON_PERIOD=2
+```
+
+2) Build and run:
 
 ```bash
+docker compose build
 docker compose up -d
 ```
 
-Access:
+3) Open:
 
-- http://localhost:8080
+- http://127.0.0.1:8080
+- http://127.0.0.1:8080/index.json
 
-## Examples
-
-Sample `.env`:
-
-```
-BASE_URL=http://192.168.0.10:8080
-CDN_DATA_DIR=/home/fabio/ps4
-GENERATE_JSON_PERIOD=5
-```
-
-Example host data layout:
-
-```
-/home/fabio/ps4/
-|-- pkg/
-|   |-- game/
-|   |   |-- MAGICKA 2 [CUSA02421].pkg
-|   |-- update/
-|   |   |-- MAGICKA 2 [Patch] [CUSA02421].pkg
-|   |-- dlc/
-|   |   |-- Corneo Armlet [Addon] [CUSA07211].pkg
-|   |-- app/
-|       |-- PS4_PKGI13337_v1.01.1.pkg
-|-- _media/
-|   |-- CUSA02421.png
-|   |-- CUSA07211.png
-|   |-- PKGI13337.png
-|-- index.json
-```
-
-Example `index.json` entry:
-
-```json
-{
-  "id": "CUSA02421",
-  "name": "MAGICKA 2",
-  "version": "1.01",
-  "apptype": "update",
-  "pkg": "http://192.168.0.10:8080/pkg/update/MAGICKA%202%20%5BPatch%5D%20%5BCUSA02421%5D.pkg",
-  "icon": "http://192.168.0.10:8080/_media/CUSA02421.png",
-  "category": "gp",
-  "region": "EUR"
-}
-```
-
-## Structure
-
-- `pkg/`: `.pkg` packages (mounted at `/data/pkg`)
-- `_media/`: images/icons (mounted at `/data/_media`)
-- `index.json`: generated index (at `/data/index.json`)
-- `nginx.conf`: server configuration
-- `docker-compose.yml`: service orchestration
-
-## Host Data Layout
+## Host data layout
 
 The host directory mapped to `/data` must follow this layout:
 
 ```
-<CDN_DATA_DIR>/
-|-- pkg/ # Put your PKGs here
-|   |-- game/   # Auto-created
-|   |-- dlc/    # Auto-created
-|   |-- update/ # Auto-created
-|   |-- app/    # Auto-created (no auto-move)
+/opt/cdn/
+|-- pkg/                   # Place PKGs here
+|   |-- game/              # Auto-created
+|   |-- update/            # Auto-created
+|   |-- dlc/               # Auto-created
+|   |-- app/               # Auto-created (no auto-move)
+|   |-- _PUT_YOUR_PKGS_HERE
 |   |-- Game Name [CUSA12345].pkg
-|-- _media/ # Generated Automatically
+|-- _media/                # Auto-generated icons
 |   |-- CUSA12345.png
-|-- index.json # Generated Automatically
+|-- index.json             # Auto-generated index
 ```
 
 Notes:
 - `index.json` and `_media/*.png` are generated automatically.
-- Place your `.pkg` files inside `pkg/`.
-- The container watches `pkg/` and regenerates `index.json` on changes.
+- The tool ignores any PKG located inside folders that start with `_`.
+- The `_PUT_YOUR_PKGS_HERE` file is a marker created on container startup.
 
-## Notes
+## Package organization
 
-- The Nginx cache is stored in a named volume `edge-cache`.
-- `X-Cache-Status` header indicates HIT/MISS/BYPASS.
+During indexing, packages are classified by their `CATEGORY` from `param.sfo`:
+
+- `gd` -> `game`
+- `gp` -> `update`
+- `ac` -> `dlc`
+- `ap`, `ad`, `al`, `bd` -> `app`
+
+Packages placed under `pkg/app` are always indexed as:
+
+- `apptype: "app"`
+- `category: "ap"`
+
+The container never auto-moves files inside `pkg/app`.
+
+## index.json format
+
+Example entry:
+
+```json
+{
+  "id": "CUSA12345",
+  "name": "Example Game",
+  "version": "1.00",
+  "apptype": "game",
+  "pkg": "http://127.0.0.1:8080/pkg/game/Example%20Game%20%5BCUSA12345%5D.pkg",
+  "icon": "http://127.0.0.1:8080/_media/CUSA12345.png",
+  "category": "gd",
+  "region": "EUR"
+}
+```
+
+Fields:
+- `id`, `name`, `version`: extracted from `param.sfo`, fallback to filename.
+- `apptype`: derived from `CATEGORY` or forced to `app` for `pkg/app`.
+- `pkg`, `icon`: URLs built from `BASE_URL`.
+- `category`: optional, only when present.
+- `region`: optional, derived from `CONTENT_ID`.
+
+## Environment variables
+
+| Variable | Description | Default                 |
+| --- | --- |-------------------------|
+| `BASE_URL` | Base URL written in `index.json`. | `http://127.0.0.1:8080` |
+| `CDN_DATA_DIR` | Host path mapped to `/data`. | `/opt/cdn`              |
+| `GENERATE_JSON_PERIOD` | Delay (seconds) before regenerating `index.json` after changes. | `2`                     |
+
+## Logs
+
+The container prints:
+
+- `Moved: <from> -> <to>` when files are organized.
+- `Change detected: <EVENT> <PATH>` for other events.
+- `index.json generated` after each update.
+
+## Nginx behavior
+
+- Serves `/data` directly.
+- Adds cache headers for `.pkg`, `.zip`, and image files.
+- Supports HTTP range requests for large downloads.
+
+## Troubleshooting
+
+- If a PKG is encrypted, `pkgtool` may fail to read `param.sfo`.
+  In that case, the entry still appears in `index.json` using the filename.
+- If icons are missing, ensure the PKG contains `ICON0_PNG` or `PIC0_PNG`.
