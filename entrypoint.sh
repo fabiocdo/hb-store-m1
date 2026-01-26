@@ -3,7 +3,7 @@ set -e
 
 PKG_DIR="/data/pkg"
 MEDIA_DIR="/data/_media"
-GENERATE_JSON_PERIOD="${GENERATE_JSON_PERIOD:-2}"
+GENERATE_JSON_PERIOD="${GENERATE_JSON_PERIOD:-5}"
 GREEN="\033[0;32m"
 RESET="\033[0m"
 
@@ -18,9 +18,8 @@ move_only() {
 }
 
 # Initial generation
-if [ -d "$PKG_DIR" ]; then
-  RUN_MODE=init python3 /generate-index.py
-fi
+mkdir -p "$PKG_DIR" "$MEDIA_DIR"
+RUN_MODE=init python3 /generate-index.py
 
 # Automatic watcher
 if [ -d "$PKG_DIR" ]; then
@@ -47,7 +46,7 @@ if [ -d "$PKG_DIR" ]; then
         ;;
       *MOVED_TO*)
         if [ -n "$last_moved_from" ]; then
-          printf "${GREEN}[*] Change detected: MOVED_FROM: %s -> MOVED_TO: %s${RESET}\n" "$last_moved_from" "$path"
+          printf "${GREEN}[*] Moved: %s -> %s${RESET}\n" "$last_moved_from" "$path"
           last_moved_from=""
         else
           printf "${GREEN}[*] Moved: %s${RESET}\n" "$path"
