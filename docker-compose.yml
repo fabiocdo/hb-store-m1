@@ -3,7 +3,7 @@ name: homebrew-store-cdn
 services:
   homebrew-store-cdn:
     build: .
-    image: homebrew-store-cdn:latest
+    image: fabiocdo/homebrew-store-cdn:latest
     container_name: homebrew-store-cdn
     ports:
       - "8080:80"
