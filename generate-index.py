@@ -7,7 +7,7 @@ import sys
 import tempfile
 from urllib.parse import quote
 
-BASE_URL = os.environ.get("BASE_URL", "http://YOUR_IP:8080")
+BASE_URL = os.environ.get("BASE_URL", "http://SERVER_IP:8080")
 DATA_DIR = pathlib.Path("/data")
 PKG_DIR = DATA_DIR / "pkg"
 OUT = DATA_DIR / "index.json"
