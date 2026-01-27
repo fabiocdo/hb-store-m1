@@ -8,7 +8,7 @@ DEFAULT_AUTO_RENAME_PKGS="false"
 DEFAULT_AUTO_RENAME_TEMPLATE="{title} [{titleid}][{apptype}]"
 DEFAULT_AUTO_RENAME_TITLE_MODE="none"
 
-## RESOLVED ENVIRONMENT VARIABLES
+## ENVIRONMENT VARIABLES
 BASE_URL="${BASE_URL:-$DEFAULT_BASE_URL}"
 AUTO_GENERATE_JSON_PERIOD="${AUTO_GENERATE_JSON_PERIOD:-$DEFAULT_AUTO_GENERATE_JSON_PERIOD}"
 AUTO_RENAME_PKGS="${AUTO_RENAME_PKGS:-$DEFAULT_AUTO_RENAME_PKGS}"
@@ -27,11 +27,18 @@ if [ "$host" = "$hostport" ]; then
   port="80"
 fi
 
-log "Starting NGINX on ${host}:${port}..."
+clear
+log "[·] Starting NGINX..."
 nginx
-log "Started NGINX on ${host}:${port}."
+log "[·] Started NGINX on ${host}:${port}."
 
-log "Starting indexer: python3 -u /generate-index.py --base-url \"$BASE_URL\" --auto-generate-json-period \"$AUTO_GENERATE_JSON_PERIOD\" --auto-rename-pkgs \"$AUTO_RENAME_PKGS\" --auto-rename-template \"$AUTO_RENAME_TEMPLATE\" --auto-rename-title-mode \"$AUTO_RENAME_TITLE_MODE\""
+log "[·] Starting Auto Indexer:
+SERVER URL: \"$BASE_URL\"
+AUTO_GENERATE_JSON_PERIOD: \"$AUTO_GENERATE_JSON_PERIOD\"
+AUTO_RENAME_PKGS: \"$AUTO_RENAME_PKGS\"
+AUTO_RENAME_TEMPLATE: \"$AUTO_RENAME_TEMPLATE\"
+AUTO_RENAME_TITLE_MODE: \"$AUTO_RENAME_TITLE_MODE\""
+
 exec python3 -u /generate-index.py \
   --base-url "$BASE_URL" \
   --auto-generate-json-period "$AUTO_GENERATE_JSON_PERIOD" \
