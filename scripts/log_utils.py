@@ -1,22 +1,38 @@
-import settings
+import logging
+
+LOGGER_NAME = "auto_indexer"
+COLORS = {
+    "created": "\033[0;32m",
+    "modified": "\033[0;33m",
+    "deleted": "\033[0;31m",
+    "error": "\033[1;95m",
+    "info": "\033[0m",
+    "default": "\033[0m",
+}
+LOG_LEVELS = {
+    "created": logging.INFO,
+    "modified": logging.INFO,
+    "deleted": logging.INFO,
+    "error": logging.ERROR,
+    "info": logging.INFO,
+}
+LOG_PREFIXES = {
+    "created": "[+]",
+    "modified": "[*]",
+    "deleted": "[-]",
+    "error": "[!]",
+    "info": "[·]",
+}
+
+def _get_logger():
+    logger = logging.getLogger(LOGGER_NAME)
+    if not logger.handlers:
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+    return logger
 
 def log(action, message):
-    if action == "created":
-        color = settings.LOG_COLORS["green"]
-        prefix = "[+]"
-    elif action == "modified":
-        color = settings.LOG_COLORS["yellow"]
-        prefix = "[*]"
-    elif action == "deleted":
-        color = settings.LOG_COLORS["red"]
-        prefix = "[-]"
-    elif action == "error":
-        color = settings.LOG_COLORS["pink"]
-        prefix = "[!]"
-    elif action == "info":
-        color = settings.LOG_COLORS["reset"]
-        prefix = "[·]"
-    else:
-        color = settings.LOG_COLORS["reset"]
-        prefix = "[*]"
-    print(f"{color}{prefix} {message}{settings.LOG_COLORS['reset']}")
+    logger = _get_logger()
+    level = LOG_LEVELS.get(action, logging.INFO)
+    prefix = LOG_PREFIXES.get(action, "[*]")
+    color = COLORS.get(action, COLORS["default"])
+    logger.log(level, f"{color}{prefix} {message}{RESET}\033[0m")

@@ -206,3 +206,4 @@ as shown in the quick start examples.
 - For local runs outside Docker, you can pass `--data-dir` to point to a writable path.
 - Shared constants live in `scripts/settings.py`.
 - Shared log helpers live in `scripts/log_utils.py`.
+- Indexer logs use Python's `logging` with `[+]`/`[*]` prefixes.
