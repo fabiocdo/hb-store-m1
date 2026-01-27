@@ -35,4 +35,4 @@ def log(action, message):
     level = LOG_LEVELS.get(action, logging.INFO)
     prefix = LOG_PREFIXES.get(action, "[*]")
     color = COLORS.get(action, COLORS["default"])
-    logger.log(level, f"{color}{prefix} {message}{RESET}\033[0m")
+    logger.log(level, f"{color}{prefix} {message}\033[0m")
