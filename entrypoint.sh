@@ -50,6 +50,7 @@ log_table() {
 format_value() {
   var="$1"
   value="$2"
+  is_default=""
   eval "is_default=\${${var}_IS_DEFAULT-}"
   if [ "$is_default" = "true" ]; then
     printf "%s %s(DEFAULT)%s" "$value" "$GRAY" "$RESET"
