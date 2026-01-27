@@ -4,7 +4,11 @@ set -e
 PKG_DIR="/data/pkg"
 MEDIA_DIR="/data/_media"
 CACHE_DIR="/data/_cache"
+BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 AUTO_GENERATE_JSON_PERIOD="${AUTO_GENERATE_JSON_PERIOD:-2}"
+AUTO_RENAME_PKGS="${AUTO_RENAME_PKGS:-false}"
+AUTO_RENAME_TEMPLATE="${AUTO_RENAME_TEMPLATE:-{title} [{titleid}][{apptype}]}"
+AUTO_RENAME_TITLE_MODE="${AUTO_RENAME_TITLE_MODE:-none}"
 GREEN="$(printf '\033[0;32m')"
 YELLOW="$(printf '\033[0;33m')"
 RED="$(printf '\033[0;31m')"
@@ -46,17 +50,29 @@ log() {
 generate() {
   log info "Generating index.json..."
   mkdir -p "$PKG_DIR" "$MEDIA_DIR" "$CACHE_DIR"
-  RUN_MODE=watch python3 /generate-index.py
+  run_index full
 }
 
 move_only() {
-  RUN_MODE=move python3 /generate-index.py
+  run_index move
   return $?
+}
+
+run_index() {
+  action="$1"
+  shift
+  set -- \
+    "$action" \
+    --base-url "$BASE_URL" \
+    --auto-rename-pkgs "$AUTO_RENAME_PKGS" \
+    --auto-rename-template "$AUTO_RENAME_TEMPLATE" \
+    --auto-rename-title-mode "$AUTO_RENAME_TITLE_MODE"
+  python3 /generate-index.py "$@"
 }
 
 # Initial generation
 mkdir -p "$PKG_DIR" "$MEDIA_DIR" "$CACHE_DIR"
-RUN_MODE=init python3 /generate-index.py
+run_index init
 
 # Automatic watcher
 if [ -d "$PKG_DIR" ]; then
