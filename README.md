@@ -203,7 +203,6 @@ as shown in the quick start examples.
 ## Developer notes
 
 - The indexer runs as `/scripts/auto_indexer.py` inside the container.
-- For local runs outside Docker, you can pass `--data-dir` to point to a writable path.
-- Shared constants live in `scripts/settings.py`.
+- Shared constants and paths live in `scripts/settings.py`.
 - Shared log helpers live in `scripts/log_utils.py`.
 - Indexer logs use Python's `logging` with `[+]`/`[*]` prefixes.

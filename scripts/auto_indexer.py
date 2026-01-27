@@ -13,16 +13,14 @@ from urllib.parse import quote
 import settings
 from log_utils import log
 
-DATA_DIR = pathlib.Path(settings.PATHS["default_data_dir"])
-PKG_DIR = DATA_DIR / "pkg"
-OUT = DATA_DIR / "index.json"
-MEDIA_DIR = DATA_DIR / "_media"
-CACHE_DIR = DATA_DIR / "_cache"
-CACHE_PATH = CACHE_DIR / "index-cache.json"
-APP_DIR = PKG_DIR / "app"
-
-APPTYPE_DIRS = settings.PKG["apptype_dirs"]
-PKGTOOL = settings.PATHS["default_pkgtool"]
+DATA_DIR = settings.DATA_DIR
+PKG_DIR = settings.PKG_DIR
+INDEX_PATH = settings.INDEX_PATH
+MEDIA_DIR = settings.MEDIA_DIR
+CACHE_DIR = settings.CACHE_DIR
+CACHE_PATH = settings.CACHE_PATH
+APP_DIR = settings.APP_DIR
+APPTYPE_PATHS = settings.APPTYPE_PATHS
 PKG_PASSCODE = None
 
 def parse_bool(value):
@@ -32,7 +30,6 @@ def parse_bool(value):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", default="/data")
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--auto-generate-json-period", required=True, type=float)
     parser.add_argument("--auto-rename-pkgs", required=True)
@@ -45,7 +42,6 @@ def parse_args():
     return parser.parse_args()
 
 def apply_args(args):
-    set_data_dir(args.data_dir)
     global BASE_URL
     global AUTO_GENERATE_JSON_PERIOD
     global AUTO_RENAME_PKGS
@@ -58,28 +54,11 @@ def apply_args(args):
     AUTO_RENAME_TEMPLATE = args.auto_rename_template
     AUTO_RENAME_TITLE_MODE = args.auto_rename_title_mode
 
-def set_data_dir(path_value):
-    global DATA_DIR
-    global PKG_DIR
-    global OUT
-    global MEDIA_DIR
-    global CACHE_DIR
-    global APP_DIR
-    global CACHE_PATH
-
-    DATA_DIR = pathlib.Path(path_value)
-    PKG_DIR = DATA_DIR / "pkg"
-    OUT = DATA_DIR / "index.json"
-    MEDIA_DIR = DATA_DIR / "_media"
-    CACHE_DIR = DATA_DIR / "_cache"
-    APP_DIR = PKG_DIR / "app"
-    CACHE_PATH = CACHE_DIR / "index-cache.json"
-
 def run_pkgtool(args):
     env = os.environ.copy()
-    env.setdefault(settings.DOTNET["globalization_env"], "1")
+    env.setdefault("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1")
     result = subprocess.run(
-        [PKGTOOL] + args,
+        ["/usr/local/bin/pkgtool"] + args,
         check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -289,8 +268,8 @@ def maybe_rename_pkg(pkg_path, title, titleid, apptype, region, version, categor
 
 def build_target_path(pkg_path, apptype, title, titleid, region, version, category, content_id, app_type):
     target_dir = pkg_path.parent
-    if apptype in APPTYPE_DIRS and apptype != "app" and APP_DIR not in pkg_path.parents:
-        target_dir = PKG_DIR / apptype
+    if apptype in APPTYPE_PATHS and apptype != "app" and APP_DIR not in pkg_path.parents:
+        target_dir = APPTYPE_PATHS[apptype]
     target_name = pkg_path.name
     if AUTO_RENAME_PKGS and titleid:
         target_name = render_rename(
@@ -308,16 +287,15 @@ def build_target_path(pkg_path, apptype, title, titleid, region, version, catego
         )
     return target_dir / target_name
 
-
 def ensure_pkg_location(pkg_path, apptype):
-    if apptype not in APPTYPE_DIRS:
+    if apptype not in APPTYPE_PATHS:
         return pkg_path
     if apptype == "app":
         return pkg_path
     if APP_DIR in pkg_path.parents:
         return pkg_path
     target_type = apptype
-    target_dir = PKG_DIR / target_type
+    target_dir = APPTYPE_PATHS[target_type]
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / pkg_path.name
 
@@ -503,7 +481,7 @@ def build_index(move_only):
     cache["pkgs"] = new_cache_pkgs
     save_cache(cache)
 
-    with open(OUT, "w") as f:
+    with open(INDEX_PATH, "w") as f:
         json.dump({"apps": apps}, f, indent=2)
 
     log("created", "Generated: index.json")
