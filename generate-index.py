@@ -408,26 +408,6 @@ def read_icon_bytes(pkg_path, icon_entry):
     except Exception:
         return None
 
-def ensure_base_dirs():
-    PKG_DIR.mkdir(parents=True, exist_ok=True)
-    MEDIA_DIR.mkdir(parents=True, exist_ok=True)
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-def init_layout():
-    for apptype_dir in APPTYPE_DIRS:
-        apptype_path = PKG_DIR / apptype_dir
-        if not apptype_path.exists():
-            apptype_path.mkdir(parents=True, exist_ok=True)
-            log("created", f"Created PKG directory {apptype_path}")
-    if not APP_DIR.exists():
-        APP_DIR.mkdir(parents=True, exist_ok=True)
-        log("created", f"Created PKG directory {APP_DIR}")
-
-    marker_path = PKG_DIR / "_PUT_YOUR_PKGS_HERE"
-    if not marker_path.exists():
-        marker_path.write_text("Place PKG files in this directory or its subfolders.\n")
-        log("created", f"Created marker file {marker_path}")
-
 def build_index(move_only):
     cache = load_cache()
     new_cache_pkgs = {}
@@ -636,8 +616,6 @@ def watch_pkg_dir():
 
 def main():
     apply_args(parse_args())
-    ensure_base_dirs()
-    init_layout()
     build_index(False)
     watch_pkg_dir()
     return 0

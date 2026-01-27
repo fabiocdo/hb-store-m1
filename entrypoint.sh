@@ -18,6 +18,11 @@ AUTO_RENAME_PKGS="${AUTO_RENAME_PKGS:-$DEFAULT_AUTO_RENAME_PKGS}"
 AUTO_RENAME_TEMPLATE="${AUTO_RENAME_TEMPLATE:-$DEFAULT_AUTO_RENAME_TEMPLATE}"
 AUTO_RENAME_TITLE_MODE="${AUTO_RENAME_TITLE_MODE:-$DEFAULT_AUTO_RENAME_TITLE_MODE}"
 
+DATA_DIR="/data"
+PKG_DIR="$DATA_DIR/pkg"
+MEDIA_DIR="$DATA_DIR/_media"
+CACHE_DIR="$DATA_DIR/_cache"
+
 log() {
   printf "%s\n" "$*"
 }
@@ -28,6 +33,14 @@ clear_console(){
 
 log_table() {
   printf "    %-28s %s\n" "$1" "$2"
+}
+
+initialize_dir(){
+  mkdir -p "$PKG_DIR/game" "$PKG_DIR/dlc" "$PKG_DIR/update" "$PKG_DIR/app" "$MEDIA_DIR" "$CACHE_DIR"
+  marker_path="$PKG_DIR/_PUT_YOUR_PKGS_HERE"
+  if [ ! -f "$marker_path" ]; then
+    printf "%s\n" "Place PKG files in this directory or its subfolders." > "$marker_path"
+  fi
 }
 
 hostport="${BASE_URL#*://}"
@@ -51,6 +64,8 @@ log_table "AUTO_RENAME_PKGS" "$AUTO_RENAME_PKGS"
 log_table "AUTO_RENAME_TEMPLATE" "$AUTO_RENAME_TEMPLATE"
 log_table "AUTO_RENAME_TITLE_MODE" "$AUTO_RENAME_TITLE_MODE"
 log ""
+
+initialize_dir
 
 exec python3 -u /generate-index.py \
   --base-url "$BASE_URL" \
