@@ -4,8 +4,8 @@ LOGGER = logging.getLogger()
 COLORS = {
     "created": "\033[0;32m",
     "modified": "\033[0;33m",
-    "deleted": "\033[0;91m",
-    "error": "\033[1;95m",
+    "deleted": "\033[0;33m",
+    "error": "\033[1;35m",
     "info": "\033[0m",
     "default": "\033[0m",
 }
