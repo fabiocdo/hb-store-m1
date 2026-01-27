@@ -36,10 +36,23 @@ log_table() {
 }
 
 initialize_dir(){
-  mkdir -p "$PKG_DIR/game" "$PKG_DIR/dlc" "$PKG_DIR/update" "$PKG_DIR/app" "$MEDIA_DIR" "$CACHE_DIR"
+  create_path "$PKG_DIR/game"
+  create_path "$PKG_DIR/dlc"
+  create_path "$PKG_DIR/update"
+  create_path "$PKG_DIR/app"
+  create_path "$MEDIA_DIR"
+  create_path "$CACHE_DIR"
   marker_path="$PKG_DIR/_PUT_YOUR_PKGS_HERE"
   if [ ! -f "$marker_path" ]; then
     printf "%s\n" "Place PKG files in this directory or its subfolders." > "$marker_path"
+    log "[·] Initialized marker at $marker_path"
+  fi
+}
+
+create_path() {
+  if [ ! -d "$1" ]; then
+    mkdir -p "$1"
+    log "[·] Initialized directory at $1"
   fi
 }
 
