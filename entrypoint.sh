@@ -4,20 +4,30 @@ set -e
 TERM="${TERM:-xterm}"
 export TERM
 
-## DEFAULT ENVIRONMENT VARIABLES
+# DEFAULT ENVIRONMENT VARIABLES
 DEFAULT_BASE_URL="http://127.0.0.1:8080"
 DEFAULT_AUTO_GENERATE_JSON_PERIOD=2
 DEFAULT_AUTO_RENAME_PKGS="false"
 DEFAULT_AUTO_RENAME_TEMPLATE="{title} [{titleid}][{apptype}]"
 DEFAULT_AUTO_RENAME_TITLE_MODE="none"
 
-## ENVIRONMENT VARIABLES
-BASE_URL="${BASE_URL:-$DEFAULT_BASE_URL}"
-AUTO_GENERATE_JSON_PERIOD="${AUTO_GENERATE_JSON_PERIOD:-$DEFAULT_AUTO_GENERATE_JSON_PERIOD}"
-AUTO_RENAME_PKGS="${AUTO_RENAME_PKGS:-$DEFAULT_AUTO_RENAME_PKGS}"
-AUTO_RENAME_TEMPLATE="${AUTO_RENAME_TEMPLATE:-$DEFAULT_AUTO_RENAME_TEMPLATE}"
-AUTO_RENAME_TITLE_MODE="${AUTO_RENAME_TITLE_MODE:-$DEFAULT_AUTO_RENAME_TITLE_MODE}"
+# ENVIRONMENT VARIABLES
+use_default_if_unset() {
+  var="$1"
+  eval "isset=\${$var+x}"
+  if [ -z "$isset" ]; then
+    eval "$var=\$2"
+    eval "${var}_IS_DEFAULT=true"
+  fi
+}
 
+use_default_if_unset BASE_URL "$DEFAULT_BASE_URL"
+use_default_if_unset AUTO_GENERATE_JSON_PERIOD "$DEFAULT_AUTO_GENERATE_JSON_PERIOD"
+use_default_if_unset AUTO_RENAME_PKGS "$DEFAULT_AUTO_RENAME_PKGS"
+use_default_if_unset AUTO_RENAME_TEMPLATE "$DEFAULT_AUTO_RENAME_TEMPLATE"
+use_default_if_unset AUTO_RENAME_TITLE_MODE "$DEFAULT_AUTO_RENAME_TITLE_MODE"
+
+# CDN PATHs
 DATA_DIR="/data"
 PKG_DIR="$DATA_DIR/pkg"
 MEDIA_DIR="$DATA_DIR/_media"
@@ -35,8 +45,19 @@ log_table() {
   printf "    %-28s %s\n" "$1" "$2"
 }
 
+format_value() {
+  var="$1"
+  value="$2"
+  eval "is_default=\${${var}_IS_DEFAULT-}"
+  if [ "$is_default" = "true" ]; then
+    printf "%s (DEFAULT)" "$value"
+  else
+    printf "%s" "$value"
+  fi
+}
+
 initialize_dir(){
-  log "[·] Initializing directories..."
+  log "[·] Initializing directories and files..."
   initialized_any="false"
   create_path "$PKG_DIR/game" "game/" "$PKG_DIR/"
   create_path "$PKG_DIR/dlc" "dlc/" "$PKG_DIR/"
@@ -81,15 +102,15 @@ fi
 clear_console
 log "[·] Starting NGINX..."
 nginx
-log "[·] NGINX is running on ${host}:${port}."
+log "[·] NGINX is running on ${host}:${port}"
 
 log ""
 log "[·] Starting Auto Indexer with settings:"
-log_table "SERVER URL" "$BASE_URL"
-log_table "AUTO_GENERATE_JSON_PERIOD" "$AUTO_GENERATE_JSON_PERIOD"
-log_table "AUTO_RENAME_PKGS" "$AUTO_RENAME_PKGS"
-log_table "AUTO_RENAME_TEMPLATE" "$AUTO_RENAME_TEMPLATE"
-log_table "AUTO_RENAME_TITLE_MODE" "$AUTO_RENAME_TITLE_MODE"
+log_table "SERVER URL" "$(format_value BASE_URL "$BASE_URL")"
+log_table "AUTO_GENERATE_JSON_PERIOD" "$(format_value AUTO_GENERATE_JSON_PERIOD "$AUTO_GENERATE_JSON_PERIOD")"
+log_table "AUTO_RENAME_PKGS" "$(format_value AUTO_RENAME_PKGS "$AUTO_RENAME_PKGS")"
+log_table "AUTO_RENAME_TEMPLATE" "$(format_value AUTO_RENAME_TEMPLATE "$AUTO_RENAME_TEMPLATE")"
+log_table "AUTO_RENAME_TITLE_MODE" "$(format_value AUTO_RENAME_TITLE_MODE "$AUTO_RENAME_TITLE_MODE")"
 log ""
 
 initialize_dir
