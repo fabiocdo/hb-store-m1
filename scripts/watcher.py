@@ -93,6 +93,7 @@ def start():
     last_moved_from = {}
     module_touched_at = {}
     module_suppression_seconds = 5.0
+    move_event_suppression_seconds = 10.0
 
     def run_automations(events=None):
         initial_run = events is None
@@ -136,11 +137,17 @@ def start():
                     continue
                 if "CLOSE_WRITE" in events:
                     last_moved = last_moved_to.get(path)
-                    if last_moved is not None and (time.monotonic() - last_moved) < 2.0:
+                    if (
+                        last_moved is not None
+                        and (time.monotonic() - last_moved) < move_event_suppression_seconds
+                    ):
                         continue
                 if "MOVED_FROM" in events:
                     last_moved = last_moved_to.get(path)
-                    if last_moved is not None and (time.monotonic() - last_moved) < 2.0:
+                    if (
+                        last_moved is not None
+                        and (time.monotonic() - last_moved) < move_event_suppression_seconds
+                    ):
                         continue
                 filtered_events.append((path, event_str))
 

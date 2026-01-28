@@ -121,4 +121,6 @@ def run(pkgs):
         if icon_extracted:
             message = f"{message}; extracted {icon_extracted} icon(s)"
         log("info", message, module="AUTO_INDEXER")
+    else:
+        log("info", "No changes detected", module="AUTO_INDEXER")
     return 0
