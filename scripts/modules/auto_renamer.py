@@ -148,18 +148,13 @@ def apply(dry_result):
         settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
         conflict_dir = settings.DATA_DIR / "_errors"
         conflict_dir.mkdir(parents=True, exist_ok=True)
-        suffix = "_conflict"
-        if base.suffix:
-            stem = base.stem + suffix
-            candidate = conflict_dir / f"{stem}{base.suffix}"
-        else:
-            candidate = conflict_dir / f"{base.name}{suffix}"
+        candidate = conflict_dir / base.name
         counter = 1
         while candidate.exists():
             if base.suffix:
-                candidate = conflict_dir / f"{base.stem}{suffix}_{counter}{base.suffix}"
+                candidate = conflict_dir / f"{base.stem}_{counter}{base.suffix}"
             else:
-                candidate = conflict_dir / f"{base.name}{suffix}_{counter}"
+                candidate = conflict_dir / f"{base.name}_{counter}"
             counter += 1
         try:
             base.rename(candidate)
@@ -196,7 +191,7 @@ def apply(dry_result):
             touched_paths.extend([source, str(target)])
             log(
                 "warn",
-                "Quarantined file due to name conflict",
+                f"Moved file with error to {settings.DATA_DIR / '_errors'}",
                 module="AUTO_RENAMER",
             )
     return {"renamed": renamed, "touched_paths": touched_paths, "quarantined_paths": quarantined}
