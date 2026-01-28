@@ -9,8 +9,10 @@ def run(pkgs):
     renamed = []
     planned = {}
     blocked = set()
+    blocked_sources = set()
     conflicted = set()
     excluded_dirs = set()
+    excluded_sources = set()
     if settings.AUTO_RENAMER_EXCLUDED_DIRS:
         parts = [part.strip() for part in settings.AUTO_RENAMER_EXCLUDED_DIRS.split(",")]
         excluded_dirs = {part for part in parts if part}
@@ -83,9 +85,11 @@ def run(pkgs):
             continue
         if is_excluded(source_path):
             log("debug", f"Skipping rename; source excluded: {source_path}", module="AUTO_RENAMER")
+            excluded_sources.add(source_path)
             continue
         if is_excluded(target_path):
             log("debug", f"Skipping rename; target excluded: {target_path}", module="AUTO_RENAMER")
+            excluded_sources.add(source_path)
             continue
         apptype = data.get("apptype")
         apptype_dir = settings.APPTYPE_PATHS.get(apptype) if apptype else None
@@ -93,19 +97,24 @@ def run(pkgs):
             apptype_target = apptype_dir / target_path.name
             if apptype_target.exists():
                 blocked.add(apptype_target)
+                blocked_sources.add(source_path)
                 continue
         if apptype_dir and is_excluded(apptype_dir):
             log("debug", f"Skipping rename; apptype dir excluded: {apptype_dir}", module="AUTO_RENAMER")
+            excluded_sources.add(source_path)
         if target_path.exists():
             blocked.add(target_path)
+            blocked_sources.add(source_path)
             continue
         planned.setdefault(target_path, []).append(source_path)
 
     for target_path, sources in planned.items():
         if target_path in blocked:
+            blocked_sources.update(sources)
             continue
         if len(sources) > 1:
             conflicted.add(target_path)
+            blocked_sources.update(sources)
             continue
         source_path = sources[0]
         try:
@@ -136,4 +145,8 @@ def run(pkgs):
     touched_paths = []
     for old_path, new_path in renamed:
         touched_paths.extend([str(old_path), str(new_path)])
-    return {"renamed": renamed, "touched_paths": touched_paths}
+    return {
+        "renamed": renamed,
+        "touched_paths": touched_paths,
+        "blocked_sources": list(blocked_sources | excluded_sources),
+    }

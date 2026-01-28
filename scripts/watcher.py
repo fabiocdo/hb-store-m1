@@ -127,12 +127,16 @@ def start():
         touched_paths = []
         renamer_excluded = parse_excluded(settings.AUTO_RENAMER_EXCLUDED_DIRS)
         mover_excluded = parse_excluded(settings.AUTO_MOVER_EXCLUDED_DIRS)
+        blocked_sources = set()
         if settings.AUTO_RENAMER_ENABLED:
             eligible = filter_pkgs(pkgs, renamer_excluded, respect_apptype=True)
             result = run_renamer(eligible)
             touched_paths.extend(result.get("touched_paths", []))
+            blocked_sources.update(result.get("blocked_sources", []))
             pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         if settings.AUTO_MOVER_ENABLED:
+            if blocked_sources:
+                pkgs = [(pkg, data) for pkg, data in pkgs if str(pkg) not in blocked_sources]
             eligible = filter_pkgs(pkgs, mover_excluded, respect_apptype=True)
             result = run_mover(eligible)
             touched_paths.extend(result.get("touched_paths", []))
