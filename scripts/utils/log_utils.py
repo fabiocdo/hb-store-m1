@@ -27,6 +27,7 @@ LOG_PREFIXES = {
 if not LOGGER.handlers:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
+
 def log(action, message):
     level = LOG_LEVELS.get(action, logging.INFO)
     prefix = LOG_PREFIXES.get(action, "[*]")

@@ -1,5 +1,6 @@
 import pathlib
 
+# Constants
 DATA_DIR = pathlib.Path("/data")
 
 PKG_DIR = DATA_DIR / "pkg"
@@ -20,3 +21,10 @@ APPTYPE_PATHS = {
 
 INDEX_PATH = DATA_DIR / "index.json"
 CACHE_PATH = CACHE_DIR / "index-cache.json"
+
+# Runtime config (set by auto_indexer.py)
+BASE_URL = None
+AUTO_GENERATE_JSON_PERIOD = None
+AUTO_RENAME_PKGS = None
+AUTO_RENAME_TEMPLATE = None
+AUTO_RENAME_TITLE_MODE = None

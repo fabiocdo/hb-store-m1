@@ -118,6 +118,7 @@ The host directory mapped to `/data` must follow this layout:
 ```
 
 Notes:
+
 - `index.json` and `_media/*.png` are generated automatically.
 - The tool ignores any PKG located inside folders that start with `_`.
 - The `_PUT_YOUR_PKGS_HERE` file is a marker created on container startup.
@@ -160,6 +161,7 @@ Example entry:
 ```
 
 Fields:
+
 - `id`, `name`, `version`: extracted from `param.sfo`, fallback to filename.
 - `apptype`: derived from `CATEGORY` or forced to `app` for `pkg/app`.
 - `pkg`, `icon`: URLs built from `BASE_URL`.
@@ -168,20 +170,20 @@ Fields:
 
 ## Environment variables
 
-| Variable | Description | Default                 |
-| --- | --- |-------------------------|
-| `BASE_URL` | Base URL written in `index.json`. | `http://127.0.0.1:8080` |
-| `CDN_DATA_DIR` | Host path mapped to `/data`. | `./data`                |
-| `AUTO_GENERATE_JSON_PERIOD` | Delay (seconds) before regenerating `index.json` after changes. | `2`                     |
-| `AUTO_RENAME_PKGS` | Enable PKG rename using `AUTO_RENAME_TEMPLATE`. | `false` |
-| `AUTO_RENAME_TEMPLATE` | Template using `{title}`, `{titleid}`, `{region}`, `{apptype}`, `{version}`, `{category}`, `{content_id}`, `{app_type}`. | `{title} [{titleid}][{apptype}]` |
-| `AUTO_RENAME_TITLE_MODE` | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`. | `none` |
+| Variable                    | Description                                                                                                              | Default                          |
+|-----------------------------|--------------------------------------------------------------------------------------------------------------------------|----------------------------------|
+| `BASE_URL`                  | Base URL written in `index.json`.                                                                                        | `http://127.0.0.1:8080`          |
+| `CDN_DATA_DIR`              | Host path mapped to `/data`.                                                                                             | `./data`                         |
+| `AUTO_GENERATE_JSON_PERIOD` | Delay (seconds) before regenerating `index.json` after changes.                                                          | `2`                              |
+| `AUTO_RENAME_PKGS`          | Enable PKG rename using `AUTO_RENAME_TEMPLATE`.                                                                          | `false`                          |
+| `AUTO_RENAME_TEMPLATE`      | Template using `{title}`, `{titleid}`, `{region}`, `{apptype}`, `{version}`, `{category}`, `{content_id}`, `{app_type}`. | `{title} [{titleid}][{apptype}]` |
+| `AUTO_RENAME_TITLE_MODE`    | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
 
 ## Volume config
 
-| Volume | Description | Default |
-| --- | --- | --- |
-| `./data:/data` | Host data directory mapped to `/data`. | `./data` |
+| Volume                                  | Description                              | Default        |
+|-----------------------------------------|------------------------------------------|----------------|
+| `./data:/data`                          | Host data directory mapped to `/data`.   | `./data`       |
 | `./nginx.conf:/etc/nginx/nginx.conf:ro` | External Nginx config mounted read-only. | `./nginx.conf` |
 
 ## Nginx behavior
@@ -189,7 +191,7 @@ Fields:
 - Serves `/data` directly.
 - Adds cache headers for `.pkg`, `.zip`, and image files.
 - Supports HTTP range requests for large downloads.
-  
+
 If you want to provide your own `nginx.conf`, mount it to `/etc/nginx/nginx.conf:ro`
 as shown in the quick start examples.
 
@@ -198,11 +200,15 @@ as shown in the quick start examples.
 - If a PKG is encrypted, `pkgtool` may fail to read `param.sfo`.
   In that case, the entry still appears in `index.json` using the filename.
 - If icons are missing, ensure the PKG contains `ICON0_PNG` or `PIC0_PNG`.
-- If you see `Duplicate target exists, skipping`, the cycle will not regenerate `index.json` until the conflict is resolved.
+- If you see `Duplicate target exists, skipping`, the cycle will not regenerate `index.json` until the conflict is
+  resolved.
 
 ## Developer notes
 
 - The indexer runs as `/scripts/auto_indexer.py` inside the container.
 - Shared constants and paths live in `scripts/settings.py`.
-- Shared log helpers live in `scripts/log_utils.py`.
+- Shared log helpers live in `scripts/utils/log_utils.py`.
+- Indexer internals are split into `scripts/index_builder.py`, `scripts/utils/pkgtool_utils.py`,
+  `scripts/utils/rename_utils.py`, `scripts/utils/parse_utils.py`, and `scripts/watcher.py`.
+- Runtime indexer config is stored in `scripts/settings.py`.
 - Indexer logs use Python's `logging` with `[+]`/`[*]` prefixes.
