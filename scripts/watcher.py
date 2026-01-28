@@ -90,8 +90,6 @@ def watch(on_change):
             if last_moved_from:
                 log("modified", f"Moved: {last_moved_from} -> {path}")
                 last_moved_from = ""
-            else:
-                log("modified", f"Moved: {path}")
             on_change(schedule_index=True)
             continue
         if "CREATE" in events or "DELETE" in events:

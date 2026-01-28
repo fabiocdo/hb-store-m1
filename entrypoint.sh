@@ -50,7 +50,7 @@ clear_console(){
 }
 
 log_table() {
-  printf "    %-28s %s\n" "$1" "$2"
+  printf "    %-38s %s\n" "$1" "$2"
 }
 
 format_value() {
