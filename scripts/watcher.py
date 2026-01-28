@@ -104,8 +104,31 @@ def start():
 
         if manual_events:
             allowed_exts = {".pkg", ".png"}
-            if not any(path.lower().endswith(tuple(allowed_exts)) for path, _ in manual_events):
+            relevant_events = []
+            moved_to_paths = set()
+            for path, event_str in manual_events:
+                if not path.lower().endswith(tuple(allowed_exts)):
+                    continue
+                events = {item.strip() for item in event_str.split(",") if item.strip()}
+                if "MOVED_FROM" in events:
+                    continue
+                if "MOVED_TO" in events:
+                    moved_to_paths.add(path)
+                relevant_events.append((path, event_str))
+
+            if not relevant_events:
                 return
+
+            filtered_events = []
+            for path, event_str in relevant_events:
+                events = {item.strip() for item in event_str.split(",") if item.strip()}
+                if "CLOSE_WRITE" in events and path in moved_to_paths:
+                    continue
+                filtered_events.append((path, event_str))
+
+            if not filtered_events:
+                return
+            manual_events = filtered_events
         pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         touched_paths = []
         blocked_sources = set()

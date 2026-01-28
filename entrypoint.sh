@@ -44,7 +44,7 @@ MEDIA_DIR="$DATA_DIR/_media"
 CACHE_DIR="$DATA_DIR/_cache"
 
 log() {
-  printf "%s %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
+  printf "[entrypoint.sh] %s %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
 }
 
 clear_console(){
@@ -68,7 +68,7 @@ format_value() {
 }
 
 initialize_dir(){
-  log "[·] Initializing directories and files..."
+  log "Initializing directories and files..."
   initialized_any="false"
   create_path "$PKG_DIR/game" "game/" "$PKG_DIR/"
   create_path "$PKG_DIR/dlc" "dlc/" "$PKG_DIR/"
@@ -79,11 +79,11 @@ initialize_dir(){
   marker_path="$PKG_DIR/_PUT_YOUR_PKGS_HERE"
   if [ ! -f "$marker_path" ]; then
     printf "%s\n" "Place PKG files in this directory or its subfolders." > "$marker_path"
-    log "[·] Initialized _PUT_YOUR_PKGS_HERE marker at $PKG_DIR/"
+    log "Initialized _PUT_YOUR_PKGS_HERE marker at $PKG_DIR/"
     initialized_any="true"
   fi
   if [ "$initialized_any" != "true" ]; then
-    log "[·] Great! Nothing to initialize!"
+    log "Great! Nothing to initialize!"
   fi
 }
 
@@ -94,9 +94,9 @@ create_path() {
   if [ ! -d "$target" ]; then
     mkdir -p "$target"
     if [ -n "$label" ] && [ -n "$root" ]; then
-      log "[·] Initialized ${label} directory at ${root}"
+      log "Initialized ${label} directory at ${root}"
     else
-      log "[·] Initialized directory at $target"
+      log "Initialized directory at $target"
     fi
     initialized_any="true"
   fi
@@ -111,12 +111,12 @@ if [ "$host" = "$hostport" ]; then
 fi
 
 clear_console
-log "[·] Starting NGINX..."
+log "Starting NGINX..."
 nginx
-log "[·] NGINX is running on ${host}:${port}"
+log "NGINX is running on ${host}:${port}"
 
 log ""
-log "[·] Starting Auto Indexer with settings:"
+log "Starting Auto Indexer with settings:"
 log_table "BASE_URL" "$(format_value BASE_URL "$BASE_URL")"
 log_table "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
 log_table "AUTO_INDEXER_ENABLED" "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")"
@@ -144,5 +144,5 @@ if [ "$PKG_WATCHER_ENABLED" = "true" ]; then
     --auto-mover-enabled "$AUTO_MOVER_ENABLED" \
     --auto-mover-excluded-dirs "$AUTO_MOVER_EXCLUDED_DIRS"
 fi
-log "[·] PKG watcher is disabled."
+log "PKG watcher is disabled."
 exec tail -f /dev/null
