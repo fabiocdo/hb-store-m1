@@ -73,6 +73,7 @@ def watch(on_change):
     if process.stdout is None:
         return
 
+    last_moved_to = {}
     for line in process.stdout:
         line = line.strip()
         if not line:
@@ -114,6 +115,7 @@ def start():
                     continue
                 if "MOVED_TO" in events:
                     moved_to_paths.add(path)
+                    last_moved_to[path] = time.monotonic()
                 relevant_events.append((path, event_str))
 
             if not relevant_events:
@@ -124,6 +126,10 @@ def start():
                 events = {item.strip() for item in event_str.split(",") if item.strip()}
                 if "CLOSE_WRITE" in events and path in moved_to_paths:
                     continue
+                if "CLOSE_WRITE" in events:
+                    last_moved = last_moved_to.get(path)
+                    if last_moved is not None and (time.monotonic() - last_moved) < 2.0:
+                        continue
                 filtered_events.append((path, event_str))
 
             if not filtered_events:
