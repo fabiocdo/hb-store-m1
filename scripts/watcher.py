@@ -90,6 +90,7 @@ def start():
     """Entry point for the indexer watcher."""
     parse_settings()
     last_moved_to = {}
+    last_moved_from = {}
     module_touched_at = {}
     module_suppression_seconds = 5.0
 
@@ -119,7 +120,7 @@ def start():
                     continue
                 events = {item.strip() for item in event_str.split(",") if item.strip()}
                 if "MOVED_FROM" in events:
-                    continue
+                    last_moved_from[path] = time.monotonic()
                 if "MOVED_TO" in events:
                     moved_to_paths.add(path)
                     last_moved_to[path] = time.monotonic()
@@ -134,6 +135,10 @@ def start():
                 if "CLOSE_WRITE" in events and path in moved_to_paths:
                     continue
                 if "CLOSE_WRITE" in events:
+                    last_moved = last_moved_to.get(path)
+                    if last_moved is not None and (time.monotonic() - last_moved) < 2.0:
+                        continue
+                if "MOVED_FROM" in events:
                     last_moved = last_moved_to.get(path)
                     if last_moved is not None and (time.monotonic() - last_moved) < 2.0:
                         continue
