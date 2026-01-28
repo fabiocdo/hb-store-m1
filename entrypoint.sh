@@ -74,7 +74,7 @@ strip_ansi() {
   printf "%s" "$1" | sed 's/\x1B\[[0-9;]*m//g'
 }
 
-format_kv() {
+format_kv_plain() {
   key="$1"
   value="$2"
   key_pad=$((BOX_KEY_WIDTH - ${#key}))
@@ -82,6 +82,17 @@ format_kv() {
     key_pad=1
   fi
   printf "%s%*s%s" "$key" "$key_pad" "" "$value"
+}
+
+format_kv_colored() {
+  key_plain="$1"
+  key_display="$2"
+  value_display="$3"
+  key_pad=$((BOX_KEY_WIDTH - ${#key_plain}))
+  if [ "$key_pad" -lt 1 ]; then
+    key_pad=1
+  fi
+  printf "%s%*s%s" "$key_display" "$key_pad" "" "$value_display"
 }
 
 box_border() {
@@ -101,40 +112,61 @@ box_line() {
 build_content_lines_plain() {
   echo "HOMEBREW-STORE-CDN"
   echo ""
-  echo "$(format_kv "BASE_URL" "$(format_value BASE_URL "$BASE_URL")")"
-  echo "$(format_kv "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")")"
+  echo "$(format_kv_plain "BASE_URL" "$(format_value BASE_URL "$BASE_URL")")"
+  echo "$(format_kv_plain "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")")"
   echo ""
-  echo "$(format_kv "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")")"
+  echo "$(format_kv_plain "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")")"
   echo ""
-  echo "$(format_kv "AUTO_INDEXER_ENABLED" "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")")"
+  echo "$(format_kv_plain "AUTO_INDEXER_ENABLED" "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")")"
   echo ""
-  echo "$(format_kv "AUTO_RENAMER_ENABLED" "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")")"
-  echo "$(format_kv "AUTO_RENAMER_MODE" "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")")"
-  echo "$(format_kv "AUTO_RENAMER_TEMPLATE" "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")")"
-  echo "$(format_kv "AUTO_RENAMER_EXCLUDED_DIRS" "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")")"
+  echo "$(format_kv_plain "AUTO_RENAMER_ENABLED" "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")")"
+  echo "$(format_kv_plain "AUTO_RENAMER_MODE" "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")")"
+  echo "$(format_kv_plain "AUTO_RENAMER_TEMPLATE" "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")")"
+  echo "$(format_kv_plain "AUTO_RENAMER_EXCLUDED_DIRS" "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")")"
   echo ""
-  echo "$(format_kv "AUTO_MOVER_ENABLED" "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")")"
-  echo "$(format_kv "AUTO_MOVER_EXCLUDED_DIRS" "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")")"
+  echo "$(format_kv_plain "AUTO_MOVER_ENABLED" "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")")"
+  echo "$(format_kv_plain "AUTO_MOVER_EXCLUDED_DIRS" "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")")"
   echo ""
 }
 
 build_content_lines_colored() {
   echo "HOMEBREW-STORE-CDN"
   echo ""
-  echo "$(format_kv "BASE_URL" "$(format_value BASE_URL "$BASE_URL")")"
-  echo "$(format_kv "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")")"
+  echo "$(format_kv_plain "BASE_URL" "$(format_value BASE_URL "$BASE_URL")")"
+  echo "$(format_kv_plain "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")")"
   echo ""
-  echo "$(format_kv "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")")"
+  echo "$(format_kv_plain "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")")"
   echo ""
-  echo "$(format_kv "$(color_value "AUTO_INDEXER_ENABLED" "\033[0;92m")" "$(color_value "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "\033[0;92m")")"
+  echo "$(format_kv_colored \
+    "AUTO_INDEXER_ENABLED" \
+    "$(color_value "AUTO_INDEXER_ENABLED" "\033[0;92m")" \
+    "$(color_value "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "\033[0;92m")")"
   echo ""
-  echo "$(format_kv "$(color_value "AUTO_RENAMER_ENABLED" "\033[1;94m")" "$(color_value "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")" "\033[1;94m")")"
-  echo "$(format_kv "$(color_value "AUTO_RENAMER_MODE" "\033[1;94m")" "$(color_value "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")" "\033[1;94m")")"
-  echo "$(format_kv "$(color_value "AUTO_RENAMER_TEMPLATE" "\033[1;94m")" "$(color_value "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "\033[1;94m")")"
-  echo "$(format_kv "$(color_value "AUTO_RENAMER_EXCLUDED_DIRS" "\033[1;94m")" "$(color_value "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "\033[1;94m")")"
+  echo "$(format_kv_colored \
+    "AUTO_RENAMER_ENABLED" \
+    "$(color_value "AUTO_RENAMER_ENABLED" "\033[1;94m")" \
+    "$(color_value "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")" "\033[1;94m")")"
+  echo "$(format_kv_colored \
+    "AUTO_RENAMER_MODE" \
+    "$(color_value "AUTO_RENAMER_MODE" "\033[1;94m")" \
+    "$(color_value "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")" "\033[1;94m")")"
+  echo "$(format_kv_colored \
+    "AUTO_RENAMER_TEMPLATE" \
+    "$(color_value "AUTO_RENAMER_TEMPLATE" "\033[1;94m")" \
+    "$(color_value "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "\033[1;94m")")"
+  echo "$(format_kv_colored \
+    "AUTO_RENAMER_EXCLUDED_DIRS" \
+    "$(color_value "AUTO_RENAMER_EXCLUDED_DIRS" "\033[1;94m")" \
+    "$(color_value "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "\033[1;94m")")"
   echo ""
-  echo "$(format_kv "$(color_value "AUTO_MOVER_ENABLED" "\033[1;94m")" "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[1;94m")")"
-  echo "$(format_kv "$(color_value "AUTO_MOVER_EXCLUDED_DIRS" "\033[1;94m")" "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[1;94m")")"
+  echo "$(format_kv_colored \
+    "AUTO_MOVER_ENABLED" \
+    "$(color_value "AUTO_MOVER_ENABLED" "\033[1;94m")" \
+    "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[1;94m")")"
+  echo "$(format_kv_colored \
+    "AUTO_MOVER_EXCLUDED_DIRS" \
+    "$(color_value "AUTO_MOVER_EXCLUDED_DIRS" "\033[1;94m")" \
+    "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[1;94m")")"
   echo ""
 }
 
@@ -183,12 +215,18 @@ if [ "$host" = "$hostport" ]; then
 fi
 
 clear_console
-log "Starting NGINX..."
-nginx
-log "NGINX is running on ${host}:${port}"
-
-log ""
-BOX_KEY_WIDTH=28
+BOX_KEY_WIDTH=$(printf "%s\n" \
+  "BASE_URL" \
+  "LOG_LEVEL" \
+  "PKG_WATCHER_ENABLED" \
+  "AUTO_INDEXER_ENABLED" \
+  "AUTO_RENAMER_ENABLED" \
+  "AUTO_RENAMER_MODE" \
+  "AUTO_RENAMER_TEMPLATE" \
+  "AUTO_RENAMER_EXCLUDED_DIRS" \
+  "AUTO_MOVER_ENABLED" \
+  "AUTO_MOVER_EXCLUDED_DIRS" \
+  | awk '{ if (length($0) > max) max = length($0) } END { print max + 2 }')
 BOX_CONTENT_WIDTH=$(build_content_lines_plain | awk '{ if (length($0) > max) max = length($0) } END { print max + 0 }')
 BOX_WIDTH=$((BOX_CONTENT_WIDTH + 6))
 box_border
@@ -197,6 +235,10 @@ build_content_lines_colored | while IFS= read -r line; do
 done
 box_border
 log ""
+
+log "Starting NGINX..."
+nginx
+log "NGINX is running on ${host}:${port}"
 
 initialize_dir
 
