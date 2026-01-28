@@ -87,6 +87,30 @@ def start():
     """Entry point for the indexer watcher."""
     parse_settings()
 
+    def parse_excluded(value):
+        if not value:
+            return set()
+        parts = [part.strip() for part in value.split(",")]
+        return {part for part in parts if part}
+
+    def is_excluded(path, excluded_dirs):
+        return any(part in excluded_dirs for part in path.parts)
+
+    def filter_pkgs(pkgs, excluded_dirs, respect_apptype=False):
+        if not excluded_dirs:
+            return pkgs
+        filtered = []
+        for pkg, data in pkgs:
+            if is_excluded(pkg, excluded_dirs):
+                continue
+            if respect_apptype:
+                apptype = data.get("apptype")
+                apptype_dir = settings.APPTYPE_PATHS.get(apptype) if apptype else None
+                if apptype_dir and is_excluded(apptype_dir, excluded_dirs):
+                    continue
+            filtered.append((pkg, data))
+        return filtered
+
     def run_automations(events=None):
         initial_run = events is None
         manual_events = []
@@ -101,12 +125,16 @@ def start():
             return
         pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         touched_paths = []
+        renamer_excluded = parse_excluded(settings.AUTO_RENAMER_EXCLUDED_DIRS)
+        mover_excluded = parse_excluded(settings.AUTO_MOVER_EXCLUDED_DIRS)
         if settings.AUTO_RENAMER_ENABLED:
-            result = run_renamer(pkgs)
+            eligible = filter_pkgs(pkgs, renamer_excluded, respect_apptype=True)
+            result = run_renamer(eligible)
             touched_paths.extend(result.get("touched_paths", []))
             pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         if settings.AUTO_MOVER_ENABLED:
-            result = run_mover(pkgs)
+            eligible = filter_pkgs(pkgs, mover_excluded, respect_apptype=True)
+            result = run_mover(eligible)
             touched_paths.extend(result.get("touched_paths", []))
             pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         if settings.AUTO_INDEXER_ENABLED:
