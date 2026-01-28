@@ -14,21 +14,24 @@ def run(pkgs):
     if settings.AUTO_MOVER_EXCLUDED_DIRS:
         parts = [part.strip() for part in settings.AUTO_MOVER_EXCLUDED_DIRS.split(",")]
         excluded = {part for part in parts if part}
+
+    def is_excluded(path):
+        return any(part in excluded for part in path.parts)
     for pkg, data in pkgs:
         apptype = data.get("apptype")
         if apptype not in settings.APPTYPE_PATHS:
             continue
-        if apptype == "app":
-            continue
-        if settings.APP_DIR in pkg.parents:
-            continue
-        if any(part in excluded for part in pkg.parts):
+        if is_excluded(pkg):
+            log("debug", f"Skipping move; source excluded: {pkg}", module="AUTO_MOVER")
             continue
         target_dir = settings.APPTYPE_PATHS[apptype]
         target_dir.mkdir(parents=True, exist_ok=True)
         target_path = target_dir / pkg.name
 
         if pkg.resolve() == target_path.resolve():
+            continue
+        if is_excluded(target_path):
+            log("debug", f"Skipping move; target excluded: {target_path}", module="AUTO_MOVER")
             continue
         if target_path.exists():
             skipped_existing.append(str(target_path))

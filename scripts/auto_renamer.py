@@ -10,10 +10,13 @@ def run(pkgs):
     planned = {}
     blocked = set()
     conflicted = set()
-    excluded_apptypes = set()
-    if settings.AUTO_MOVER_EXCLUDED_DIRS:
-        parts = [part.strip() for part in settings.AUTO_MOVER_EXCLUDED_DIRS.split(",")]
-        excluded_apptypes = {part for part in parts if part}
+    excluded_dirs = set()
+    if settings.AUTO_RENAMER_EXCLUDED_DIRS:
+        parts = [part.strip() for part in settings.AUTO_RENAMER_EXCLUDED_DIRS.split(",")]
+        excluded_dirs = {part for part in parts if part}
+
+    def is_excluded(path):
+        return any(part in excluded_dirs for part in path.parts)
 
     def format_pkg_name(template, data):
         safe = {}
@@ -78,12 +81,21 @@ def run(pkgs):
         )
         if target_path is None:
             continue
+        if is_excluded(source_path):
+            log("debug", f"Skipping rename; source excluded: {source_path}", module="AUTO_RENAMER")
+            continue
+        if is_excluded(target_path):
+            log("debug", f"Skipping rename; target excluded: {target_path}", module="AUTO_RENAMER")
+            continue
+        apptype = data.get("apptype")
         apptype_dir = settings.APPTYPE_PATHS.get(apptype) if apptype else None
-        if apptype_dir and apptype not in excluded_apptypes:
+        if apptype_dir and not is_excluded(apptype_dir):
             apptype_target = apptype_dir / target_path.name
             if apptype_target.exists():
                 blocked.add(apptype_target)
                 continue
+        if apptype_dir and is_excluded(apptype_dir):
+            log("debug", f"Skipping rename; apptype dir excluded: {apptype_dir}", module="AUTO_RENAMER")
         if target_path.exists():
             blocked.add(target_path)
             continue

@@ -15,6 +15,7 @@ services:
       - AUTO_RENAMER_ENABLED=true
       - AUTO_RENAMER_TEMPLATE={title}_[{titleid}]_[{region}]_[{apptype}]_[{version}]
       - AUTO_RENAMER_MODE=uppercase
+      - AUTO_RENAMER_EXCLUDED_DIRS=app
       - AUTO_MOVER_ENABLED=true
       - AUTO_MOVER_EXCLUDED_DIRS=app
     volumes:

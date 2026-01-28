@@ -27,6 +27,7 @@ def parse_settings():
     settings.AUTO_RENAMER_ENABLED = parse_bool(args.auto_renamer_enabled)
     settings.AUTO_RENAMER_TEMPLATE = args.auto_renamer_template
     settings.AUTO_RENAMER_MODE = args.auto_renamer_mode.lower()
+    settings.AUTO_RENAMER_EXCLUDED_DIRS = args.auto_renamer_excluded_dirs
     settings.AUTO_MOVER_ENABLED = parse_bool(args.auto_mover_enabled)
     settings.AUTO_MOVER_EXCLUDED_DIRS = args.auto_mover_excluded_dirs
     settings.AUTO_INDEXER_ENABLED = parse_bool(args.auto_indexer_enabled)

@@ -29,6 +29,7 @@ AUTO_INDEXER_ENABLED = None
 AUTO_RENAMER_ENABLED = None
 AUTO_RENAMER_TEMPLATE = None
 AUTO_RENAMER_MODE = None
+AUTO_RENAMER_EXCLUDED_DIRS = None
 AUTO_MOVER_ENABLED = None
 AUTO_MOVER_EXCLUDED_DIRS = None
 
@@ -43,6 +44,7 @@ CLI_ARGS = [
         "--auto-renamer-mode",
         {"required": True, "choices": ["none", "uppercase", "lowercase", "capitalize"]},
     ),
+    ("--auto-renamer-excluded-dirs", {"required": True}),
     ("--auto-mover-enabled", {"required": True}),
     ("--auto-mover-excluded-dirs", {"required": True}),
 ]
