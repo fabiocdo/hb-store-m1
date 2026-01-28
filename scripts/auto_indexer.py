@@ -19,7 +19,7 @@ def run(pkgs):
     def save_cache(cache):
         settings.CACHE_DIR.mkdir(parents=True, exist_ok=True)
         settings.CACHE_PATH.write_text(json.dumps(cache, indent=2))
-        log("created", "Auto generated: index-cache.json")
+        log("created", "[AUTO-INDEXER] Generated: index-cache.json")
 
     cache = load_cache()
     apps = []
@@ -70,7 +70,7 @@ def run(pkgs):
             icon_bytes = extract_pkg_data(pkg, include_icon=True)["icon_bytes"]
             if icon_bytes:
                 icon_out.write_bytes(icon_bytes)
-                log("created", f"Extracted: {titleid} PKG icon to {icon_out}")
+                log("created", f"[AUTO-INDEXER] Extracted: {titleid} PKG icon to {icon_out}")
 
         pkg_url = f"{settings.BASE_URL}/pkg/{quote(rel, safe='/')}"
         icon_url = f"{settings.BASE_URL}/_media/{quote(f'{titleid}.png')}"
@@ -95,5 +95,5 @@ def run(pkgs):
     with open(settings.INDEX_PATH, "w") as f:
         json.dump({"apps": apps}, f, indent=2)
 
-    log("created", "Auto generated: index.json")
+    log("created", "[AUTO-INDEXER] Generated: index.json")
     return 0
