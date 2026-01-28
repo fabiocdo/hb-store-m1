@@ -242,6 +242,7 @@ box_border
 log "Starting NGINX..."
 nginx
 log "NGINX is running on ${host}:${port}"
+log ""
 
 initialize_dir
 
