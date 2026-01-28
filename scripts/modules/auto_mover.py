@@ -66,6 +66,14 @@ def apply(dry_result):
     errors = []
     quarantined = []
 
+    def append_error_log(error_dir, message):
+        try:
+            log_path = error_dir / "error_log.txt"
+            with log_path.open("a", encoding="utf-8") as handle:
+                handle.write(message + "\n")
+        except Exception:
+            pass
+
     def quarantine_path(path):
         base = Path(path)
         if not base.exists():
@@ -124,6 +132,10 @@ def apply(dry_result):
                 "warn",
                 f"Moved file with error to {settings.DATA_DIR / '_errors'}: {source}",
                 module="AUTO_MOVER",
+            )
+            append_error_log(
+                settings.DATA_DIR / "_errors",
+                f"move_conflict: {source} -> {target}",
             )
     return {"moved": moved, "errors": errors, "touched_paths": touched_paths, "quarantined_paths": quarantined}
 

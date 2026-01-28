@@ -230,6 +230,7 @@ Dependencies and behavior:
 - Location: `scripts/modules/auto_indexer.py`
 - Builds `index.json` and `_cache/index-cache.json` from scanned PKGs.
 - Only logs when content changes (or icons are extracted).
+- Uses `_cache/index-cache.json` to skip reprocessing unchanged PKGs.
 
 ### PKG Utilities
 
@@ -247,6 +248,7 @@ Dependencies and behavior:
 - Files in `_errors/` are not indexed.
 - Resolve conflicts manually and move the file back into `pkg/`.
 - If `param.sfo` cannot be read, the PKG is moved to `/data/_errors`.
+- PKG metadata errors are logged with a human-friendly stage (e.g. `Reading PKG entries`, `PARAM.SFO not found`).
 
 ## Flow diagram (ASCII)
 
@@ -276,6 +278,9 @@ fs events (CLOSE_WRITE / MOVED_TO / DELETE)
                 |
                 v
            index.json
+                |
+                v
+       _cache/index-cache.json
 ```
 
 ## Volume config

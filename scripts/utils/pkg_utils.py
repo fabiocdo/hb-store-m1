@@ -211,6 +211,12 @@ def scan_pkgs():
                     counter += 1
                 pkg.rename(target)
                 log("warn", f"Moved file with error to {error_dir}: {pkg}")
+                try:
+                    log_path = error_dir / "error_log.txt"
+                    with log_path.open("a", encoding="utf-8") as handle:
+                        handle.write(f"metadata_error ({stage_label}): {pkg} -> {target}\n")
+                except Exception:
+                    pass
             except Exception as move_error:
                 log("error", f"Failed to move errored PKG to _errors: {pkg} ({move_error})")
             continue
@@ -230,6 +236,12 @@ def scan_pkgs():
                     counter += 1
                 pkg.rename(target)
                 log("warn", f"Moved file with error to {error_dir}: {pkg}")
+                try:
+                    log_path = error_dir / "error_log.txt"
+                    with log_path.open("a", encoding="utf-8") as handle:
+                        handle.write(f"metadata_error (unknown): {pkg} -> {target}\n")
+                except Exception:
+                    pass
             except Exception as move_error:
                 log("error", f"Failed to move errored PKG to _errors: {pkg} ({move_error})")
             continue

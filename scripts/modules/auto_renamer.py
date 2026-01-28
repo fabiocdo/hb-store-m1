@@ -144,6 +144,14 @@ def apply(dry_result):
     renamed = []
     quarantined = []
 
+    def append_error_log(error_dir, message):
+        try:
+            log_path = error_dir / "error_log.txt"
+            with log_path.open("a", encoding="utf-8") as handle:
+                handle.write(message + "\n")
+        except Exception:
+            pass
+
     def quarantine_path(path):
         base = Path(path)
         if not base.exists():
@@ -197,6 +205,10 @@ def apply(dry_result):
                 f"Moved file with error to {settings.DATA_DIR / '_errors'}: {source}",
                 module="AUTO_RENAMER",
             )
+            append_error_log(
+                settings.DATA_DIR / "_errors",
+                f"rename_conflict: {source} -> {target}",
+            )
     for source in dry_result.get("error_sources", []):
         target = quarantine_path(source)
         if target is not None:
@@ -206,6 +218,10 @@ def apply(dry_result):
                 "warn",
                 f"Moved file with error to {settings.DATA_DIR / '_errors'}: {source}",
                 module="AUTO_RENAMER",
+            )
+            append_error_log(
+                settings.DATA_DIR / "_errors",
+                f"rename_error: {source} -> {target}",
             )
     return {"renamed": renamed, "touched_paths": touched_paths, "quarantined_paths": quarantined}
 
