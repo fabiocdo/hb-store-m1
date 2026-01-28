@@ -13,6 +13,7 @@ services:
       - AUTO_RENAME_PKGS=true
       - AUTO_RENAME_TEMPLATE={title}_[{titleid}]_[{region}]_[{apptype}]_[{version}]
       - AUTO_RENAME_TITLE_MODE=uppercase
+      - AUTO_MOVE_PKG=true
     volumes:
       - ./data:/data
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
