@@ -238,7 +238,6 @@ build_content_lines_colored | while IFS= read -r line; do
   box_line "$line"
 done
 box_border
-log ""
 
 log "Starting NGINX..."
 nginx

@@ -124,10 +124,10 @@ def apply(dry_result):
         except Exception as e:
             errors.append((str(target_path), str(e)))
 
-    if moved:
+    for src, dest in moved:
         log(
             "info",
-            "Moved: " + "; ".join(f"{src} -> {dest}" for src, dest in moved),
+            f"Moved: {src} -> {dest}",
             module="AUTO_MOVER",
         )
     for target in dry_result.get("skipped_conflict", []):

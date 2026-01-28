@@ -173,10 +173,10 @@ def apply(dry_result):
         except Exception:
             continue
 
-    if renamed:
+    for src, dest in renamed:
         log(
             "info",
-            "Renamed: " + "; ".join(f"{src} -> {dest}" for src, dest in renamed),
+            f"Renamed: {src} -> {dest}",
             module="AUTO_RENAMER",
         )
     for target in dry_result.get("skipped_conflict", []):
