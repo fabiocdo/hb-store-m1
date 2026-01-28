@@ -28,3 +28,16 @@ AUTO_GENERATE_JSON_PERIOD = None
 AUTO_RENAME_PKGS = None
 AUTO_RENAME_TEMPLATE = None
 AUTO_RENAME_TITLE_MODE = None
+AUTO_MOVE_PKG = None
+
+CLI_ARGS = [
+    ("--base-url", {"required": True}),
+    ("--auto-generate-json-period", {"required": True, "type": float}),
+    ("--auto-rename-pkgs", {"required": True}),
+    ("--auto-rename-template", {"required": True}),
+    (
+        "--auto-rename-title-mode",
+        {"required": True, "choices": ["none", "uppercase", "lowercase", "capitalize"]},
+    ),
+    ("--auto-move-pkg", {"required": True}),
+]

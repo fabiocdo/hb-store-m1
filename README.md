@@ -29,6 +29,7 @@ docker run -d \
   -e AUTO_RENAME_PKGS=false \
   -e AUTO_RENAME_TEMPLATE="{title} [{titleid}][{apptype}]" \
   -e AUTO_RENAME_TITLE_MODE=none \
+  -e AUTO_MOVE_PKG=true \
   -v ./data:/data \
   -v ./nginx.conf:/etc/nginx/nginx.conf:ro \
   fabiocdo/homebrew-store-cdn:latest
@@ -51,6 +52,7 @@ services:
       - AUTO_RENAME_PKGS=false
       - AUTO_RENAME_TEMPLATE={title} [{titleid}][{apptype}]
       - AUTO_RENAME_TITLE_MODE=none
+      - AUTO_MOVE_PKG=true
     volumes:
       - ./data:/data
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
@@ -178,6 +180,7 @@ Fields:
 | `AUTO_RENAME_PKGS`          | Enable PKG rename using `AUTO_RENAME_TEMPLATE`.                                                                          | `false`                          |
 | `AUTO_RENAME_TEMPLATE`      | Template using `{title}`, `{titleid}`, `{region}`, `{apptype}`, `{version}`, `{category}`, `{content_id}`, `{app_type}`. | `{title} [{titleid}][{apptype}]` |
 | `AUTO_RENAME_TITLE_MODE`    | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
+| `AUTO_MOVE_PKG`             | Enable auto-moving PKGs into `game/`, `dlc/`, `update/` folders.                                                         | `true`                           |
 
 ## Volume config
 
@@ -205,10 +208,12 @@ as shown in the quick start examples.
 
 ## Developer notes
 
-- The indexer runs as `/scripts/auto_indexer.py` inside the container.
+- The orchestrator runs as `/scripts/watcher.py` inside the container.
 - Shared constants and paths live in `scripts/settings.py`.
 - Shared log helpers live in `scripts/utils/log_utils.py`.
-- Indexer internals are split into `scripts/index_builder.py`, `scripts/utils/pkgtool_utils.py`,
+- Indexer internals are split into `scripts/auto_indexer.py`, `scripts/auto_mover.py`,
+  `scripts/auto_renamer.py`, `scripts/pkg_metadata.py`, `scripts/utils/pkgtool_utils.py`,
   `scripts/utils/rename_utils.py`, `scripts/utils/parse_utils.py`, and `scripts/watcher.py`.
 - Runtime indexer config is stored in `scripts/settings.py`.
+- CLI option specs live in `scripts/settings.py` as `CLI_ARGS`.
 - Indexer logs use Python's `logging` with `[+]`/`[*]` prefixes.
