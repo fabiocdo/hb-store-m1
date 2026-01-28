@@ -155,6 +155,7 @@ log ""
 log_table "AUTO_MOVER_ENABLED" "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[0;93m")" "\033[0;93m"
 log_table "AUTO_MOVER_EXCLUDED_DIRS" "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[0;93m")" "\033[0;93m"
 log ""
+log "========================"
 
 initialize_dir
 
