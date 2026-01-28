@@ -27,7 +27,7 @@ LOG_SETTINGS = {
 MODULE_COLORS = {
     "AUTO_INDEXER": "\033[0;92m",
     "AUTO_MOVER": "\033[0;93m",
-    "AUTO_RENAMER": "\033[0;94m",
+    "AUTO_RENAMER": "\033[1;94m",
 }
 def _resolve_log_level():
     env_level = os.getenv("LOG_LEVEL", "").strip().lower()
