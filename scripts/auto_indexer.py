@@ -122,5 +122,5 @@ def run(pkgs):
             message = f"{message}; extracted {icon_extracted} icon(s)"
         log("info", message, module="AUTO_INDEXER")
     else:
-        log("info", "No changes detected", module="AUTO_INDEXER")
+        log("info", "No indexable changes detected", module="AUTO_INDEXER")
     return 0
