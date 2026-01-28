@@ -32,7 +32,7 @@ def parse_settings():
     settings.WATCHER_EVENT_DEBOUNCE_SECONDS = args.watcher_event_debounce_seconds
     settings.AUTO_RENAMER_ENABLED = parse_bool(args.auto_renamer_enabled)
     settings.AUTO_RENAMER_TEMPLATE = args.auto_renamer_template
-    settings.AUTO_RENAMER_MODE = args.auto_renamer_mode
+    settings.AUTO_RENAMER_MODE = args.auto_renamer_mode.lower()
     settings.AUTO_MOVER_ENABLED = parse_bool(args.auto_mover_enabled)
     settings.AUTO_MOVER_EXCLUDED_DIRS = args.auto_mover_excluded_dirs
     settings.AUTO_INDEXER_ENABLED = parse_bool(args.auto_indexer_enabled)

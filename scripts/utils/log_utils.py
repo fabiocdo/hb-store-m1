@@ -1,53 +1,57 @@
 import logging
+import os
 import time
 
 LOGGER = logging.getLogger()
 COLORS = {
-    "error": "\033[0;31m",
+    "debug": "\033[0;90m",
     "info": "\033[0;37m",
-    "debug": "\033[0;36m",
+    "warn": "\033[0;33m",
+    "error": "\033[0;31m",
     "default": "\033[0m",
 }
-MODULE_COLORS = {
-    "AUTO_INDEXER": "\033[0;32m",
-    "AUTO_MOVER": "\033[0;33m",
-    "AUTO_RENAMER": "\033[0;34m",
-    "WATCHER": "\033[0;36m",
-}
 LOG_LEVELS = {
-    "created": logging.INFO,
-    "modified": logging.INFO,
-    "deleted": logging.INFO,
-    "debug": logging.INFO,
-    "error": logging.ERROR,
+    "debug": logging.DEBUG,
     "info": logging.INFO,
+    "warn": logging.WARNING,
+    "error": logging.ERROR,
 }
 LOG_PREFIXES = {
-    "created": "[+]",
-    "modified": "[*]",
-    "deleted": "[-]",
     "debug": "[DEBUG]",
-    "error": "[!]",
-    "info": "[·]",
+    "info": "[INFO]",
+    "warn": "[WARN]",
+    "error": "[ERROR]",
 }
 DEDUPE_WINDOW_SECONDS = 2.0
 _last_log_times = {}
 
+def _resolve_log_level():
+    env_level = os.getenv("LOG_LEVEL", "").strip().lower()
+    mapping = {
+        "debug": logging.DEBUG,
+        "info": logging.INFO,
+        "warn": logging.WARNING,
+        "warning": logging.WARNING,
+        "error": logging.ERROR,
+    }
+    return mapping.get(env_level, logging.INFO)
+
+
+resolved_level = _resolve_log_level()
 if not LOGGER.handlers:
     logging.basicConfig(
-        level=logging.INFO,
+        level=resolved_level,
         format="%(asctime)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+else:
+    LOGGER.setLevel(resolved_level)
 
 
 def log(action, message, module=None):
     level = LOG_LEVELS.get(action, logging.INFO)
     prefix = LOG_PREFIXES.get(action, "[*]")
-    if module:
-        color = MODULE_COLORS[module]
-    else:
-        color = COLORS.get(action, COLORS["default"])
+    color = COLORS.get(action, COLORS["default"])
     module_tag = f"[{module}] " if module else ""
     key = (action, module, message)
     now = time.monotonic()

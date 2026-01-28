@@ -13,6 +13,7 @@ services:
       - AUTO_INDEXER_ENABLED=true
       - AUTO_INDEXER_DEBOUNCE_TIME_SECONDS=3
       - WATCHER_EVENT_DEBOUNCE_SECONDS=5
+      - LOG_LEVEL=debug
       - AUTO_RENAMER_ENABLED=false
       - AUTO_RENAMER_TEMPLATE={title} [{titleid}][{apptype}]
       - AUTO_RENAMER_MODE=none
