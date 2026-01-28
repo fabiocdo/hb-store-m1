@@ -19,6 +19,12 @@ STAGE_LABELS = {
 }
 
 
+class PkgMetadataError(Exception):
+    def __init__(self, stage):
+        self.stage = stage
+        super().__init__(stage)
+
+
 def extract_pkg_data(pkg_path, include_icon=False):
     """Extract and normalize PKG metadata, optionally including icon bytes."""
     stage = "init"
@@ -147,35 +153,38 @@ def extract_pkg_data(pkg_path, include_icon=False):
             "region": region,
         }
 
-    with tempfile.TemporaryDirectory(prefix="pkg_extract_") as tmpdir:
-        tmp_root = pathlib.Path(tmpdir)
-        stage = "pkg_listentries"
-        entries_output = run_pkgtool(["pkg_listentries", str(pkg_path)])
-        sfo_entry, icon_entry = process_entries(entries_output)
+    try:
+        with tempfile.TemporaryDirectory(prefix="pkg_extract_") as tmpdir:
+            tmp_root = pathlib.Path(tmpdir)
+            stage = "pkg_listentries"
+            entries_output = run_pkgtool(["pkg_listentries", str(pkg_path)])
+            sfo_entry, icon_entry = process_entries(entries_output)
 
-        if sfo_entry is None:
-            stage = "param_sfo_not_found"
-            raise RuntimeError("PARAM_SFO not found")
+            if sfo_entry is None:
+                stage = "param_sfo_not_found"
+                raise RuntimeError("PARAM_SFO not found")
 
-        sfo_path = tmp_root / "param.sfo"
-        stage = "pkg_extractentry"
-        run_pkgtool(["pkg_extractentry", str(pkg_path), str(sfo_entry), str(sfo_path)])
-        if not sfo_path.exists():
-            stage = "param_sfo_missing"
-            raise RuntimeError("PARAM_SFO not found")
+            sfo_path = tmp_root / "param.sfo"
+            stage = "pkg_extractentry"
+            run_pkgtool(["pkg_extractentry", str(pkg_path), str(sfo_entry), str(sfo_path)])
+            if not sfo_path.exists():
+                stage = "param_sfo_missing"
+                raise RuntimeError("PARAM_SFO not found")
 
-        stage = "sfo_listentries"
-        info = process_info(sfo_path)
-        stage = "normalize"
-        process_app_type(info)
-        process_apptype(info)
-        process_region(info)
-        stage = "icon_extract"
-        icon_bytes = process_icon_bytes(icon_entry, tmp_root)
+            stage = "sfo_listentries"
+            info = process_info(sfo_path)
+            stage = "normalize"
+            process_app_type(info)
+            process_apptype(info)
+            process_region(info)
+            stage = "icon_extract"
+            icon_bytes = process_icon_bytes(icon_entry, tmp_root)
 
-        stage = "build_data"
-        data = build_data(info)
-        return {"data": data, "icon_bytes": icon_bytes}
+            stage = "build_data"
+            data = build_data(info)
+            return {"data": data, "icon_bytes": icon_bytes}
+    except Exception as e:
+        raise PkgMetadataError(stage) from e
 
 
 def scan_pkgs():
@@ -185,9 +194,28 @@ def scan_pkgs():
             continue
         try:
             result = extract_pkg_data(pkg, include_icon=False)
-        except Exception:
-            stage_label = STAGE_LABELS.get(stage, "Unknown stage")
+        except PkgMetadataError as e:
+            stage_label = STAGE_LABELS.get(e.stage, "Unknown stage")
             log("error", f"Failed to read PKG metadata ({stage_label}): {pkg}")
+            try:
+                settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
+                error_dir = settings.DATA_DIR / "_errors"
+                error_dir.mkdir(parents=True, exist_ok=True)
+                target = error_dir / pkg.name
+                counter = 1
+                while target.exists():
+                    if pkg.suffix:
+                        target = error_dir / f"{pkg.stem}_{counter}{pkg.suffix}"
+                    else:
+                        target = error_dir / f"{pkg.name}_{counter}"
+                    counter += 1
+                pkg.rename(target)
+                log("warn", f"Moved file with error to {error_dir}: {pkg}")
+            except Exception as move_error:
+                log("error", f"Failed to move errored PKG to _errors: {pkg} ({move_error})")
+            continue
+        except Exception:
+            log("error", f"Failed to read PKG metadata (Unknown stage): {pkg}")
             try:
                 settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
                 error_dir = settings.DATA_DIR / "_errors"
