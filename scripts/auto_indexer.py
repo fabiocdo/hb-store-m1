@@ -35,6 +35,8 @@ def run(pkgs):
     new_cache_pkgs = {}
 
     for pkg, data in pkgs:
+        if pkg.parent == settings.PKG_DIR:
+            continue
         try:
             stat = pkg.stat()
         except Exception:

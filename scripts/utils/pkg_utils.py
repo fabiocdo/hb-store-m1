@@ -161,8 +161,6 @@ def scan_pkgs():
     for pkg in settings.PKG_DIR.rglob("*.pkg"):
         if any(part.startswith("_") for part in pkg.parts):
             continue
-        if pkg.parent == settings.PKG_DIR:
-            continue
         try:
             result = extract_pkg_data(pkg, include_icon=False)
         except Exception as e:
