@@ -30,6 +30,7 @@ AUTO_RENAME_TEMPLATE = None
 AUTO_RENAME_TITLE_MODE = None
 AUTO_MOVE_PKG = None
 
+# CLI Arguments
 CLI_ARGS = [
     ("--base-url", {"required": True}),
     ("--auto-generate-json-period", {"required": True, "type": float}),

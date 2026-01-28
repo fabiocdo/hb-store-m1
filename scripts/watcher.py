@@ -7,15 +7,21 @@ import settings
 from auto_indexer import build_index
 from auto_mover import run as run_mover
 from auto_renamer import run as run_renamer
+from utils.pkg_utils import scan_pkgs
 from utils.log_utils import log
-from utils.parse_utils import parse_bool
 
 
 def parse_config():
+    """Parse CLI args into settings."""
     parser = argparse.ArgumentParser()
     for flag, opts in settings.CLI_ARGS:
         parser.add_argument(flag, **opts)
     args = parser.parse_args()
+
+    def parse_bool(value):
+        if value is None:
+            return False
+        return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
     settings.BASE_URL = args.base_url
     settings.AUTO_GENERATE_JSON_PERIOD = args.auto_generate_json_period
@@ -26,6 +32,7 @@ def parse_config():
 
 
 def watch_pkg_dir(auto_generate_json_period):
+    """Watch pkg directory and trigger rename/move/index updates."""
     if shutil.which("inotifywait") is None:
         log("error", "inotifywait not found; skipping watcher.")
         return
@@ -35,7 +42,7 @@ def watch_pkg_dir(auto_generate_json_period):
     last_moved_from = ""
     debounce_timer = None
 
-    def schedule_generate():
+    def schedule_generate(pkgs):
         nonlocal debounce_timer
         if debounce_timer and debounce_timer.is_alive():
             debounce_timer.cancel()
@@ -43,18 +50,21 @@ def watch_pkg_dir(auto_generate_json_period):
         def run():
             nonlocal debounce_timer
             debounce_timer = None
-            build_index()
+            build_index(pkgs)
 
         debounce_timer = threading.Timer(auto_generate_json_period, run)
         debounce_timer.daemon = True
         debounce_timer.start()
 
     def handle_change():
+        pkgs = list(scan_pkgs())
         if settings.AUTO_RENAME_PKGS:
-            run_renamer()
+            run_renamer(pkgs)
         if settings.AUTO_MOVE_PKG:
-            run_mover()
-        schedule_generate()
+            run_mover(pkgs)
+        if settings.AUTO_RENAME_PKGS or settings.AUTO_MOVE_PKG:
+            pkgs = list(scan_pkgs())
+        schedule_generate(pkgs)
 
     cmd = [
         "inotifywait",
@@ -111,14 +121,19 @@ def watch_pkg_dir(auto_generate_json_period):
         log("modified", f"Change detected: {events} {path}")
         handle_change()
 
-
 def main():
+    """Entry point for the indexer watcher."""
     parse_config()
+    pkgs = []
+    if settings.PKG_DIR.exists():
+        pkgs = list(scan_pkgs())
     if settings.AUTO_RENAME_PKGS:
-        run_renamer()
+        run_renamer(pkgs)
     if settings.AUTO_MOVE_PKG:
-        run_mover()
-    build_index()
+        run_mover(pkgs)
+    if settings.AUTO_RENAME_PKGS or settings.AUTO_MOVE_PKG:
+        pkgs = list(scan_pkgs())
+    build_index(pkgs)
     watch_pkg_dir(settings.AUTO_GENERATE_JSON_PERIOD)
 
 

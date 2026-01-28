@@ -1,17 +1,14 @@
 import shutil
 
 import settings
-from pkg_metadata import load_pkg_data
 from utils.log_utils import log
 
 
-def run():
+def run(pkgs):
+    """Move PKGs into apptype folders when enabled."""
     if not settings.AUTO_MOVE_PKG:
         return
-    for pkg in settings.PKG_DIR.rglob("*.pkg"):
-        if any(part.startswith("_") for part in pkg.parts):
-            continue
-        data, _ = load_pkg_data(pkg)
+    for pkg, data in pkgs:
         apptype = data.get("apptype")
         if apptype not in settings.APPTYPE_PATHS:
             continue

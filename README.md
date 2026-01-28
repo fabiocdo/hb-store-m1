@@ -212,8 +212,8 @@ as shown in the quick start examples.
 - Shared constants and paths live in `scripts/settings.py`.
 - Shared log helpers live in `scripts/utils/log_utils.py`.
 - Indexer internals are split into `scripts/auto_indexer.py`, `scripts/auto_mover.py`,
-  `scripts/auto_renamer.py`, `scripts/pkg_metadata.py`, `scripts/utils/pkgtool_utils.py`,
-  `scripts/utils/rename_utils.py`, `scripts/utils/parse_utils.py`, and `scripts/watcher.py`.
+  `scripts/auto_renamer.py`, `scripts/utils/pkg_utils.py`, `scripts/utils/pkgtool.py`,
+  and `scripts/watcher.py`.
 - Runtime indexer config is stored in `scripts/settings.py`.
 - CLI option specs live in `scripts/settings.py` as `CLI_ARGS`.
 - Indexer logs use Python's `logging` with `[+]`/`[*]` prefixes.

@@ -3,11 +3,11 @@ from urllib.parse import quote
 
 import settings
 from utils.log_utils import log
-from utils.pkgtool_utils import read_icon_bytes
-from pkg_metadata import load_pkg_data
+from utils.pkg_utils import extract_pkg_data
 
 
 def load_cache():
+    """Load the cached PKG metadata map."""
     try:
         if settings.CACHE_PATH.exists():
             return json.loads(settings.CACHE_PATH.read_text())
@@ -17,20 +17,20 @@ def load_cache():
 
 
 def save_cache(cache):
+    """Write index-cache.json with updated metadata."""
     log("info", "Generating index-cache.json...")
     settings.CACHE_DIR.mkdir(parents=True, exist_ok=True)
     settings.CACHE_PATH.write_text(json.dumps(cache, indent=2))
     log("created", "Generated: index-cache.json")
 
 
-def build_index():
+def build_index(pkgs):
+    """Build index.json and index-cache.json from scanned PKGs."""
     cache = load_cache()
     new_cache_pkgs = {}
     apps = []
 
-    for pkg in settings.PKG_DIR.rglob("*.pkg"):
-        if any(part.startswith("_") for part in pkg.parts):
-            continue
+    for pkg, data in pkgs:
         rel_pre = pkg.relative_to(settings.PKG_DIR).as_posix()
         try:
             stat = pkg.stat()
@@ -39,17 +39,16 @@ def build_index():
 
         cache_entry = cache["pkgs"].get(rel_pre)
         cache_hit = (
-                cache_entry
-                and cache_entry.get("size") == stat.st_size
-                and cache_entry.get("mtime") == stat.st_mtime
-                and isinstance(cache_entry.get("data"), dict)
+            cache_entry
+            and cache_entry.get("size") == stat.st_size
+            and cache_entry.get("mtime") == stat.st_mtime
+            and isinstance(cache_entry.get("data"), dict)
         )
 
         if cache_hit:
             data = cache_entry["data"]
             icon_entry = cache_entry.get("icon_entry")
         else:
-            data, icon_entry = load_pkg_data(pkg)
             cache_entry = {
                 "size": stat.st_size,
                 "mtime": stat.st_mtime,
@@ -75,8 +74,8 @@ def build_index():
 
         settings.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
         icon_out = settings.MEDIA_DIR / f"{titleid}.png"
-        if icon_entry is not None and not icon_out.exists():
-            icon_bytes = read_icon_bytes(pkg, icon_entry)
+        if not icon_out.exists():
+            icon_bytes = extract_pkg_data(pkg, include_icon=True)["icon_bytes"]
             if icon_bytes:
                 icon_out.write_bytes(icon_bytes)
                 log("created", f"Extracted: {titleid} PKG icon to {icon_out}")
