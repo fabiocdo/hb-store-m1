@@ -209,7 +209,7 @@ def start():
                 parts.append(f"moved {len(moved)}")
             if deleted:
                 parts.append(f"deleted {len(deleted)}")
-            log("info", f"Manual changes detected: {', '.join(parts)}")
+            log("debug", f"Manual changes detected: {', '.join(parts)}")
 
     run_automations()
     watch(run_automations)
