@@ -60,4 +60,5 @@ def log(action, message, module=None):
     module_color = MODULE_COLORS.get(module, "")
     module_tag = f"{module_color}[{module}]\033[0m " if module else ""
     sep = " " if prefix else ""
-    LOGGER.log(level, f"{color}{prefix}{sep}{module_tag}{message}\033[0m")
+    message_text = f"{color}{prefix}{sep}{message}\033[0m"
+    LOGGER.log(level, f"{module_tag}{message_text}")
