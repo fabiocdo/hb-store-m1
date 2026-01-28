@@ -60,13 +60,13 @@ log_table() {
   if [ "$pad" -lt 0 ]; then
     pad=0
   fi
-  printf "%s     " "$(date '+%Y-%m-%d %H:%M:%S')"
+  printf "%s || " "$(date '+%Y-%m-%d %H:%M:%S')"
   if [ -n "$color" ]; then
     printf "%b%s%b" "$color" "$label" "\033[0m"
   else
     printf "%s" "$label"
   fi
-  printf "%*s %s\n" "$pad" "" "$value"
+  printf "%*s = %s ||\n" "$pad" "" "$value"
 }
 
 format_value() {
@@ -152,8 +152,8 @@ log_table "AUTO_RENAMER_MODE" "$(color_value "$(format_value AUTO_RENAMER_MODE "
 log_table "AUTO_RENAMER_TEMPLATE" "$(color_value "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "\033[1;94m")" "\033[1;94m"
 log_table "AUTO_RENAMER_EXCLUDED_DIRS" "$(color_value "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "\033[1;94m")" "\033[1;94m"
 log ""
-log_table "AUTO_MOVER_ENABLED" "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[0;93m")" "\033[0;93m"
-log_table "AUTO_MOVER_EXCLUDED_DIRS" "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[0;93m")" "\033[0;93m"
+log_table "AUTO_MOVER_ENABLED" "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[1;94m")" "\033[1;94m"
+log_table "AUTO_MOVER_EXCLUDED_DIRS" "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[1;94m")" "\033[1;94m"
 log ""
 log "========================"
 
