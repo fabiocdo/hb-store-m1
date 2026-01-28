@@ -8,6 +8,8 @@ from utils.pkg_utils import extract_pkg_data
 
 def run(pkgs):
     """Build index.json and index-cache.json from scanned PKGs."""
+    icon_extracted = 0
+
     def load_cache():
         try:
             if settings.CACHE_PATH.exists():
@@ -19,7 +21,6 @@ def run(pkgs):
     def save_cache(cache):
         settings.CACHE_DIR.mkdir(parents=True, exist_ok=True)
         settings.CACHE_PATH.write_text(json.dumps(cache, indent=2))
-        log("created", "Generated: index-cache.json", module="AUTO_INDEXER")
 
     cache = load_cache()
     apps = []
@@ -70,11 +71,7 @@ def run(pkgs):
             icon_bytes = extract_pkg_data(pkg, include_icon=True)["icon_bytes"]
             if icon_bytes:
                 icon_out.write_bytes(icon_bytes)
-                log(
-                    "created",
-                    f"Extracted: {titleid} PKG icon to {icon_out}",
-                    module="AUTO_INDEXER",
-                )
+                icon_extracted += 1
 
         pkg_url = f"{settings.BASE_URL}/pkg/{quote(rel, safe='/')}"
         icon_url = f"{settings.BASE_URL}/_media/{quote(f'{titleid}.png')}"
@@ -99,5 +96,8 @@ def run(pkgs):
     with open(settings.INDEX_PATH, "w") as f:
         json.dump({"apps": apps}, f, indent=2)
 
-    log("created", "Generated: index.json", module="AUTO_INDEXER")
+    message = "Generated index.json and index-cache.json"
+    if icon_extracted:
+        message = f"{message}; extracted {icon_extracted} icon(s)"
+    log("info", message, module="AUTO_INDEXER")
     return 0

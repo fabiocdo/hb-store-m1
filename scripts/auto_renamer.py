@@ -6,6 +6,8 @@ from utils.log_utils import log
 
 def run(pkgs):
     """Rename PKGs based on SFO metadata."""
+    renamed = []
+
     def format_pkg_name(template, data):
         safe = {}
         for key, value in data.items():
@@ -36,7 +38,7 @@ def run(pkgs):
 
     def rename_pkg(pkg_path, title, titleid, apptype, region, version, category, content_id, app_type):
         if not titleid:
-            return pkg_path
+            return pkg_path, False
         new_name = format_pkg_name(
             settings.AUTO_RENAMER_TEMPLATE,
             {
@@ -51,23 +53,18 @@ def run(pkgs):
             },
         )
         if pkg_path.name == new_name:
-            return pkg_path
+            return pkg_path, False
         target_path = pkg_path.with_name(new_name)
         if target_path.exists():
-            return pkg_path
+            return pkg_path, False
         try:
             pkg_path.rename(target_path)
-            log(
-                "modified",
-                f"Renamed: {pkg_path} -> {target_path}",
-                module="AUTO_RENAMER",
-            )
-            return target_path
+            return target_path, True
         except Exception:
-            return pkg_path
+            return pkg_path, False
 
     for pkg, data in pkgs:
-        rename_pkg(
+        new_path, changed = rename_pkg(
             pkg,
             data.get("title"),
             data.get("titleid"),
@@ -78,3 +75,17 @@ def run(pkgs):
             data.get("content_id"),
             data.get("app_type"),
         )
+        if changed:
+            renamed.append((pkg, new_path))
+
+    if renamed:
+        log(
+            "info",
+            f"Renamed {len(renamed)} PKG(s)",
+            module="AUTO_RENAMER",
+        )
+
+    touched_paths = []
+    for old_path, new_path in renamed:
+        touched_paths.extend([str(old_path), str(new_path)])
+    return {"renamed": renamed, "touched_paths": touched_paths}

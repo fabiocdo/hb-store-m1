@@ -12,6 +12,7 @@ services:
       - PKG_WATCHER_ENABLED=true
       - AUTO_INDEXER_ENABLED=true
       - AUTO_INDEXER_DEBOUNCE_TIME_SECONDS=3
+      - WATCHER_EVENT_DEBOUNCE_SECONDS=5
       - AUTO_RENAMER_ENABLED=true
       - AUTO_RENAMER_TEMPLATE={title}_[{titleid}]_[{region}]_[{apptype}]_[{version}]
       - AUTO_RENAMER_MODE=uppercase

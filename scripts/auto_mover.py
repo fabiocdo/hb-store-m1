@@ -6,6 +6,10 @@ from utils.log_utils import log
 
 def run(pkgs):
     """Move PKGs into apptype folders when enabled."""
+    moved = []
+    skipped_existing = []
+    errors = []
+
     excluded = set()
     if settings.AUTO_MOVER_EXCLUDED_DIRS:
         parts = [part.strip() for part in settings.AUTO_MOVER_EXCLUDED_DIRS.split(",")]
@@ -27,22 +31,39 @@ def run(pkgs):
         if pkg.resolve() == target_path.resolve():
             continue
         if target_path.exists():
-            log(
-                "error",
-                f"Target already exists, skipping move: {target_path}",
-                module="AUTO_MOVER",
-            )
+            skipped_existing.append(str(target_path))
             continue
         try:
             shutil.move(str(pkg), str(target_path))
-            log(
-                "modified",
-                f"Moved: {pkg} -> {target_path}",
-                module="AUTO_MOVER",
-            )
+            moved.append((pkg, target_path))
         except Exception as e:
-            log(
-                "error",
-                f"Error moving PKG to {target_path}: {e}",
-                module="AUTO_MOVER",
-            )
+            errors.append((str(target_path), str(e)))
+
+    if moved:
+        log(
+            "info",
+            f"Moved {len(moved)} PKG(s)",
+            module="AUTO_MOVER",
+        )
+    if skipped_existing:
+        log(
+            "error",
+            f"Skipped {len(skipped_existing)} move(s); target already exists",
+            module="AUTO_MOVER",
+        )
+    if errors:
+        log(
+            "error",
+            f"Failed {len(errors)} move(s)",
+            module="AUTO_MOVER",
+        )
+
+    touched_paths = []
+    for src, dest in moved:
+        touched_paths.extend([str(src), str(dest)])
+    return {
+        "moved": moved,
+        "skipped_existing": skipped_existing,
+        "errors": errors,
+        "touched_paths": touched_paths,
+    }

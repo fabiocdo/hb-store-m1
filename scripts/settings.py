@@ -27,6 +27,7 @@ BASE_URL = None
 PKG_WATCHER_ENABLED = None
 AUTO_INDEXER_ENABLED = None
 AUTO_INDEXER_DEBOUNCE_TIME_SECONDS = None
+WATCHER_EVENT_DEBOUNCE_SECONDS = None
 AUTO_RENAMER_ENABLED = None
 AUTO_RENAMER_TEMPLATE = None
 AUTO_RENAMER_MODE = None
@@ -39,6 +40,7 @@ CLI_ARGS = [
     ("--pkg-watcher-enabled", {"required": True}),
     ("--auto-indexer-enabled", {"required": True}),
     ("--auto-indexer-debounce-time-seconds", {"required": True, "type": float}),
+    ("--watcher-event-debounce-seconds", {"required": True, "type": float}),
     ("--auto-renamer-enabled", {"required": True}),
     ("--auto-renamer-template", {"required": True}),
     (
