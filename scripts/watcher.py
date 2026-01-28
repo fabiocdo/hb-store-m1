@@ -101,6 +101,11 @@ def start():
 
         if not settings.PKG_WATCHER_ENABLED:
             return
+
+        if manual_events:
+            allowed_exts = {".pkg", ".png"}
+            if not any(path.lower().endswith(tuple(allowed_exts)) for path, _ in manual_events):
+                return
         pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         touched_paths = []
         blocked_sources = set()
