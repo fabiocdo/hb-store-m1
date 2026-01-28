@@ -231,6 +231,7 @@ Dependencies and behavior:
 - Builds `index.json` and `_cache/index-cache.json` from scanned PKGs.
 - Only logs when content changes (or icons are extracted).
 - Uses `_cache/index-cache.json` to skip reprocessing unchanged PKGs.
+- Icon extraction runs per-file in the same pipeline as renamer/mover.
 
 ### PKG Utilities
 

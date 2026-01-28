@@ -6,7 +6,22 @@ from utils.log_utils import log
 from utils.pkg_utils import extract_pkg_data
 
 
-def run(pkgs):
+def ensure_icon(pkg, data):
+    titleid = data.get("titleid")
+    if not titleid:
+        return False
+    settings.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    icon_out = settings.MEDIA_DIR / f"{titleid}.png"
+    if icon_out.exists():
+        return False
+    icon_bytes = extract_pkg_data(pkg, include_icon=True)["icon_bytes"]
+    if icon_bytes:
+        icon_out.write_bytes(icon_bytes)
+        return True
+    return False
+
+
+def run(pkgs, extract_icons=True):
     """Build index.json and index-cache.json from scanned PKGs."""
     icon_extracted = 0
 
@@ -75,13 +90,8 @@ def run(pkgs):
         else:
             category = base_category
 
-        settings.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
-        icon_out = settings.MEDIA_DIR / f"{titleid}.png"
-        if not icon_out.exists():
-            icon_bytes = extract_pkg_data(pkg, include_icon=True)["icon_bytes"]
-            if icon_bytes:
-                icon_out.write_bytes(icon_bytes)
-                icon_extracted += 1
+        if extract_icons and ensure_icon(pkg, data):
+            icon_extracted += 1
 
         pkg_url = f"{settings.BASE_URL}/pkg/{quote(rel, safe='/')}"
         icon_url = f"{settings.BASE_URL}/_media/{quote(f'{titleid}.png')}"

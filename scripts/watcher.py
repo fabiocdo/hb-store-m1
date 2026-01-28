@@ -4,7 +4,7 @@ import subprocess
 import time
 
 import settings
-from modules.auto_indexer import run as run_indexer
+from modules.auto_indexer import ensure_icon, run as run_indexer
 from modules.auto_mover import apply as apply_mover
 from modules.auto_mover import dry_run as mover_dry_run
 from modules.auto_renamer import apply as apply_renamer
@@ -179,11 +179,18 @@ def start():
                 mover_dry = mover_dry_run([(current_pkg, data)], skip_paths=blocked_sources)
                 mover_result = apply_mover(mover_dry)
                 touched_paths.extend(mover_result.get("touched_paths", []))
+                moved = mover_result.get("moved", [])
+                if moved:
+                    current_pkg = moved[0][1]
+
+            if settings.AUTO_INDEXER_ENABLED:
+                ensure_icon(current_pkg, data)
 
         for path in touched_paths:
             module_touched_at[path] = now
         if settings.AUTO_INDEXER_ENABLED:
-            run_indexer(pkgs)
+            pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
+            run_indexer(pkgs, extract_icons=False)
 
 
         if not initial_run:
