@@ -141,5 +141,5 @@ if [ "$PKG_WATCHER_ENABLED" = "true" ]; then
     --auto-mover-enabled "$AUTO_MOVER_ENABLED" \
     --auto-mover-excluded-dirs "$AUTO_MOVER_EXCLUDED_DIRS"
 fi
-log "[·] PKG watcher disabled; No PKG will be modified automatically."
+log "[·] PKG watcher is disabled."
 exec tail -f /dev/null

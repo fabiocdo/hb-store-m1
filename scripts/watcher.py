@@ -96,9 +96,9 @@ def watch(on_change):
             continue
         if "CREATE" in events or "DELETE" in events:
             if "DELETE" in events:
-                log("deleted", f"Change detected: {events} {path}")
+                log("deleted", f"Deleted: {path}")
             else:
-                log("created", f"Change detected: {events} {path}")
+                log("created", f"Created: {path}")
             on_change(schedule_index=True)
             continue
         log("modified", f"Change detected: {events} {path}")
