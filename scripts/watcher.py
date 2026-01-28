@@ -90,6 +90,8 @@ def start():
     """Entry point for the indexer watcher."""
     parse_settings()
     last_moved_to = {}
+    module_touched_at = {}
+    module_suppression_seconds = 5.0
 
     def run_automations(events=None):
         initial_run = events is None
@@ -108,8 +110,12 @@ def start():
             allowed_exts = {".pkg", ".png"}
             relevant_events = []
             moved_to_paths = set()
+            now = time.monotonic()
             for path, event_str in manual_events:
                 if not path.lower().endswith(tuple(allowed_exts)):
+                    continue
+                touched_at = module_touched_at.get(path)
+                if touched_at is not None and (now - touched_at) < module_suppression_seconds:
                     continue
                 events = {item.strip() for item in event_str.split(",") if item.strip()}
                 if "MOVED_FROM" in events:
@@ -139,6 +145,7 @@ def start():
         pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         touched_paths = []
         blocked_sources = set()
+        now = time.monotonic()
         if settings.AUTO_RENAMER_ENABLED:
             dry_result = renamer_dry_run(pkgs)
             blocked_sources.update(dry_result.get("blocked_sources", []))
@@ -150,6 +157,9 @@ def start():
             result = apply_mover(dry_result)
             touched_paths.extend(result.get("touched_paths", []))
             pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
+
+        for path in touched_paths:
+            module_touched_at[path] = now
         if settings.AUTO_INDEXER_ENABLED:
             run_indexer(pkgs)
 
