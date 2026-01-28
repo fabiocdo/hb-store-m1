@@ -4,8 +4,10 @@ import subprocess
 
 import settings
 from auto_indexer import run as run_indexer
-from auto_mover import run as run_mover
-from auto_renamer import run as run_renamer
+from auto_mover import apply as apply_mover
+from auto_mover import dry_run as mover_dry_run
+from auto_renamer import apply as apply_renamer
+from auto_renamer import dry_run as renamer_dry_run
 from utils.pkg_utils import scan_pkgs
 from utils.log_utils import log
 
@@ -87,30 +89,6 @@ def start():
     """Entry point for the indexer watcher."""
     parse_settings()
 
-    def parse_excluded(value):
-        if not value:
-            return set()
-        parts = [part.strip() for part in value.split(",")]
-        return {part for part in parts if part}
-
-    def is_excluded(path, excluded_dirs):
-        return any(part in excluded_dirs for part in path.parts)
-
-    def filter_pkgs(pkgs, excluded_dirs, respect_apptype=False):
-        if not excluded_dirs:
-            return pkgs
-        filtered = []
-        for pkg, data in pkgs:
-            if is_excluded(pkg, excluded_dirs):
-                continue
-            if respect_apptype:
-                apptype = data.get("apptype")
-                apptype_dir = settings.APPTYPE_PATHS.get(apptype) if apptype else None
-                if apptype_dir and is_excluded(apptype_dir, excluded_dirs):
-                    continue
-            filtered.append((pkg, data))
-        return filtered
-
     def run_automations(events=None):
         initial_run = events is None
         manual_events = []
@@ -125,20 +103,16 @@ def start():
             return
         pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         touched_paths = []
-        renamer_excluded = parse_excluded(settings.AUTO_RENAMER_EXCLUDED_DIRS)
-        mover_excluded = parse_excluded(settings.AUTO_MOVER_EXCLUDED_DIRS)
         blocked_sources = set()
         if settings.AUTO_RENAMER_ENABLED:
-            eligible = filter_pkgs(pkgs, renamer_excluded, respect_apptype=True)
-            result = run_renamer(eligible)
+            dry_result = renamer_dry_run(pkgs)
+            blocked_sources.update(dry_result.get("blocked_sources", []))
+            result = apply_renamer(dry_result)
             touched_paths.extend(result.get("touched_paths", []))
-            blocked_sources.update(result.get("blocked_sources", []))
             pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         if settings.AUTO_MOVER_ENABLED:
-            if blocked_sources:
-                pkgs = [(pkg, data) for pkg, data in pkgs if str(pkg) not in blocked_sources]
-            eligible = filter_pkgs(pkgs, mover_excluded, respect_apptype=True)
-            result = run_mover(eligible)
+            dry_result = mover_dry_run(pkgs, skip_paths=blocked_sources)
+            result = apply_mover(dry_result)
             touched_paths.extend(result.get("touched_paths", []))
             pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         if settings.AUTO_INDEXER_ENABLED:

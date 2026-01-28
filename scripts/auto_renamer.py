@@ -4,9 +4,8 @@ import settings
 from utils.log_utils import log
 
 
-def run(pkgs):
-    """Rename PKGs based on SFO metadata."""
-    renamed = []
+def dry_run(pkgs):
+    """Plan renames and report which entries can be renamed."""
     planned = {}
     blocked = set()
     blocked_sources = set()
@@ -108,6 +107,7 @@ def run(pkgs):
             continue
         planned.setdefault(target_path, []).append(source_path)
 
+    plan = []
     for target_path, sources in planned.items():
         if target_path in blocked:
             blocked_sources.update(sources)
@@ -116,7 +116,21 @@ def run(pkgs):
             conflicted.add(target_path)
             blocked_sources.update(sources)
             continue
-        source_path = sources[0]
+        plan.append((sources[0], target_path))
+
+    return {
+        "plan": plan,
+        "blocked_sources": [str(path) for path in (blocked_sources | excluded_sources)],
+        "skipped_existing": len(blocked),
+        "skipped_conflicts": len(conflicted),
+        "skipped_excluded": len(excluded_sources),
+    }
+
+
+def apply(dry_result):
+    """Execute renames from a dry-run plan."""
+    renamed = []
+    for source_path, target_path in dry_result.get("plan", []):
         try:
             source_path.rename(target_path)
             renamed.append((source_path, target_path))
@@ -129,24 +143,31 @@ def run(pkgs):
             "Renamed: " + "; ".join(f"{src} -> {dest}" for src, dest in renamed),
             module="AUTO_RENAMER",
         )
-    if blocked:
+    if dry_result.get("skipped_existing"):
         log(
             "warn",
-            f"Skipped {len(blocked)} rename(s); target already exists",
+            f"Skipped {dry_result['skipped_existing']} rename(s); target already exists",
             module="AUTO_RENAMER",
         )
-    if conflicted:
+    if dry_result.get("skipped_conflicts"):
         log(
             "warn",
-            f"Skipped {len(conflicted)} rename(s); conflicting targets",
+            f"Skipped {dry_result['skipped_conflicts']} rename(s); conflicting targets",
+            module="AUTO_RENAMER",
+        )
+    if dry_result.get("skipped_excluded"):
+        log(
+            "debug",
+            f"Skipped {dry_result['skipped_excluded']} rename(s); excluded path",
             module="AUTO_RENAMER",
         )
 
     touched_paths = []
     for old_path, new_path in renamed:
         touched_paths.extend([str(old_path), str(new_path)])
-    return {
-        "renamed": renamed,
-        "touched_paths": touched_paths,
-        "blocked_sources": list(blocked_sources | excluded_sources),
-    }
+    return {"renamed": renamed, "touched_paths": touched_paths}
+
+
+def run(pkgs):
+    """Rename PKGs based on SFO metadata."""
+    return apply(dry_run(pkgs))
