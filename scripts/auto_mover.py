@@ -20,9 +20,6 @@ def dry_run(pkgs, skip_paths=None):
     def is_excluded(path):
         return any(part in excluded for part in path.parts)
     for pkg, data in pkgs:
-        if str(pkg) in skip_set:
-            skipped_combined.append(str(pkg))
-            continue
         apptype = data.get("apptype")
         if apptype not in settings.APPTYPE_PATHS:
             continue
@@ -39,6 +36,9 @@ def dry_run(pkgs, skip_paths=None):
         if is_excluded(target_path):
             log("debug", f"Skipping move; target excluded: {target_path}", module="AUTO_MOVER")
             skipped_excluded.append(str(pkg))
+            continue
+        if str(pkg) in skip_set:
+            skipped_combined.append(str(target_path))
             continue
         if target_path.exists():
             skipped_existing.append(str(target_path))
@@ -70,19 +70,16 @@ def apply(dry_result):
             "Moved: " + "; ".join(f"{src} -> {dest}" for src, dest in moved),
             module="AUTO_MOVER",
         )
-    skipped_existing = dry_result.get("skipped_existing", [])
-    skipped_combined = dry_result.get("skipped_combined", [])
-    skipped_existing_total = len(skipped_existing) + len(skipped_combined)
-    if skipped_existing_total:
+    for target in dry_result.get("skipped_existing", []):
         log(
             "warn",
-            f"Skipped {skipped_existing_total} move(s); target already exists",
+            f"Skipped move. {target} target already exists",
             module="AUTO_MOVER",
         )
-    if dry_result.get("skipped_excluded"):
+    for target in dry_result.get("skipped_combined", []):
         log(
-            "debug",
-            f"Skipped {len(dry_result['skipped_excluded'])} move(s); excluded path",
+            "warn",
+            f"Skipped move. {target} target already exists",
             module="AUTO_MOVER",
         )
     if errors:
