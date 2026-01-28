@@ -52,7 +52,21 @@ clear_console(){
 }
 
 log_table() {
-  printf "%s     %-38s %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" "$2"
+  label="$1"
+  value="$2"
+  color="${3-}"
+  width=38
+  pad=$((width - ${#label}))
+  if [ "$pad" -lt 0 ]; then
+    pad=0
+  fi
+  printf "%s     " "$(date '+%Y-%m-%d %H:%M:%S')"
+  if [ -n "$color" ]; then
+    printf "%b%s%b" "$color" "$label" "\033[0m"
+  else
+    printf "%s" "$label"
+  fi
+  printf "%*s %s\n" "$pad" "" "$value"
 }
 
 format_value() {
@@ -129,17 +143,17 @@ log ""
 log_table "BASE_URL" "$(format_value BASE_URL "$BASE_URL")"
 log_table "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
 log ""
-log_table "$(color_value "PKG_WATCHER_ENABLED" "\033[0;37m")" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
+log_table "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
 log ""
-log_table "$(color_value "AUTO_INDEXER_ENABLED" "\033[0;92m")" "$(color_value "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "\033[0;92m")"
+log_table "AUTO_INDEXER_ENABLED" "$(color_value "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "\033[0;92m")" "\033[0;92m"
 log ""
-log_table "$(color_value "AUTO_RENAMER_ENABLED" "\033[0;94m")" "$(color_value "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")" "\033[0;94m")"
-log_table "$(color_value "AUTO_RENAMER_MODE" "\033[0;94m")" "$(color_value "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")" "\033[0;94m")"
-log_table "$(color_value "AUTO_RENAMER_TEMPLATE" "\033[0;94m")" "$(color_value "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "\033[0;94m")"
-log_table "$(color_value "AUTO_RENAMER_EXCLUDED_DIRS" "\033[0;94m")" "$(color_value "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "\033[0;94m")"
+log_table "AUTO_RENAMER_ENABLED" "$(color_value "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")" "\033[0;94m")" "\033[0;94m"
+log_table "AUTO_RENAMER_MODE" "$(color_value "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")" "\033[0;94m")" "\033[0;94m"
+log_table "AUTO_RENAMER_TEMPLATE" "$(color_value "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "\033[0;94m")" "\033[0;94m"
+log_table "AUTO_RENAMER_EXCLUDED_DIRS" "$(color_value "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "\033[0;94m")" "\033[0;94m"
 log ""
-log_table "$(color_value "AUTO_MOVER_ENABLED" "\033[0;93m")" "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[0;93m")"
-log_table "$(color_value "AUTO_MOVER_EXCLUDED_DIRS" "\033[0;93m")" "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[0;93m")"
+log_table "AUTO_MOVER_ENABLED" "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[0;93m")" "\033[0;93m"
+log_table "AUTO_MOVER_EXCLUDED_DIRS" "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[0;93m")" "\033[0;93m"
 log ""
 
 initialize_dir
