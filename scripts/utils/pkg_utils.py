@@ -2,6 +2,7 @@ import pathlib
 import tempfile
 
 import settings
+from utils.log_utils import log
 from utils.pkgtool import run_pkgtool
 
 
@@ -160,5 +161,9 @@ def scan_pkgs():
     for pkg in settings.PKG_DIR.rglob("*.pkg"):
         if any(part.startswith("_") for part in pkg.parts):
             continue
-        result = extract_pkg_data(pkg, include_icon=False)
+        try:
+            result = extract_pkg_data(pkg, include_icon=False)
+        except Exception as e:
+            log("error", f"Failed to read PKG metadata: {pkg} ({e})")
+            continue
         yield pkg, result["data"]
