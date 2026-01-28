@@ -42,12 +42,12 @@ def run(pkgs):
     if moved:
         log(
             "info",
-            f"Moved {len(moved)} PKG(s)",
+            "Moved: " + "; ".join(f"{src} -> {dest}" for src, dest in moved),
             module="AUTO_MOVER",
         )
     if skipped_existing:
         log(
-            "error",
+            "warn",
             f"Skipped {len(skipped_existing)} move(s); target already exists",
             module="AUTO_MOVER",
         )

@@ -81,7 +81,7 @@ def run(pkgs):
     if renamed:
         log(
             "info",
-            f"Renamed {len(renamed)} PKG(s)",
+            "Renamed: " + "; ".join(f"{src} -> {dest}" for src, dest in renamed),
             module="AUTO_RENAMER",
         )
 
