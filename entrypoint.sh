@@ -47,6 +47,10 @@ log() {
   printf "%s %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
 }
 
+COLOR_GREEN="\033[0;92m"
+COLOR_BLUE="\033[1;94m"
+COLOR_YELLOW="\033[1;93m"
+
 clear_console(){
   printf "\033c\n"
 }
@@ -139,34 +143,34 @@ build_content_lines_colored() {
   echo ""
   echo "$(format_kv_colored \
     "AUTO_INDEXER_ENABLED" \
-    "$(color_value "AUTO_INDEXER_ENABLED" "\033[0;92m")" \
-    "$(color_value "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "\033[0;92m")")"
+    "$(color_value "AUTO_INDEXER_ENABLED" "$COLOR_GREEN")" \
+    "$(color_value "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "$COLOR_GREEN")")"
   echo ""
   echo "$(format_kv_colored \
     "AUTO_RENAMER_ENABLED" \
-    "$(color_value "AUTO_RENAMER_ENABLED" "\033[1;94m")" \
-    "$(color_value "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")" "\033[1;94m")")"
+    "$(color_value "AUTO_RENAMER_ENABLED" "$COLOR_BLUE")" \
+    "$(color_value "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")" "$COLOR_BLUE")")"
   echo "$(format_kv_colored \
     "AUTO_RENAMER_MODE" \
-    "$(color_value "AUTO_RENAMER_MODE" "\033[1;94m")" \
-    "$(color_value "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")" "\033[1;94m")")"
+    "$(color_value "AUTO_RENAMER_MODE" "$COLOR_BLUE")" \
+    "$(color_value "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")" "$COLOR_BLUE")")"
   echo "$(format_kv_colored \
     "AUTO_RENAMER_TEMPLATE" \
-    "$(color_value "AUTO_RENAMER_TEMPLATE" "\033[1;94m")" \
-    "$(color_value "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "\033[1;94m")")"
+    "$(color_value "AUTO_RENAMER_TEMPLATE" "$COLOR_BLUE")" \
+    "$(color_value "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "$COLOR_BLUE")")"
   echo "$(format_kv_colored \
     "AUTO_RENAMER_EXCLUDED_DIRS" \
-    "$(color_value "AUTO_RENAMER_EXCLUDED_DIRS" "\033[1;94m")" \
-    "$(color_value "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "\033[1;94m")")"
+    "$(color_value "AUTO_RENAMER_EXCLUDED_DIRS" "$COLOR_BLUE")" \
+    "$(color_value "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "$COLOR_BLUE")")"
   echo ""
   echo "$(format_kv_colored \
     "AUTO_MOVER_ENABLED" \
-    "$(color_value "AUTO_MOVER_ENABLED" "\033[0;93m")" \
-    "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[0;93m")")"
+    "$(color_value "AUTO_MOVER_ENABLED" "$COLOR_YELLOW")" \
+    "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "$COLOR_YELLOW")")"
   echo "$(format_kv_colored \
     "AUTO_MOVER_EXCLUDED_DIRS" \
-    "$(color_value "AUTO_MOVER_EXCLUDED_DIRS" "\033[0;93m")" \
-    "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[0;93m")")"
+    "$(color_value "AUTO_MOVER_EXCLUDED_DIRS" "$COLOR_YELLOW")" \
+    "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "$COLOR_YELLOW")")"
   echo ""
 }
 
