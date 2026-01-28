@@ -157,20 +157,28 @@ def start():
             manual_events = filtered_events
         pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
         touched_paths = []
-        blocked_sources = set()
         now = time.monotonic()
-        if settings.AUTO_RENAMER_ENABLED:
-            dry_result = renamer_dry_run(pkgs)
-            blocked_sources.update(dry_result.get("blocked_sources", []))
-            result = apply_renamer(dry_result)
-            touched_paths.extend(result.get("touched_paths", []))
-            blocked_sources.update(result.get("quarantined_paths", []))
-            pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
-        if settings.AUTO_MOVER_ENABLED:
-            dry_result = mover_dry_run(pkgs, skip_paths=blocked_sources)
-            result = apply_mover(dry_result)
-            touched_paths.extend(result.get("touched_paths", []))
-            pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
+        for pkg, data in pkgs:
+            current_pkg = pkg
+            blocked_sources = set()
+
+            if settings.AUTO_RENAMER_ENABLED:
+                renamer_dry = renamer_dry_run([(current_pkg, data)])
+                blocked_sources.update(renamer_dry.get("blocked_sources", []))
+                renamer_result = apply_renamer(renamer_dry)
+                touched_paths.extend(renamer_result.get("touched_paths", []))
+
+                renamed = renamer_result.get("renamed", [])
+                if renamed:
+                    current_pkg = renamed[0][1]
+
+                if str(pkg) in blocked_sources:
+                    continue
+
+            if settings.AUTO_MOVER_ENABLED:
+                mover_dry = mover_dry_run([(current_pkg, data)], skip_paths=blocked_sources)
+                mover_result = apply_mover(mover_dry)
+                touched_paths.extend(mover_result.get("touched_paths", []))
 
         for path in touched_paths:
             module_touched_at[path] = now
