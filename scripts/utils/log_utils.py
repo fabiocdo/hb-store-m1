@@ -3,23 +3,27 @@ import os
 import time
 
 LOGGER = logging.getLogger()
-COLORS = {
-    "debug": "\033[0;90m",
-    "info": "\033[0m",
-    "warn": "\033[0;33m",
-    "error": "\033[0;31m",
-}
-LOG_LEVELS = {
-    "debug": logging.DEBUG,
-    "info": logging.INFO,
-    "warn": logging.WARNING,
-    "error": logging.ERROR,
-}
-LOG_PREFIXES = {
-    "debug": "[DEBUG]",
-    "info": "[INFO]",
-    "warn": "[WARN]",
-    "error": "[ERROR]",
+LOG_SETTINGS = {
+    "debug": {
+        "level": logging.DEBUG,
+        "color": "\033[0;90m",
+        "prefix": "[DEBUG]",
+    },
+    "info": {
+        "level": logging.INFO,
+        "color": "\033[0m",
+        "prefix": "[INFO]",
+    },
+    "warn": {
+        "level": logging.WARNING,
+        "color": "\033[0;33m",
+        "prefix": "[WARN]",
+    },
+    "error": {
+        "level": logging.ERROR,
+        "color": "\033[0;31m",
+        "prefix": "[ERROR]",
+    },
 }
 DEDUPE_WINDOW_SECONDS = 2.0
 _last_log_times = {}
@@ -48,9 +52,10 @@ else:
 
 
 def log(action, message, module=None):
-    level = LOG_LEVELS.get(action, logging.INFO)
-    prefix = LOG_PREFIXES.get(action, "[*]")
-    color = COLORS.get(action, COLORS["info"])
+    settings = LOG_SETTINGS.get(action, LOG_SETTINGS["info"])
+    level = settings["level"]
+    prefix = settings["prefix"]
+    color = settings["color"]
     module_tag = f"[{module}] " if module else ""
     key = (action, module, message)
     now = time.monotonic()
