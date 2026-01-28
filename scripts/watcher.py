@@ -74,7 +74,6 @@ def watch(on_change):
     if process.stdout is None:
         return
 
-    last_moved_to = {}
     for line in process.stdout:
         line = line.strip()
         if not line:
@@ -90,6 +89,7 @@ def watch(on_change):
 def start():
     """Entry point for the indexer watcher."""
     parse_settings()
+    last_moved_to = {}
 
     def run_automations(events=None):
         initial_run = events is None
