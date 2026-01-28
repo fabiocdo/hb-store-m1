@@ -37,6 +37,11 @@ def dry_run(pkgs, skip_paths=None):
             skipped_excluded.append(str(pkg))
             continue
         if str(pkg) in skip_set:
+            log(
+                "warn",
+                "Skipped move. A file with the same name already exists in the target directory",
+                module="AUTO_MOVER",
+            )
             continue
         if target_path.exists():
             skipped_conflict.append(str(target_path))
