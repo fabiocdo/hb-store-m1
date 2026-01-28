@@ -117,7 +117,7 @@ nginx
 log "NGINX is running on ${host}:${port}"
 
 log ""
-log "STARTING HOMEBREW-STORE-CDN WITH SETTINGS:"
+log "=== HOMEBREW-STORE-CDN ==="
 log ""
 log_table "BASE_URL" "$(format_value BASE_URL "$BASE_URL")"
 log_table "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
