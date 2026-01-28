@@ -101,7 +101,6 @@ def watch(on_change):
                 log("created", f"Created: {path}")
             on_change(schedule_index=True)
             continue
-        log("modified", f"Change detected: {events} {path}")
         on_change(schedule_index=True)
 
 
