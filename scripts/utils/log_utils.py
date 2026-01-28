@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 LOGGER = logging.getLogger()
 LOG_SETTINGS = {
@@ -62,3 +63,9 @@ def log(action, message, module=None):
     sep = " " if prefix else ""
     message_text = f"{color}{prefix}{sep}{message}\033[0m"
     LOGGER.log(level, f"{module_tag}{message_text}")
+
+
+def format_log_line(message, module=None):
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    module_tag = f"[{module}] " if module else ""
+    return f"{timestamp} {module_tag}{message}"

@@ -2,7 +2,7 @@ import pathlib
 import tempfile
 
 import settings
-from utils.log_utils import log
+from utils.log_utils import format_log_line, log
 from tools.pkgtool import run_pkgtool
 
 
@@ -196,7 +196,8 @@ def scan_pkgs():
             result = extract_pkg_data(pkg, include_icon=False)
         except PkgMetadataError as e:
             stage_label = STAGE_LABELS.get(e.stage, "Unknown stage")
-            log("error", f"Failed to read PKG metadata ({stage_label}): {pkg}")
+            message = f"Failed to read PKG metadata ({stage_label}): {pkg}"
+            log("error", message)
             try:
                 settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
                 error_dir = settings.DATA_DIR / "_errors"
@@ -210,18 +211,21 @@ def scan_pkgs():
                         target = error_dir / f"{pkg.name}_{counter}"
                     counter += 1
                 pkg.rename(target)
-                log("warn", f"Moved file with error to {error_dir}: {pkg}")
+                warn_message = f"Moved file with error to {error_dir}: {pkg}"
+                log("warn", warn_message)
                 try:
                     log_path = error_dir / "error_log.txt"
                     with log_path.open("a", encoding="utf-8") as handle:
-                        handle.write(f"metadata_error ({stage_label}): {pkg} -> {target}\n")
+                        handle.write(format_log_line(message) + "\n")
+                        handle.write(format_log_line(warn_message) + "\n")
                 except Exception:
                     pass
             except Exception as move_error:
                 log("error", f"Failed to move errored PKG to _errors: {pkg} ({move_error})")
             continue
         except Exception:
-            log("error", f"Failed to read PKG metadata (Unknown stage): {pkg}")
+            message = f"Failed to read PKG metadata (Unknown stage): {pkg}"
+            log("error", message)
             try:
                 settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
                 error_dir = settings.DATA_DIR / "_errors"
@@ -235,11 +239,13 @@ def scan_pkgs():
                         target = error_dir / f"{pkg.name}_{counter}"
                     counter += 1
                 pkg.rename(target)
-                log("warn", f"Moved file with error to {error_dir}: {pkg}")
+                warn_message = f"Moved file with error to {error_dir}: {pkg}"
+                log("warn", warn_message)
                 try:
                     log_path = error_dir / "error_log.txt"
                     with log_path.open("a", encoding="utf-8") as handle:
-                        handle.write(f"metadata_error (unknown): {pkg} -> {target}\n")
+                        handle.write(format_log_line(message) + "\n")
+                        handle.write(format_log_line(warn_message) + "\n")
                 except Exception:
                     pass
             except Exception as move_error:

@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 
 import settings
-from utils.log_utils import log
+from utils.log_utils import format_log_line, log
 
 
 def dry_run(pkgs):
@@ -148,7 +148,7 @@ def apply(dry_result):
         try:
             log_path = error_dir / "error_log.txt"
             with log_path.open("a", encoding="utf-8") as handle:
-                handle.write(message + "\n")
+                handle.write(format_log_line(message, module="AUTO_RENAMER") + "\n")
         except Exception:
             pass
 
@@ -200,29 +200,17 @@ def apply(dry_result):
         if target is not None:
             quarantined.append(str(target))
             touched_paths.extend([source, str(target)])
-            log(
-                "warn",
-                f"Moved file with error to {settings.DATA_DIR / '_errors'}: {source}",
-                module="AUTO_RENAMER",
-            )
-            append_error_log(
-                settings.DATA_DIR / "_errors",
-                f"rename_conflict: {source} -> {target}",
-            )
+            message = f"Moved file with error to {settings.DATA_DIR / '_errors'}: {source}"
+            log("warn", message, module="AUTO_RENAMER")
+            append_error_log(settings.DATA_DIR / "_errors", message)
     for source in dry_result.get("error_sources", []):
         target = quarantine_path(source)
         if target is not None:
             quarantined.append(str(target))
             touched_paths.extend([source, str(target)])
-            log(
-                "warn",
-                f"Moved file with error to {settings.DATA_DIR / '_errors'}: {source}",
-                module="AUTO_RENAMER",
-            )
-            append_error_log(
-                settings.DATA_DIR / "_errors",
-                f"rename_error: {source} -> {target}",
-            )
+            message = f"Moved file with error to {settings.DATA_DIR / '_errors'}: {source}"
+            log("warn", message, module="AUTO_RENAMER")
+            append_error_log(settings.DATA_DIR / "_errors", message)
     return {"renamed": renamed, "touched_paths": touched_paths, "quarantined_paths": quarantined}
 
 
