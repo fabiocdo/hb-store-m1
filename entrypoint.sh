@@ -55,18 +55,7 @@ log_table() {
   label="$1"
   value="$2"
   color="${3-}"
-  width=38
-  pad=$((width - ${#label}))
-  if [ "$pad" -lt 0 ]; then
-    pad=0
-  fi
-  printf "%s || " "$(date '+%Y-%m-%d %H:%M:%S')"
-  if [ -n "$color" ]; then
-    printf "%b%s%b" "$color" "$label" "\033[0m"
-  else
-    printf "%s" "$label"
-  fi
-  printf "%*s = %s ||\n" "$pad" "" "$value"
+  printf "%s     %s %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$label" "$value"
 }
 
 format_value() {
@@ -86,6 +75,44 @@ color_value() {
   value="$1"
   color="$2"
   printf "%b%s%b" "$color" "$value" "\033[0m"
+}
+
+strip_ansi() {
+  printf "%s" "$1" | sed 's/\x1B\[[0-9;]*m//g'
+}
+
+box_border() {
+  printf "%s\n" "$(printf "%*s" "$BOX_WIDTH" "" | tr ' ' '=')"
+}
+
+box_line() {
+  content="$1"
+  plain="$(strip_ansi "$content")"
+  pad=$((BOX_WIDTH - 6 - ${#plain}))
+  if [ "$pad" -lt 0 ]; then
+    pad=0
+  fi
+  printf "|| %s%*s ||\n" "$content" "$pad" ""
+}
+
+box_kv() {
+  key="$1"
+  value="$2"
+  key_color="${3-}"
+  value_color="${4-}"
+  key_display="$key"
+  if [ -n "$key_color" ]; then
+    key_display="$(color_value "$key" "$key_color")"
+  fi
+  value_display="$value"
+  if [ -n "$value_color" ]; then
+    value_display="$(color_value "$value" "$value_color")"
+  fi
+  key_pad=$((BOX_KEY_WIDTH - ${#key}))
+  if [ "$key_pad" -lt 1 ]; then
+    key_pad=1
+  fi
+  box_line "$(printf "%s%*s%s" "$key_display" "$key_pad" "" "$value_display")"
 }
 
 initialize_dir(){
@@ -140,22 +167,27 @@ log "NGINX is running on ${host}:${port}"
 log ""
 log "=== HOMEBREW-STORE-CDN ==="
 log ""
-log_table "BASE_URL" "$(format_value BASE_URL "$BASE_URL")"
-log_table "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
+BOX_WIDTH=64
+BOX_KEY_WIDTH=28
+box_border
+box_line ""
+box_kv "BASE_URL" "$(format_value BASE_URL "$BASE_URL")"
+box_kv "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
+box_line ""
+box_kv "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
+box_line ""
+box_kv "AUTO_INDEXER_ENABLED" "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "\033[0;92m" "\033[0;92m"
+box_line ""
+box_kv "AUTO_RENAMER_ENABLED" "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")" "\033[1;94m" "\033[1;94m"
+box_kv "AUTO_RENAMER_MODE" "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")" "\033[1;94m" "\033[1;94m"
+box_kv "AUTO_RENAMER_TEMPLATE" "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "\033[1;94m" "\033[1;94m"
+box_kv "AUTO_RENAMER_EXCLUDED_DIRS" "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "\033[1;94m" "\033[1;94m"
+box_line ""
+box_kv "AUTO_MOVER_ENABLED" "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[1;94m" "\033[1;94m"
+box_kv "AUTO_MOVER_EXCLUDED_DIRS" "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[1;94m" "\033[1;94m"
+box_line ""
+box_border
 log ""
-log_table "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
-log ""
-log_table "AUTO_INDEXER_ENABLED" "$(color_value "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "\033[0;92m")" "\033[0;92m"
-log ""
-log_table "AUTO_RENAMER_ENABLED" "$(color_value "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")" "\033[1;94m")" "\033[1;94m"
-log_table "AUTO_RENAMER_MODE" "$(color_value "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")" "\033[1;94m")" "\033[1;94m"
-log_table "AUTO_RENAMER_TEMPLATE" "$(color_value "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "\033[1;94m")" "\033[1;94m"
-log_table "AUTO_RENAMER_EXCLUDED_DIRS" "$(color_value "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "\033[1;94m")" "\033[1;94m"
-log ""
-log_table "AUTO_MOVER_ENABLED" "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "\033[1;94m")" "\033[1;94m"
-log_table "AUTO_MOVER_EXCLUDED_DIRS" "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "\033[1;94m")" "\033[1;94m"
-log ""
-log "========================"
 
 initialize_dir
 
