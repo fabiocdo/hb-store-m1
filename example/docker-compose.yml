@@ -13,10 +13,10 @@ services:
       - PKG_WATCHER_ENABLED=true
       - AUTO_INDEXER_ENABLED=true
       - AUTO_RENAMER_ENABLED=false
-      - AUTO_MOVER_ENABLED=true
       - AUTO_RENAMER_MODE=none
       - AUTO_RENAMER_TEMPLATE={title} [{titleid}][{apptype}]
       - AUTO_RENAMER_EXCLUDED_DIRS=app
+      - AUTO_MOVER_ENABLED=true
       - AUTO_MOVER_EXCLUDED_DIRS=app
     volumes:
       - ./data:/data
