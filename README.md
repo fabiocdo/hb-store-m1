@@ -242,14 +242,6 @@ Dependencies and behavior:
 - Location: `scripts/tools/pkgtool.py`
 - Wraps the `pkgtool` binary calls used by the indexer.
 
-## Error handling
-
-- When a rename or move conflict is detected, the PKG is moved to `/data/_errors`.
-- Files in `_errors/` are not indexed.
-- Resolve conflicts manually and move the file back into `pkg/`.
-- If `param.sfo` cannot be read, the PKG is moved to `/data/_errors`.
-- PKG metadata errors are logged with a human-friendly stage (e.g. `Reading PKG entries`, `PARAM.SFO not found`).
-
 ## Flow diagram (ASCII)
 
 ```
@@ -301,18 +293,11 @@ as shown in the quick start examples.
 
 ## Troubleshooting
 
-- If a PKG is encrypted, `pkgtool` may fail to read `param.sfo` and indexing will stop.
+- If the index is not updating, remove `/data/_cache/index-cache.json` to force a rebuild.
+- If a PKG is encrypted, `pkgtool` may fail to read `param.sfo` and the PKG is moved to `_errors/`.
 - If icons are missing, ensure the PKG contains `ICON0_PNG` or `PIC0_PNG`.
-- If you see conflict warnings, check `_errors/`.
-
-## Developer notes
-
-- The orchestrator runs as `/scripts/watcher.py` inside the container.
-- Shared constants and paths live in `scripts/settings.py`.
-- Shared log helpers live in `scripts/utils/log_utils.py`.
-- Indexer internals are split into `scripts/modules/auto_indexer.py`, `scripts/modules/auto_mover.py`,
-  `scripts/modules/auto_renamer.py`, `scripts/utils/pkg_utils.py`, `scripts/tools/pkgtool.py`,
-  and `scripts/watcher.py`.
-- Runtime indexer config is stored in `scripts/settings.py`.
-- CLI option specs live in `scripts/settings.py` as `CLI_ARGS`.
-- Indexer logs use Python's `logging` with level-based coloring.
+- If a rename or move conflict is detected, the PKG is moved to `/data/_errors`.
+- Files in `_errors/` are not indexed.
+- Resolve conflicts manually and move the file back into `pkg/`.
+- PKG metadata errors are logged with a human-friendly stage (e.g. `Reading PKG entries`, `PARAM.SFO not found`).
+- Each error move appends the full console-formatted line to `/data/_errors/error_log.txt`.
