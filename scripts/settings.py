@@ -33,6 +33,7 @@ AUTO_RENAMER_MODE = None
 AUTO_RENAMER_EXCLUDED_DIRS = None
 AUTO_MOVER_ENABLED = None
 AUTO_MOVER_EXCLUDED_DIRS = None
+PROCESS_WORKERS = None
 
 # CLI Arguments
 CLI_ARGS = [
@@ -49,4 +50,5 @@ CLI_ARGS = [
     ),
     ("--auto-renamer-excluded-dirs", {"required": True}),
     ("--auto-mover-excluded-dirs", {"required": True}),
+    ("--process-workers", {"required": True}),
 ]

@@ -27,6 +27,7 @@ docker run -d \
   -p 8080:80 \
   -e BASE_URL=http://127.0.0.1:8080 \
   -e LOG_LEVEL=info \
+  -e PROCESS_WORKERS=4 \
   -e PKG_WATCHER_ENABLED=true \
   -e AUTO_INDEXER_ENABLED=true \
   -e AUTO_RENAMER_ENABLED=false \
@@ -54,6 +55,7 @@ services:
     environment:
       - BASE_URL=http://127.0.0.1:8080
       - LOG_LEVEL=info
+      - PROCESS_WORKERS=4
       - PKG_WATCHER_ENABLED=true
       - AUTO_INDEXER_ENABLED=true
       - AUTO_RENAMER_ENABLED=false
@@ -132,7 +134,7 @@ The host directory mapped to `/data` must follow this layout:
 Notes:
 
 - `index.json` and `_media/*.png` are generated automatically.
-- The tool ignores any PKG located inside folders that start with `_`.
+- PKGs are processed even if they are inside folders that start with `_`.
 - PKGs placed directly in `pkg/` are processed by renamer/mover but are not indexed.
 - The `_PUT_YOUR_PKGS_HERE` file is a marker created on container startup.
 - Auto-created folders and the marker are only created during container startup.
@@ -187,9 +189,10 @@ Fields:
 |-----------------------------|--------------------------------------------------------------------------------------------------------------------------|----------------------------------|
 | `BASE_URL`                  | Base URL written in `index.json`.                                                                                        | `http://127.0.0.1:8080`          |
 | `LOG_LEVEL`                 | Log verbosity: `debug`, `info`, `warn`, `error`.                                                                          | `info`                           |
+| `PROCESS_WORKERS`           | Number of parallel pipeline workers (sharded by PKG path).                                                                | CPU core count                   |
 | `PKG_WATCHER_ENABLED`       | Master switch for watcher-driven automations (rename, move, index).                                                      | `true`                           |
 | `AUTO_INDEXER_ENABLED`      | Enable auto-generated `index.json` and cache updates.                                                                    | `true`                           |
-| `AUTO_RENAMER_ENABLED`      | Enable PKG rename using `AUTO_RENAMER_TEMPLATE`.                                                                         | `false`                          |
+| `AUTO_RENAMER_ENABLED`      | Enable PKG rename using `AUTO_RENAMER_TEMPLATE`.                                                                         | `true`                           |
 | `AUTO_RENAMER_MODE`         | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
 | `AUTO_RENAMER_TEMPLATE`     | Template using `{title}`, `{titleid}`, `{region}`, `{apptype}`, `{version}`, `{category}`, `{content_id}`, `{app_type}`. | `{title} [{titleid}][{apptype}]` |
 | `AUTO_RENAMER_EXCLUDED_DIRS`| Comma-separated directory names to skip when auto-renaming.                                                               | `app`                            |
@@ -200,6 +203,7 @@ Fields:
 Dependencies and behavior:
 
 - `PKG_WATCHER_ENABLED=false` disables all automations (rename, move, index) and the watcher does not start.
+- `PROCESS_WORKERS` only affects the per-file rename/move/icon pipeline (indexing remains single-threaded).
 - `AUTO_RENAMER_TEMPLATE` and `AUTO_RENAMER_MODE` only apply when `AUTO_RENAMER_ENABLED=true` and the watcher is enabled.
 - `AUTO_RENAMER_EXCLUDED_DIRS` only applies when `AUTO_RENAMER_ENABLED=true` and the watcher is enabled.
 - `AUTO_MOVER_EXCLUDED_DIRS` only applies when `AUTO_MOVER_ENABLED=true` and the watcher is enabled.
@@ -211,7 +215,7 @@ Dependencies and behavior:
 
 - Location: `scripts/watcher.py`
 - Listens for `CLOSE_WRITE`, `MOVED_TO`, and `DELETE` events under `pkg/`.
-- Runs a per-file pipeline (renamer → mover → indexer).
+- Runs a per-file pipeline (renamer → mover → indexer), sharded across `PROCESS_WORKERS`.
 
 ### Auto Renamer
 
@@ -252,7 +256,7 @@ fs events (CLOSE_WRITE / MOVED_TO / DELETE)
            [watcher.py]
                 |
                 v
-         per-file pipeline
+   per-file pipeline (sharded)
                 |
                 v
          [auto_renamer.py]
@@ -267,7 +271,7 @@ fs events (CLOSE_WRITE / MOVED_TO / DELETE)
                 |
                no
                 v
-        [auto_indexer.py]
+     [auto_indexer.py]
                 |
                 v
            index.json

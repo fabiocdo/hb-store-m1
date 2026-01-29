@@ -1,7 +1,11 @@
 import argparse
+import hashlib
+import os
 import shutil
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 import settings
 from modules.auto_indexer import ensure_icon, run as run_indexer
@@ -10,7 +14,7 @@ from modules.auto_mover import dry_run as mover_dry_run
 from modules.auto_renamer import apply as apply_renamer
 from modules.auto_renamer import dry_run as renamer_dry_run
 from utils.pkg_utils import scan_pkgs
-from utils.log_utils import log
+from utils.log_utils import clear_worker_label, log, set_worker_label
 
 
 def parse_settings():
@@ -35,6 +39,7 @@ def parse_settings():
     settings.AUTO_MOVER_ENABLED = parse_bool(args.auto_mover_enabled)
     settings.AUTO_MOVER_EXCLUDED_DIRS = args.auto_mover_excluded_dirs
     settings.AUTO_INDEXER_ENABLED = parse_bool(args.auto_indexer_enabled)
+    settings.PROCESS_WORKERS = args.process_workers
 
 
 def watch(on_change):
@@ -97,6 +102,8 @@ def start():
     def run_automations(events=None):
         initial_run = events is None
         manual_events = []
+        candidate_paths = []
+        should_reindex = initial_run
         if not initial_run:
             for path, event_str in events:
                 manual_events.append((path, event_str))
@@ -108,7 +115,7 @@ def start():
             return
 
         if manual_events:
-            allowed_exts = {".pkg", ".png"}
+            allowed_exts = {".pkg"}
             relevant_events = []
             moved_to_paths = set()
             now = time.monotonic()
@@ -155,41 +162,97 @@ def start():
             if not filtered_events:
                 return
             manual_events = filtered_events
-        pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
-        touched_paths = []
-        now = time.monotonic()
-        for pkg, data in pkgs:
+
+            candidate_set = set()
+            for path, event_str in manual_events:
+                events = {item.strip() for item in event_str.split(",") if item.strip()}
+                path_obj = Path(path)
+                if "DELETE" in events or "MOVED_FROM" in events:
+                    should_reindex = True
+                    continue
+                if not path_obj.exists():
+                    should_reindex = True
+                    continue
+                candidate_set.add(path_obj)
+                should_reindex = True
+            candidate_paths = list(candidate_set)
+
+        if initial_run:
+            pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
+        else:
+            pkgs = list(scan_pkgs(paths=candidate_paths)) if candidate_paths else []
+
+        def process_pkg(pkg, data):
             current_pkg = pkg
             blocked_sources = set()
+            touched = []
 
             if settings.AUTO_RENAMER_ENABLED:
                 renamer_dry = renamer_dry_run([(current_pkg, data)])
                 blocked_sources.update(renamer_dry.get("blocked_sources", []))
                 renamer_result = apply_renamer(renamer_dry)
-                touched_paths.extend(renamer_result.get("touched_paths", []))
+                touched.extend(renamer_result.get("touched_paths", []))
 
                 renamed = renamer_result.get("renamed", [])
                 if renamed:
                     current_pkg = renamed[0][1]
 
                 if str(pkg) in blocked_sources:
-                    continue
+                    return touched
 
             if settings.AUTO_MOVER_ENABLED:
                 mover_dry = mover_dry_run([(current_pkg, data)], skip_paths=blocked_sources)
                 mover_result = apply_mover(mover_dry)
-                touched_paths.extend(mover_result.get("touched_paths", []))
+                touched.extend(mover_result.get("touched_paths", []))
                 moved = mover_result.get("moved", [])
                 if moved:
                     current_pkg = moved[0][1]
 
             if settings.AUTO_INDEXER_ENABLED:
                 ensure_icon(current_pkg, data)
+            return touched
+
+        touched_paths = []
+        now = time.monotonic()
+        worker_count = 1
+        try:
+            worker_count = max(1, int(settings.PROCESS_WORKERS))
+        except Exception:
+            worker_count = max(1, os.cpu_count() or 1)
+
+        def process_batch(items, label=None):
+            batch_touched = []
+            if label is not None:
+                set_worker_label(label)
+            for pkg, data in items:
+                batch_touched.append(process_pkg(pkg, data))
+            if label is not None:
+                clear_worker_label()
+            return batch_touched
+
+        if worker_count <= 1 or len(pkgs) <= 1:
+            for pkg, data in pkgs:
+                touched_paths.extend(process_pkg(pkg, data))
+        else:
+            shards = [[] for _ in range(worker_count)]
+            for pkg, data in pkgs:
+                digest = hashlib.md5(str(pkg).encode("utf-8")).hexdigest()
+                shard = int(digest, 16) % worker_count
+                shards[shard].append((pkg, data))
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                futures = []
+                for idx, shard_pkgs in enumerate(shards, start=1):
+                    if not shard_pkgs:
+                        continue
+                    futures.append(executor.submit(process_batch, shard_pkgs, str(idx)))
+                for future in as_completed(futures):
+                    for touched in future.result():
+                        touched_paths.extend(touched)
 
         for path in touched_paths:
             module_touched_at[path] = now
-        if settings.AUTO_INDEXER_ENABLED:
-            pkgs = list(scan_pkgs()) if settings.PKG_DIR.exists() else []
+        if settings.AUTO_INDEXER_ENABLED and should_reindex:
+            pkgs = list(scan_pkgs(use_cache=True)) if settings.PKG_DIR.exists() else []
             run_indexer(pkgs, extract_icons=False)
 
 

@@ -17,6 +17,7 @@ def ensure_icon(pkg, data):
     icon_bytes = extract_pkg_data(pkg, include_icon=True)["icon_bytes"]
     if icon_bytes:
         icon_out.write_bytes(icon_bytes)
+        log("info", f"Extracted icon: {icon_out}", module="AUTO_INDEXER")
         return True
     return False
 

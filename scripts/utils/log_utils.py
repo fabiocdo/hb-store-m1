@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 import time
 
 LOGGER = logging.getLogger()
@@ -30,6 +31,28 @@ MODULE_COLORS = {
     "AUTO_MOVER": "\033[0;93m",
     "AUTO_RENAMER": "\033[1;94m",
 }
+_thread_state = threading.local()
+
+
+def set_worker_label(label):
+    _thread_state.worker_label = label
+
+
+def clear_worker_label():
+    if hasattr(_thread_state, "worker_label"):
+        delattr(_thread_state, "worker_label")
+
+
+def _module_tag(module):
+    if not module:
+        return ""
+    label = getattr(_thread_state, "worker_label", None)
+    display = f"{module}-{label}" if label else module
+    base = module.split("-", 1)[0]
+    module_color = MODULE_COLORS.get(base, "")
+    if module_color:
+        return f"{module_color}[{display}]\033[0m "
+    return f"[{display}] "
 def _resolve_log_level():
     env_level = os.getenv("LOG_LEVEL", "").strip().lower()
     mapping = {
@@ -58,8 +81,7 @@ def log(action, message, module=None):
     level = settings["level"]
     prefix = settings["prefix"]
     color = settings["color"]
-    module_color = MODULE_COLORS.get(module, "")
-    module_tag = f"{module_color}[{module}]\033[0m " if module else ""
+    module_tag = _module_tag(module)
     sep = " " if prefix else ""
     message_text = f"{color}{prefix}{sep}{message}\033[0m"
     LOGGER.log(level, f"{module_tag}{message_text}")
@@ -67,5 +89,7 @@ def log(action, message, module=None):
 
 def format_log_line(message, module=None):
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    module_tag = f"[{module}] " if module else ""
+    label = getattr(_thread_state, "worker_label", None)
+    display = f"{module}-{label}" if module and label else module
+    module_tag = f"[{display}] " if display else ""
     return f"{timestamp} {module_tag}{message}"

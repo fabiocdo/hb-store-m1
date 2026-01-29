@@ -1,5 +1,8 @@
+import json
+import os
 import pathlib
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import settings
 from utils.log_utils import format_log_line, log
@@ -187,68 +190,116 @@ def extract_pkg_data(pkg_path, include_icon=False):
         raise PkgMetadataError(stage) from e
 
 
-def scan_pkgs():
-    """Yield (pkg_path, data) for every PKG under PKG_DIR."""
+def iter_pkg_paths():
+    """Yield PKG paths under PKG_DIR, ignoring underscore-prefixed folders."""
     for pkg in settings.PKG_DIR.rglob("*.pkg"):
-        if any(part.startswith("_") for part in pkg.parts):
-            continue
+        yield pkg
+
+
+def scan_pkgs(paths=None, use_cache=False):
+    """Yield (pkg_path, data) for PKGs; optionally use cache and parallel extraction."""
+
+    def handle_metadata_error(pkg, stage_label):
+        message = f"Failed to read PKG metadata ({stage_label}): {pkg}"
+        log("error", message)
+        try:
+            settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
+            error_dir = settings.DATA_DIR / "_errors"
+            error_dir.mkdir(parents=True, exist_ok=True)
+            target = error_dir / pkg.name
+            counter = 1
+            while target.exists():
+                if pkg.suffix:
+                    target = error_dir / f"{pkg.stem}_{counter}{pkg.suffix}"
+                else:
+                    target = error_dir / f"{pkg.name}_{counter}"
+                counter += 1
+            pkg.rename(target)
+            warn_message = f"Moved file with error to {error_dir}: {pkg}"
+            log("warn", warn_message)
+            try:
+                log_path = error_dir / "error_log.txt"
+                with log_path.open("a", encoding="utf-8") as handle:
+                    handle.write(format_log_line(message) + "\n")
+                    handle.write(format_log_line(warn_message) + "\n")
+            except Exception:
+                pass
+        except Exception as move_error:
+            log("error", f"Failed to move errored PKG to _errors: {pkg} ({move_error})")
+
+    def load_cache():
+        if not use_cache:
+            return {"pkgs": {}}
+        try:
+            if settings.CACHE_PATH.exists():
+                return json.loads(settings.CACHE_PATH.read_text())
+        except Exception:
+            pass
+        return {"pkgs": {}}
+
+    def cache_lookup(cache, pkg):
+        try:
+            stat = pkg.stat()
+        except Exception:
+            return None
+        rel = pkg.relative_to(settings.PKG_DIR).as_posix()
+        entry = cache.get("pkgs", {}).get(rel)
+        if (
+            entry
+            and entry.get("size") == stat.st_size
+            and entry.get("mtime") == stat.st_mtime
+            and isinstance(entry.get("data"), dict)
+        ):
+            return entry["data"]
+        return None
+
+    def extract_worker(pkg):
         try:
             result = extract_pkg_data(pkg, include_icon=False)
+            return ("ok", pkg, result["data"])
         except PkgMetadataError as e:
-            stage_label = STAGE_LABELS.get(e.stage, "Unknown stage")
-            message = f"Failed to read PKG metadata ({stage_label}): {pkg}"
-            log("error", message)
+            return ("pkg_error", pkg, e)
+        except Exception as e:
+            return ("error", pkg, e)
+
+    cache = load_cache()
+    pkg_paths = list(paths) if paths is not None else list(iter_pkg_paths())
+    cache_hits = []
+    to_extract = []
+    for pkg in pkg_paths:
+        cached = cache_lookup(cache, pkg)
+        if cached is not None:
+            cache_hits.append((pkg, cached))
+        else:
+            to_extract.append(pkg)
+
+    for pkg, data in cache_hits:
+        yield pkg, data
+
+    if not to_extract:
+        return
+
+    max_workers = max(2, os.cpu_count() or 2)
+    if len(to_extract) == 1 or max_workers <= 1:
+        for pkg in to_extract:
             try:
-                settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
-                error_dir = settings.DATA_DIR / "_errors"
-                error_dir.mkdir(parents=True, exist_ok=True)
-                target = error_dir / pkg.name
-                counter = 1
-                while target.exists():
-                    if pkg.suffix:
-                        target = error_dir / f"{pkg.stem}_{counter}{pkg.suffix}"
-                    else:
-                        target = error_dir / f"{pkg.name}_{counter}"
-                    counter += 1
-                pkg.rename(target)
-                warn_message = f"Moved file with error to {error_dir}: {pkg}"
-                log("warn", warn_message)
-                try:
-                    log_path = error_dir / "error_log.txt"
-                    with log_path.open("a", encoding="utf-8") as handle:
-                        handle.write(format_log_line(message) + "\n")
-                        handle.write(format_log_line(warn_message) + "\n")
-                except Exception:
-                    pass
-            except Exception as move_error:
-                log("error", f"Failed to move errored PKG to _errors: {pkg} ({move_error})")
-            continue
-        except Exception:
-            message = f"Failed to read PKG metadata (Unknown stage): {pkg}"
-            log("error", message)
-            try:
-                settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
-                error_dir = settings.DATA_DIR / "_errors"
-                error_dir.mkdir(parents=True, exist_ok=True)
-                target = error_dir / pkg.name
-                counter = 1
-                while target.exists():
-                    if pkg.suffix:
-                        target = error_dir / f"{pkg.stem}_{counter}{pkg.suffix}"
-                    else:
-                        target = error_dir / f"{pkg.name}_{counter}"
-                    counter += 1
-                pkg.rename(target)
-                warn_message = f"Moved file with error to {error_dir}: {pkg}"
-                log("warn", warn_message)
-                try:
-                    log_path = error_dir / "error_log.txt"
-                    with log_path.open("a", encoding="utf-8") as handle:
-                        handle.write(format_log_line(message) + "\n")
-                        handle.write(format_log_line(warn_message) + "\n")
-                except Exception:
-                    pass
-            except Exception as move_error:
-                log("error", f"Failed to move errored PKG to _errors: {pkg} ({move_error})")
-            continue
-        yield pkg, result["data"]
+                result = extract_pkg_data(pkg, include_icon=False)
+                yield pkg, result["data"]
+            except PkgMetadataError as e:
+                stage_label = STAGE_LABELS.get(e.stage, "Unknown stage")
+                handle_metadata_error(pkg, stage_label)
+            except Exception:
+                handle_metadata_error(pkg, "Unknown stage")
+        return
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(extract_worker, pkg): pkg for pkg in to_extract}
+        for future in as_completed(futures):
+            status, pkg, payload = future.result()
+            if status == "ok":
+                yield pkg, payload
+            elif status == "pkg_error":
+                stage_label = STAGE_LABELS.get(payload.stage, "Unknown stage")
+                handle_metadata_error(pkg, stage_label)
+            else:
+                handle_metadata_error(pkg, "Unknown stage")
