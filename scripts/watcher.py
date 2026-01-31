@@ -1,8 +1,6 @@
 import argparse
 import hashlib
 import os
-import shutil
-import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -11,8 +9,8 @@ import settings
 from modules.auto_indexer import ensure_icon, run as run_indexer
 from modules.auto_mover import apply as apply_mover
 from modules.auto_mover import dry_run as mover_dry_run
-from modules.auto_renamer import apply as apply_renamer
-from modules.auto_renamer import dry_run as renamer_dry_run
+from modules.auto_formatter import dry_run as formatter_dry_run
+from modules.auto_formatter import run as formatter_run
 from utils.pkg_utils import scan_pkgs
 from utils.log_utils import clear_worker_label, log, set_worker_label
 
@@ -32,63 +30,28 @@ def parse_settings():
     settings.BASE_URL = args.base_url
     settings.LOG_LEVEL = args.log_level
     settings.PKG_WATCHER_ENABLED = parse_bool(args.pkg_watcher_enabled)
-    settings.AUTO_RENAMER_ENABLED = parse_bool(args.auto_renamer_enabled)
-    settings.AUTO_RENAMER_TEMPLATE = args.auto_renamer_template
-    settings.AUTO_RENAMER_MODE = args.auto_renamer_mode.lower()
-    settings.AUTO_RENAMER_EXCLUDED_DIRS = args.auto_renamer_excluded_dirs
+    settings.AUTO_FORMATTER_ENABLED = parse_bool(args.auto_formatter_enabled)
+    settings.AUTO_FORMATTER_TEMPLATE = args.auto_formatter_template
+    settings.AUTO_FORMATTER_MODE = args.auto_formatter_mode.lower()
     settings.AUTO_MOVER_ENABLED = parse_bool(args.auto_mover_enabled)
-    settings.AUTO_MOVER_EXCLUDED_DIRS = args.auto_mover_excluded_dirs
     settings.AUTO_INDEXER_ENABLED = parse_bool(args.auto_indexer_enabled)
     settings.INDEX_JSON_ENABLED = parse_bool(args.index_json_enabled)
     settings.PROCESS_WORKERS = args.process_workers
+    settings.PERIODIC_SCAN_SECONDS = args.periodic_scan_seconds
 
 
-def watch(on_change):
-    """Watch pkg directory and trigger rename/move/index updates."""
-    if shutil.which("inotifywait") is None:
-        log("error", "inotifywait not found; skipping watcher.")
-        return
+def run_periodic(on_change):
+    """Periodically scan pkg directory and trigger rename/move/index updates."""
     if not settings.PKG_DIR.exists():
-        return
-
-    log("info", f"Starting watcher on {settings.PKG_DIR}")
-    cmd = [
-        "inotifywait",
-        "-q",
-        "-m",
-        "-r",
-        "-e",
-        "delete",
-        "-e",
-        "close_write",
-        "-e",
-        "moved_from",
-        "-e",
-        "moved_to",
-        "--format",
-        "%w%f|%e",
-        str(settings.PKG_DIR),
-    ]
-    process = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-
-    if process.stdout is None:
-        return
-
-    for line in process.stdout:
-        line = line.strip()
-        if not line:
-            continue
-        if "|" not in line:
-            log("debug", f"Watcher output: {line}", module="WATCHER")
-            continue
-        path, events = line.split("|", 1)
-        log("debug", f"Captured events: {events} on {path}", module="WATCHER")
-        on_change([(path, events)])
+        log("warn", f"PKG directory not found: {settings.PKG_DIR}", module="WATCHER")
+    try:
+        interval = max(1, int(settings.PERIODIC_SCAN_SECONDS))
+    except Exception:
+        interval = 30
+    log("info", f"Starting periodic scan every {interval}s on {settings.PKG_DIR}", module="WATCHER")
+    while True:
+        on_change(None)
+        time.sleep(interval)
 
 
 def start():
@@ -188,17 +151,17 @@ def start():
             blocked_sources = set()
             touched = []
 
-            if settings.AUTO_RENAMER_ENABLED:
-                renamer_dry = renamer_dry_run([(current_pkg, data)])
-                blocked_sources.update(renamer_dry.get("blocked_sources", []))
-                renamer_result = apply_renamer(renamer_dry)
-                touched.extend(renamer_result.get("touched_paths", []))
+            if settings.AUTO_FORMATTER_ENABLED:
+                formatter_dry = formatter_dry_run([(current_pkg, data)])
+                blocked_sources.update(formatter_dry.get("blocked_sources", []))
+                formatter_result = formatter_run([(current_pkg, data)])
+                touched.extend(formatter_result.get("touched_paths", []))
 
-                renamed = renamer_result.get("renamed", [])
+                renamed = formatter_result.get("renamed", [])
                 if renamed:
                     current_pkg = renamed[0][1]
 
-                if str(pkg) in blocked_sources:
+                if pkg.name in blocked_sources:
                     return touched
 
             if settings.AUTO_MOVER_ENABLED:
@@ -260,7 +223,7 @@ def start():
             return
 
     run_automations()
-    watch(run_automations)
+    run_periodic(run_automations)
 
 
 if __name__ == "__main__":

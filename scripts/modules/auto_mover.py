@@ -9,25 +9,13 @@ def dry_run(pkgs, skip_paths=None):
     """Plan moves and report which entries can be moved."""
     plan = []
     skipped_conflict = []
-    skipped_excluded = []
     conflict_sources = []
     skip_set = {str(path) for path in (skip_paths or [])}
-
-    excluded = set()
-    if settings.AUTO_MOVER_EXCLUDED_DIRS:
-        parts = [part.strip() for part in settings.AUTO_MOVER_EXCLUDED_DIRS.split(",")]
-        excluded = {part for part in parts if part}
-
-    def is_excluded(path):
-        return any(part in excluded for part in path.parts)
+    skip_names = {Path(path).name for path in (skip_paths or [])}
 
     for pkg, data in pkgs:
         apptype = data.get("apptype")
         if apptype not in settings.APPTYPE_PATHS:
-            continue
-        if is_excluded(pkg):
-            log("debug", f"Skipping move; source excluded: {pkg}", module="AUTO_MOVER")
-            skipped_excluded.append(str(pkg))
             continue
         target_dir = settings.APPTYPE_PATHS[apptype]
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -35,11 +23,7 @@ def dry_run(pkgs, skip_paths=None):
 
         if pkg.resolve() == target_path.resolve():
             continue
-        if is_excluded(target_path):
-            log("debug", f"Skipping move; target excluded: {target_path}", module="AUTO_MOVER")
-            skipped_excluded.append(str(pkg))
-            continue
-        if str(pkg) in skip_set:
+        if str(pkg) in skip_set or pkg.name in skip_names:
             log(
                 "warn",
                 "Skipped move. A file with the same name already exists in the target directory",
@@ -55,7 +39,6 @@ def dry_run(pkgs, skip_paths=None):
     return {
         "plan": plan,
         "skipped_conflict": skipped_conflict,
-        "skipped_excluded": skipped_excluded,
         "conflict_sources": conflict_sources,
     }
 

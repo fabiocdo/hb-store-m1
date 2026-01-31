@@ -29,7 +29,7 @@ LOG_SETTINGS = {
 MODULE_COLORS = {
     "AUTO_INDEXER": "\033[0;92m",
     "AUTO_MOVER": "\033[0;93m",
-    "AUTO_RENAMER": "\033[1;94m",
+    "AUTO_FORMATTER": "\033[1;94m",
 }
 _thread_state = threading.local()
 

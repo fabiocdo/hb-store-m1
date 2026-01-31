@@ -11,12 +11,11 @@ DEFAULT_PROCESS_WORKERS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
 DEFAULT_PKG_WATCHER_ENABLED="true"
 DEFAULT_AUTO_INDEXER_ENABLED="true"
 DEFAULT_INDEX_JSON_ENABLED="false"
-DEFAULT_AUTO_RENAMER_ENABLED="true"
-DEFAULT_AUTO_RENAMER_TEMPLATE="{title} [{titleid}][{apptype}]"
-DEFAULT_AUTO_RENAMER_MODE="none"
-DEFAULT_AUTO_RENAMER_EXCLUDED_DIRS="app"
+DEFAULT_AUTO_FORMATTER_ENABLED="true"
+DEFAULT_AUTO_FORMATTER_TEMPLATE="{title} [{titleid}][{apptype}]"
+DEFAULT_AUTO_FORMATTER_MODE="none"
 DEFAULT_AUTO_MOVER_ENABLED="true"
-DEFAULT_AUTO_MOVER_EXCLUDED_DIRS="app"
+DEFAULT_PERIODIC_SCAN_SECONDS="30"
 
 # ENVIRONMENT VARIABLES
 use_default_if_unset() {
@@ -34,12 +33,11 @@ use_default_if_unset PROCESS_WORKERS "$DEFAULT_PROCESS_WORKERS"
 use_default_if_unset PKG_WATCHER_ENABLED "$DEFAULT_PKG_WATCHER_ENABLED"
 use_default_if_unset AUTO_INDEXER_ENABLED "$DEFAULT_AUTO_INDEXER_ENABLED"
 use_default_if_unset INDEX_JSON_ENABLED "$DEFAULT_INDEX_JSON_ENABLED"
-use_default_if_unset AUTO_RENAMER_ENABLED "$DEFAULT_AUTO_RENAMER_ENABLED"
+use_default_if_unset AUTO_FORMATTER_ENABLED "$DEFAULT_AUTO_FORMATTER_ENABLED"
 use_default_if_unset AUTO_MOVER_ENABLED "$DEFAULT_AUTO_MOVER_ENABLED"
-use_default_if_unset AUTO_RENAMER_MODE "$DEFAULT_AUTO_RENAMER_MODE"
-use_default_if_unset AUTO_RENAMER_TEMPLATE "$DEFAULT_AUTO_RENAMER_TEMPLATE"
-use_default_if_unset AUTO_RENAMER_EXCLUDED_DIRS "$DEFAULT_AUTO_RENAMER_EXCLUDED_DIRS"
-use_default_if_unset AUTO_MOVER_EXCLUDED_DIRS "$DEFAULT_AUTO_MOVER_EXCLUDED_DIRS"
+use_default_if_unset PERIODIC_SCAN_SECONDS "$DEFAULT_PERIODIC_SCAN_SECONDS"
+use_default_if_unset AUTO_FORMATTER_MODE "$DEFAULT_AUTO_FORMATTER_MODE"
+use_default_if_unset AUTO_FORMATTER_TEMPLATE "$DEFAULT_AUTO_FORMATTER_TEMPLATE"
 
 # CDN PATHs
 DATA_DIR="/data"
@@ -130,13 +128,12 @@ build_content_lines_plain() {
   format_kv_plain "AUTO_INDEXER_ENABLED" "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")"
   format_kv_plain "INDEX_JSON_ENABLED" "$(format_value INDEX_JSON_ENABLED "$INDEX_JSON_ENABLED")"
   printf "\n"
-  format_kv_plain "AUTO_RENAMER_ENABLED" "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")"
-  format_kv_plain "AUTO_RENAMER_MODE" "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")"
-  format_kv_plain "AUTO_RENAMER_TEMPLATE" "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")"
-  format_kv_plain "AUTO_RENAMER_EXCLUDED_DIRS" "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")"
+  format_kv_plain "AUTO_FORMATTER_ENABLED" "$(format_value AUTO_FORMATTER_ENABLED "$AUTO_FORMATTER_ENABLED")"
+  format_kv_plain "AUTO_FORMATTER_MODE" "$(format_value AUTO_FORMATTER_MODE "$AUTO_FORMATTER_MODE")"
+  format_kv_plain "AUTO_FORMATTER_TEMPLATE" "$(format_value AUTO_FORMATTER_TEMPLATE "$AUTO_FORMATTER_TEMPLATE")"
   printf "\n"
   format_kv_plain "AUTO_MOVER_ENABLED" "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")"
-  format_kv_plain "AUTO_MOVER_EXCLUDED_DIRS" "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")"
+  format_kv_plain "PERIODIC_SCAN_SECONDS" "$(format_value PERIODIC_SCAN_SECONDS "$PERIODIC_SCAN_SECONDS")"
   printf "\n"
 }
 
@@ -159,30 +156,26 @@ build_content_lines_colored() {
     "$(color_value "$(format_value INDEX_JSON_ENABLED "$INDEX_JSON_ENABLED")" "$COLOR_GREEN")"
   printf "\n"
   format_kv_colored \
-    "AUTO_RENAMER_ENABLED" \
-    "$(color_value "AUTO_RENAMER_ENABLED" "$COLOR_BLUE")" \
-    "$(color_value "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")" "$COLOR_BLUE")"
+    "AUTO_FORMATTER_ENABLED" \
+    "$(color_value "AUTO_FORMATTER_ENABLED" "$COLOR_BLUE")" \
+    "$(color_value "$(format_value AUTO_FORMATTER_ENABLED "$AUTO_FORMATTER_ENABLED")" "$COLOR_BLUE")"
   format_kv_colored \
-    "AUTO_RENAMER_MODE" \
-    "$(color_value "AUTO_RENAMER_MODE" "$COLOR_BLUE")" \
-    "$(color_value "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")" "$COLOR_BLUE")"
+    "AUTO_FORMATTER_MODE" \
+    "$(color_value "AUTO_FORMATTER_MODE" "$COLOR_BLUE")" \
+    "$(color_value "$(format_value AUTO_FORMATTER_MODE "$AUTO_FORMATTER_MODE")" "$COLOR_BLUE")"
   format_kv_colored \
-    "AUTO_RENAMER_TEMPLATE" \
-    "$(color_value "AUTO_RENAMER_TEMPLATE" "$COLOR_BLUE")" \
-    "$(color_value "$(format_value AUTO_RENAMER_TEMPLATE "$AUTO_RENAMER_TEMPLATE")" "$COLOR_BLUE")"
-  format_kv_colored \
-    "AUTO_RENAMER_EXCLUDED_DIRS" \
-    "$(color_value "AUTO_RENAMER_EXCLUDED_DIRS" "$COLOR_BLUE")" \
-    "$(color_value "$(format_value AUTO_RENAMER_EXCLUDED_DIRS "$AUTO_RENAMER_EXCLUDED_DIRS")" "$COLOR_BLUE")"
+    "AUTO_FORMATTER_TEMPLATE" \
+    "$(color_value "AUTO_FORMATTER_TEMPLATE" "$COLOR_BLUE")" \
+    "$(color_value "$(format_value AUTO_FORMATTER_TEMPLATE "$AUTO_FORMATTER_TEMPLATE")" "$COLOR_BLUE")"
   printf "\n"
   format_kv_colored \
     "AUTO_MOVER_ENABLED" \
     "$(color_value "AUTO_MOVER_ENABLED" "$COLOR_YELLOW")" \
     "$(color_value "$(format_value AUTO_MOVER_ENABLED "$AUTO_MOVER_ENABLED")" "$COLOR_YELLOW")"
   format_kv_colored \
-    "AUTO_MOVER_EXCLUDED_DIRS" \
-    "$(color_value "AUTO_MOVER_EXCLUDED_DIRS" "$COLOR_YELLOW")" \
-    "$(color_value "$(format_value AUTO_MOVER_EXCLUDED_DIRS "$AUTO_MOVER_EXCLUDED_DIRS")" "$COLOR_YELLOW")"
+    "PERIODIC_SCAN_SECONDS" \
+    "$(color_value "PERIODIC_SCAN_SECONDS" "$COLOR_YELLOW")" \
+    "$(color_value "$(format_value PERIODIC_SCAN_SECONDS "$PERIODIC_SCAN_SECONDS")" "$COLOR_YELLOW")"
   printf "\n"
 }
 
@@ -270,12 +263,11 @@ BOX_KEY_WIDTH=$(printf "%s\n" \
   "PKG_WATCHER_ENABLED" \
   "AUTO_INDEXER_ENABLED" \
   "INDEX_JSON_ENABLED" \
-  "AUTO_RENAMER_ENABLED" \
-  "AUTO_RENAMER_MODE" \
-  "AUTO_RENAMER_TEMPLATE" \
-  "AUTO_RENAMER_EXCLUDED_DIRS" \
+  "AUTO_FORMATTER_ENABLED" \
+  "AUTO_FORMATTER_MODE" \
+  "AUTO_FORMATTER_TEMPLATE" \
   "AUTO_MOVER_ENABLED" \
-  "AUTO_MOVER_EXCLUDED_DIRS" \
+  "PERIODIC_SCAN_SECONDS" \
   | awk '{ if (length($0) > max) max = length($0) } END { print max + 2 }')
 BOX_CONTENT_WIDTH=$(build_content_lines_plain | awk '{ if (length($0) > max) max = length($0) } END { print max + 0 }')
 BOX_WIDTH=$((BOX_CONTENT_WIDTH + 6))
@@ -302,12 +294,11 @@ if [ "$PKG_WATCHER_ENABLED" = "true" ]; then
     --pkg-watcher-enabled "$PKG_WATCHER_ENABLED" \
     --auto-indexer-enabled "$AUTO_INDEXER_ENABLED" \
     --index-json-enabled "$INDEX_JSON_ENABLED" \
-    --auto-renamer-enabled "$AUTO_RENAMER_ENABLED" \
+    --auto-formatter-enabled "$AUTO_FORMATTER_ENABLED" \
     --auto-mover-enabled "$AUTO_MOVER_ENABLED" \
-    --auto-renamer-mode "$AUTO_RENAMER_MODE" \
-    --auto-renamer-template "$AUTO_RENAMER_TEMPLATE" \
-    --auto-renamer-excluded-dirs "$AUTO_RENAMER_EXCLUDED_DIRS" \
-    --auto-mover-excluded-dirs "$AUTO_MOVER_EXCLUDED_DIRS"
+    --periodic-scan-seconds "$PERIODIC_SCAN_SECONDS" \
+    --auto-formatter-mode "$AUTO_FORMATTER_MODE" \
+    --auto-formatter-template "$AUTO_FORMATTER_TEMPLATE"
 fi
 log "PKG watcher is disabled."
 exec tail -f /dev/null

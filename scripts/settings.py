@@ -29,13 +29,12 @@ LOG_LEVEL = None
 PKG_WATCHER_ENABLED = None
 AUTO_INDEXER_ENABLED = None
 INDEX_JSON_ENABLED = None
-AUTO_RENAMER_ENABLED = None
-AUTO_RENAMER_TEMPLATE = None
-AUTO_RENAMER_MODE = None
-AUTO_RENAMER_EXCLUDED_DIRS = None
+AUTO_FORMATTER_ENABLED = None
+AUTO_FORMATTER_TEMPLATE = None
+AUTO_FORMATTER_MODE = None
 AUTO_MOVER_ENABLED = None
-AUTO_MOVER_EXCLUDED_DIRS = None
 PROCESS_WORKERS = None
+PERIODIC_SCAN_SECONDS = None
 
 # CLI Arguments
 CLI_ARGS = [
@@ -44,14 +43,13 @@ CLI_ARGS = [
     ("--pkg-watcher-enabled", {"required": True}),
     ("--auto-indexer-enabled", {"required": True}),
     ("--index-json-enabled", {"required": True}),
-    ("--auto-renamer-enabled", {"required": True}),
+    ("--auto-formatter-enabled", {"required": True}),
     ("--auto-mover-enabled", {"required": True}),
-    ("--auto-renamer-template", {"required": True}),
+    ("--auto-formatter-template", {"required": True}),
     (
-        "--auto-renamer-mode",
+        "--auto-formatter-mode",
         {"required": True, "choices": ["none", "uppercase", "lowercase", "capitalize"]},
     ),
-    ("--auto-renamer-excluded-dirs", {"required": True}),
-    ("--auto-mover-excluded-dirs", {"required": True}),
     ("--process-workers", {"required": True}),
+    ("--periodic-scan-seconds", {"required": True}),
 ]

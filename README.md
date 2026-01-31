@@ -31,12 +31,11 @@ docker run -d \
   -e PKG_WATCHER_ENABLED=true \
   -e AUTO_INDEXER_ENABLED=true \
   -e INDEX_JSON_ENABLED=false \
-  -e AUTO_RENAMER_ENABLED=true \
-  -e AUTO_RENAMER_MODE=none \
-  -e AUTO_RENAMER_TEMPLATE="{title} [{titleid}][{apptype}]" \
-  -e AUTO_RENAMER_EXCLUDED_DIRS=app \
+  -e AUTO_FORMATTER_ENABLED=true \
+  -e AUTO_FORMATTER_MODE=none \
+  -e AUTO_FORMATTER_TEMPLATE="{title} [{titleid}][{apptype}]" \
   -e AUTO_MOVER_ENABLED=true \
-  -e AUTO_MOVER_EXCLUDED_DIRS=app \
+  -e PERIODIC_SCAN_SECONDS=30 \
   -v ./data:/data \
   -v ./nginx.conf:/etc/nginx/nginx.conf:ro \
   fabiocdo/homebrew-store-cdn:latest
@@ -60,12 +59,11 @@ services:
       - PKG_WATCHER_ENABLED=true
       - AUTO_INDEXER_ENABLED=true
       - INDEX_JSON_ENABLED=false
-      - AUTO_RENAMER_ENABLED=true
-      - AUTO_RENAMER_MODE=none
-      - AUTO_RENAMER_TEMPLATE={title} [{titleid}][{apptype}]
-      - AUTO_RENAMER_EXCLUDED_DIRS=app
+      - AUTO_FORMATTER_ENABLED=true
+      - AUTO_FORMATTER_MODE=none
+      - AUTO_FORMATTER_TEMPLATE={title} [{titleid}][{apptype}]
       - AUTO_MOVER_ENABLED=true
-      - AUTO_MOVER_EXCLUDED_DIRS=app
+      - PERIODIC_SCAN_SECONDS=30
     volumes:
       - ./data:/data
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
@@ -137,7 +135,7 @@ Notes:
 
 - `index.json` and `_media/*.png` are generated automatically.
 - PKGs are processed even if they are inside folders that start with `_`.
-- PKGs placed directly in `pkg/` are processed by renamer/mover but are not indexed.
+- PKGs placed directly in `pkg/` are processed by formatter/mover but are not indexed.
 - The `_PUT_YOUR_PKGS_HERE` file is a marker created on container startup.
 - Auto-created folders and the marker are only created during container startup.
 - `_cache/index-cache.json` stores metadata to speed up subsequent runs.
@@ -192,24 +190,21 @@ Fields:
 | `BASE_URL`                  | Base URL written in `index.json`.                                                                                        | `http://127.0.0.1:8080`          |
 | `LOG_LEVEL`                 | Log verbosity: `debug`, `info`, `warn`, `error`.                                                                          | `info`                           |
 | `PROCESS_WORKERS`           | Number of parallel pipeline workers (sharded by PKG path).                                                                | CPU core count                   |
-| `PKG_WATCHER_ENABLED`       | Master switch for watcher-driven automations (rename, move, index).                                                      | `true`                           |
+| `PKG_WATCHER_ENABLED`       | Master switch for watcher-driven automations (format, move, index).                                                     | `true`                           |
 | `AUTO_INDEXER_ENABLED`      | Enable the auto-indexer pipeline (icons and indexing).                                                                   | `true`                           |
 | `INDEX_JSON_ENABLED`        | Enable creating/updating `index.json` and `index-cache.json`.                                                            | `false`                          |
-| `AUTO_RENAMER_ENABLED`      | Enable PKG rename using `AUTO_RENAMER_TEMPLATE`.                                                                         | `true`                           |
-| `AUTO_RENAMER_MODE`         | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
-| `AUTO_RENAMER_TEMPLATE`     | Template using `{title}`, `{titleid}`, `{region}`, `{apptype}`, `{version}`, `{category}`, `{content_id}`, `{app_type}`. | `{title} [{titleid}][{apptype}]` |
-| `AUTO_RENAMER_EXCLUDED_DIRS`| Comma-separated directory names to skip when auto-renaming.                                                               | `app`                            |
+| `AUTO_FORMATTER_ENABLED`      | Enable PKG formatting using `AUTO_FORMATTER_TEMPLATE`.                                                                     | `true`                           |
+| `AUTO_FORMATTER_MODE`         | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
+| `AUTO_FORMATTER_TEMPLATE`     | Template using `{title}`, `{titleid}`, `{region}`, `{apptype}`, `{version}`, `{category}`, `{content_id}`, `{app_type}`. | `{title} [{titleid}][{apptype}]` |
 | `AUTO_MOVER_ENABLED`        | Enable auto-moving PKGs into `game/`, `dlc/`, `update/` folders.                                                         | `true`                           |
-| `AUTO_MOVER_EXCLUDED_DIRS`  | Comma-separated directory names to skip when auto-moving.                                                                | `app`                            |
+| `PERIODIC_SCAN_SECONDS`     | Interval in seconds for periodic PKG scans (no inotify watcher).                                                        | `30`                             |
 | `CDN_DATA_DIR`              | Host path mapped to `/data`.                                                                                             | `./data`                         |
 
 Dependencies and behavior:
 
-- `PKG_WATCHER_ENABLED=false` disables all automations (rename, move, index) and the watcher does not start.
-- `PROCESS_WORKERS` only affects the per-file rename/move/icon pipeline (indexing remains single-threaded).
-- `AUTO_RENAMER_TEMPLATE` and `AUTO_RENAMER_MODE` only apply when `AUTO_RENAMER_ENABLED=true` and the watcher is enabled.
-- `AUTO_RENAMER_EXCLUDED_DIRS` only applies when `AUTO_RENAMER_ENABLED=true` and the watcher is enabled.
-- `AUTO_MOVER_EXCLUDED_DIRS` only applies when `AUTO_MOVER_ENABLED=true` and the watcher is enabled.
+- `PKG_WATCHER_ENABLED=false` disables all automations (format, move, index) and the watcher does not start.
+- `PROCESS_WORKERS` only affects the per-file format/move/icon pipeline (indexing remains single-threaded).
+- `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE` only apply when `AUTO_FORMATTER_ENABLED=true` and the watcher is enabled.
 - Conflicting files are moved to `_errors/`.
 
 ## Modules
@@ -217,20 +212,20 @@ Dependencies and behavior:
 ### Watcher
 
 - Location: `scripts/watcher.py`
-- Listens for `CLOSE_WRITE`, `MOVED_TO`, and `DELETE` events under `pkg/`.
-- Runs a per-file pipeline (renamer → mover → indexer), sharded across `PROCESS_WORKERS`.
+- Runs periodic scans under `pkg/`.
+- Runs a per-file pipeline (formatter → mover → indexer), sharded across `PROCESS_WORKERS`.
 
-### Auto Renamer
+### Auto Formatter
 
-- Location: `scripts/modules/auto_renamer.py`
-- Renames PKGs based on `AUTO_RENAMER_TEMPLATE` and `AUTO_RENAMER_MODE`.
-- Skips excluded dirs and moves conflicts to `_errors/`.
+- Location: `scripts/modules/auto_formatter.py`
+- Renames PKGs based on `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE`.
+- Moves conflicts to `_errors/`.
 
 ### Auto Mover
 
 - Location: `scripts/modules/auto_mover.py`
 - Moves PKGs into `game/`, `dlc/`, `update/` based on SFO metadata.
-- Skips excluded dirs and moves conflicts to `_errors/`.
+- Moves conflicts to `_errors/`.
 
 ### Auto Indexer
 
@@ -238,7 +233,7 @@ Dependencies and behavior:
 - Builds `index.json` and `_cache/index-cache.json` from scanned PKGs.
 - Only logs when content changes (or icons are extracted).
 - Uses `_cache/index-cache.json` to skip reprocessing unchanged PKGs.
-- Icon extraction runs per-file in the same pipeline as renamer/mover.
+- Icon extraction runs per-file in the same pipeline as formatter/mover.
 
 ### PKG Utilities
 
@@ -253,7 +248,7 @@ Dependencies and behavior:
 ## Flow diagram (ASCII)
 
 ```
-fs events (CLOSE_WRITE / MOVED_TO / DELETE)
+periodic scan
                 |
                 v
            [watcher.py]
@@ -262,7 +257,7 @@ fs events (CLOSE_WRITE / MOVED_TO / DELETE)
    per-file pipeline (sharded)
                 |
                 v
-         [auto_renamer.py]
+        [auto_formatter.py]
                 |
           (conflict?)----yes----> /data/_errors
                 |
@@ -304,7 +299,7 @@ as shown in the quick start examples.
 - If the index is not updating, remove `/data/_cache/index-cache.json` to force a rebuild.
 - If a PKG is encrypted, `pkgtool` may fail to read `param.sfo` and the PKG is moved to `_errors/`.
 - If icons are missing, ensure the PKG contains `ICON0_PNG` or `PIC0_PNG`.
-- If a rename or move conflict is detected, the PKG is moved to `/data/_errors`.
+- If a format or move conflict is detected, the PKG is moved to `/data/_errors`.
 - Files in `_errors/` are not indexed.
 - Resolve conflicts manually and move the file back into `pkg/`.
 - PKG metadata errors are logged with a human-friendly stage (e.g. `Reading PKG entries`, `PARAM.SFO not found`).
