@@ -26,9 +26,13 @@ RUN python3 -m pip install --upgrade pip setuptools wheel --no-cache-dir \
 RUN rm /etc/nginx/sites-enabled/default
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Copy scripts
+# Copy app files
 COPY entrypoint.sh /entrypoint.sh
-COPY scripts/ /scripts/
+COPY watcher.py settings.py /app/
+COPY modules/ /app/modules/
+COPY utils/ /app/utils/
+COPY tools/ /app/tools/
+COPY lib/ /app/lib/
 RUN chmod +x /entrypoint.sh
 
 # Data volume

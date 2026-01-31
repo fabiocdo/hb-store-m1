@@ -233,8 +233,8 @@ SQL
 }
 
 compile_binaries() {
-  tool_source="/scripts/tools/lib/sfotool.c"
-  tool_binary="/scripts/tools/bin/sfotool"
+  tool_source="/app/lib/sfotool.c"
+  tool_binary="/app/bin/sfotool"
   if [ ! -f "$tool_source" ]; then
     return
   fi
@@ -242,7 +242,7 @@ compile_binaries() {
     return
   fi
   if command -v cc >/dev/null 2>&1; then
-    mkdir -p "/scripts/tools/bin"
+    mkdir -p "/app/bin"
     if cc "$tool_source" -o "$tool_binary" >/dev/null 2>&1; then
       log "Compiled sfotool to $tool_binary"
     else
@@ -309,7 +309,7 @@ compile_binaries
 
 log ""
 if [ "$PKG_WATCHER_ENABLED" = "true" ]; then
-  exec python3 -u /scripts/watcher.py \
+  exec python3 -u /app/watcher.py \
     --base-url "$BASE_URL" \
     --log-level "$LOG_LEVEL" \
     --process-workers "$PROCESS_WORKERS" \

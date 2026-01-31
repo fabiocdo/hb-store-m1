@@ -1,4 +1,5 @@
 .idea
 data/
+bin/
 docker-compose.yml
 nginx.conf

@@ -211,25 +211,25 @@ Dependencies and behavior:
 
 ### Watcher
 
-- Location: `scripts/watcher.py`
+- Location: `watcher.py`
 - Runs periodic scans under `pkg/`.
 - Runs a per-file pipeline (formatter → sorter → indexer), sharded across `PROCESS_WORKERS`.
 
 ### Auto Formatter
 
-- Location: `scripts/modules/auto_formatter.py`
+- Location: `modules/auto_formatter.py`
 - Renames PKGs based on `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE`.
 - Moves conflicts to `_errors/`.
 
 ### Auto Sorter
 
-- Location: `scripts/modules/auto_sorter.py`
+- Location: `modules/auto_sorter.py`
 - Sorts PKGs into `game/`, `dlc/`, `update/` based on SFO metadata.
 - Moves conflicts to `_errors/`.
 
 ### Auto Indexer
 
-- Location: `scripts/modules/auto_indexer.py`
+- Location: `modules/auto_indexer.py`
 - Builds `index.json` and `_cache/index-cache.json` from scanned PKGs.
 - Only logs when content changes (or icons are extracted).
 - Uses `_cache/index-cache.json` to skip reprocessing unchanged PKGs.
@@ -237,12 +237,12 @@ Dependencies and behavior:
 
 ### PKG Utilities
 
-- Location: `scripts/utils/pkg_utils.py`
+- Location: `utils/pkg_utils.py`
 - Uses `pkgtool` to read SFO metadata and extract icons.
 
 ### PKG Tool Wrapper
 
-- Location: `scripts/tools/pkgtool.py`
+- Location: `tools/pkg_tool.py`
 - Wraps the `pkgtool` binary calls used by the indexer.
 
 ## Flow diagram (ASCII)
