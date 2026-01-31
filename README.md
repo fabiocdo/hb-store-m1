@@ -30,7 +30,8 @@ docker run -d \
   -e PROCESS_WORKERS=4 \
   -e PKG_WATCHER_ENABLED=true \
   -e AUTO_INDEXER_ENABLED=true \
-  -e AUTO_RENAMER_ENABLED=false \
+  -e INDEX_JSON_ENABLED=false \
+  -e AUTO_RENAMER_ENABLED=true \
   -e AUTO_RENAMER_MODE=none \
   -e AUTO_RENAMER_TEMPLATE="{title} [{titleid}][{apptype}]" \
   -e AUTO_RENAMER_EXCLUDED_DIRS=app \
@@ -58,7 +59,8 @@ services:
       - PROCESS_WORKERS=4
       - PKG_WATCHER_ENABLED=true
       - AUTO_INDEXER_ENABLED=true
-      - AUTO_RENAMER_ENABLED=false
+      - INDEX_JSON_ENABLED=false
+      - AUTO_RENAMER_ENABLED=true
       - AUTO_RENAMER_MODE=none
       - AUTO_RENAMER_TEMPLATE={title} [{titleid}][{apptype}]
       - AUTO_RENAMER_EXCLUDED_DIRS=app
@@ -191,7 +193,8 @@ Fields:
 | `LOG_LEVEL`                 | Log verbosity: `debug`, `info`, `warn`, `error`.                                                                          | `info`                           |
 | `PROCESS_WORKERS`           | Number of parallel pipeline workers (sharded by PKG path).                                                                | CPU core count                   |
 | `PKG_WATCHER_ENABLED`       | Master switch for watcher-driven automations (rename, move, index).                                                      | `true`                           |
-| `AUTO_INDEXER_ENABLED`      | Enable auto-generated `index.json` and cache updates.                                                                    | `true`                           |
+| `AUTO_INDEXER_ENABLED`      | Enable the auto-indexer pipeline (icons and indexing).                                                                   | `true`                           |
+| `INDEX_JSON_ENABLED`        | Enable creating/updating `index.json` and `index-cache.json`.                                                            | `false`                          |
 | `AUTO_RENAMER_ENABLED`      | Enable PKG rename using `AUTO_RENAMER_TEMPLATE`.                                                                         | `true`                           |
 | `AUTO_RENAMER_MODE`         | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
 | `AUTO_RENAMER_TEMPLATE`     | Template using `{title}`, `{titleid}`, `{region}`, `{apptype}`, `{version}`, `{category}`, `{content_id}`, `{app_type}`. | `{title} [{titleid}][{apptype}]` |

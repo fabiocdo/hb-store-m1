@@ -24,6 +24,9 @@ def ensure_icon(pkg, data):
 
 def run(pkgs, extract_icons=True):
     """Build index.json and index-cache.json from scanned PKGs."""
+    if settings.INDEX_JSON_ENABLED is False:
+        log("info", "INDEX_JSON_ENABLED is false; skipping index generation", module="AUTO_INDEXER")
+        return 0
     icon_extracted = 0
 
     def load_cache():

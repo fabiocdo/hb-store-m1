@@ -228,7 +228,7 @@ def scan_pkgs(paths=None, use_cache=False):
             log("error", f"Failed to move errored PKG to _errors: {pkg} ({move_error})")
 
     def load_cache():
-        if not use_cache:
+        if not use_cache or settings.INDEX_JSON_ENABLED is False:
             return {"pkgs": {}}
         try:
             if settings.CACHE_PATH.exists():

@@ -39,6 +39,7 @@ def parse_settings():
     settings.AUTO_MOVER_ENABLED = parse_bool(args.auto_mover_enabled)
     settings.AUTO_MOVER_EXCLUDED_DIRS = args.auto_mover_excluded_dirs
     settings.AUTO_INDEXER_ENABLED = parse_bool(args.auto_indexer_enabled)
+    settings.INDEX_JSON_ENABLED = parse_bool(args.index_json_enabled)
     settings.PROCESS_WORKERS = args.process_workers
 
 
@@ -251,7 +252,7 @@ def start():
 
         for path in touched_paths:
             module_touched_at[path] = now
-        if settings.AUTO_INDEXER_ENABLED and should_reindex:
+        if settings.AUTO_INDEXER_ENABLED and settings.INDEX_JSON_ENABLED and should_reindex:
             pkgs = list(scan_pkgs(use_cache=True)) if settings.PKG_DIR.exists() else []
             run_indexer(pkgs, extract_icons=False)
 

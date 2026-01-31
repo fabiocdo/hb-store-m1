@@ -27,6 +27,7 @@ BASE_URL = None
 LOG_LEVEL = None
 PKG_WATCHER_ENABLED = None
 AUTO_INDEXER_ENABLED = None
+INDEX_JSON_ENABLED = None
 AUTO_RENAMER_ENABLED = None
 AUTO_RENAMER_TEMPLATE = None
 AUTO_RENAMER_MODE = None
@@ -41,6 +42,7 @@ CLI_ARGS = [
     ("--log-level", {"required": True}),
     ("--pkg-watcher-enabled", {"required": True}),
     ("--auto-indexer-enabled", {"required": True}),
+    ("--index-json-enabled", {"required": True}),
     ("--auto-renamer-enabled", {"required": True}),
     ("--auto-mover-enabled", {"required": True}),
     ("--auto-renamer-template", {"required": True}),

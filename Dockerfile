@@ -12,6 +12,7 @@ RUN apt update && apt install -y --no-install-recommends \
     inotify-tools \
     python3 \
     python3-pip \
+    sqlite3 \
  && rm -rf /var/lib/apt/lists/*
 
 # Use the PkgTool bundled in the official OpenOrbis image

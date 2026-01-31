@@ -10,6 +10,7 @@ DEFAULT_LOG_LEVEL="info"
 DEFAULT_PROCESS_WORKERS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
 DEFAULT_PKG_WATCHER_ENABLED="true"
 DEFAULT_AUTO_INDEXER_ENABLED="true"
+DEFAULT_INDEX_JSON_ENABLED="false"
 DEFAULT_AUTO_RENAMER_ENABLED="true"
 DEFAULT_AUTO_RENAMER_TEMPLATE="{title} [{titleid}][{apptype}]"
 DEFAULT_AUTO_RENAMER_MODE="none"
@@ -32,6 +33,7 @@ use_default_if_unset LOG_LEVEL "$DEFAULT_LOG_LEVEL"
 use_default_if_unset PROCESS_WORKERS "$DEFAULT_PROCESS_WORKERS"
 use_default_if_unset PKG_WATCHER_ENABLED "$DEFAULT_PKG_WATCHER_ENABLED"
 use_default_if_unset AUTO_INDEXER_ENABLED "$DEFAULT_AUTO_INDEXER_ENABLED"
+use_default_if_unset INDEX_JSON_ENABLED "$DEFAULT_INDEX_JSON_ENABLED"
 use_default_if_unset AUTO_RENAMER_ENABLED "$DEFAULT_AUTO_RENAMER_ENABLED"
 use_default_if_unset AUTO_MOVER_ENABLED "$DEFAULT_AUTO_MOVER_ENABLED"
 use_default_if_unset AUTO_RENAMER_MODE "$DEFAULT_AUTO_RENAMER_MODE"
@@ -44,6 +46,7 @@ DATA_DIR="/data"
 PKG_DIR="$DATA_DIR/pkg"
 MEDIA_DIR="$DATA_DIR/_media"
 CACHE_DIR="$DATA_DIR/_cache"
+STORE_DB_PATH="$DATA_DIR/store.db"
 
 log() {
   printf "%s %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -125,6 +128,7 @@ build_content_lines_plain() {
   format_kv_plain "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
   printf "\n"
   format_kv_plain "AUTO_INDEXER_ENABLED" "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")"
+  format_kv_plain "INDEX_JSON_ENABLED" "$(format_value INDEX_JSON_ENABLED "$INDEX_JSON_ENABLED")"
   printf "\n"
   format_kv_plain "AUTO_RENAMER_ENABLED" "$(format_value AUTO_RENAMER_ENABLED "$AUTO_RENAMER_ENABLED")"
   format_kv_plain "AUTO_RENAMER_MODE" "$(format_value AUTO_RENAMER_MODE "$AUTO_RENAMER_MODE")"
@@ -149,6 +153,10 @@ build_content_lines_colored() {
     "AUTO_INDEXER_ENABLED" \
     "$(color_value "AUTO_INDEXER_ENABLED" "$COLOR_GREEN")" \
     "$(color_value "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "$COLOR_GREEN")"
+  format_kv_colored \
+    "INDEX_JSON_ENABLED" \
+    "$(color_value "INDEX_JSON_ENABLED" "$COLOR_GREEN")" \
+    "$(color_value "$(format_value INDEX_JSON_ENABLED "$INDEX_JSON_ENABLED")" "$COLOR_GREEN")"
   printf "\n"
   format_kv_colored \
     "AUTO_RENAMER_ENABLED" \
@@ -199,6 +207,38 @@ initialize_dir(){
   fi
 }
 
+initialize_store_db() {
+  if ! command -v sqlite3 >/dev/null 2>&1; then
+    log "sqlite3 not found; skipping store.db initialization."
+    return
+  fi
+  if [ ! -f "$STORE_DB_PATH" ]; then
+    log "Initializing store.db at $STORE_DB_PATH"
+  fi
+  sqlite3 "$STORE_DB_PATH" <<'SQL'
+CREATE TABLE IF NOT EXISTS homebrews (
+  pid INTEGER,
+  id TEXT,
+  name TEXT,
+  "desc" TEXT,
+  image TEXT,
+  package TEXT,
+  version TEXT,
+  picpath TEXT,
+  desc_1 TEXT,
+  desc_2 TEXT,
+  ReviewStars REAL,
+  Size INTEGER,
+  Author TEXT,
+  apptype TEXT,
+  pv TEXT,
+  main_icon_path TEXT,
+  main_menu_pic TEXT,
+  releaseddate TEXT
+);
+SQL
+}
+
 create_path() {
   target="$1"
   label="$2"
@@ -229,6 +269,7 @@ BOX_KEY_WIDTH=$(printf "%s\n" \
   "PROCESS_WORKERS" \
   "PKG_WATCHER_ENABLED" \
   "AUTO_INDEXER_ENABLED" \
+  "INDEX_JSON_ENABLED" \
   "AUTO_RENAMER_ENABLED" \
   "AUTO_RENAMER_MODE" \
   "AUTO_RENAMER_TEMPLATE" \
@@ -250,6 +291,7 @@ log "NGINX is running on ${host}:${port}"
 log ""
 
 initialize_dir
+initialize_store_db
 
 log ""
 if [ "$PKG_WATCHER_ENABLED" = "true" ]; then
@@ -259,6 +301,7 @@ if [ "$PKG_WATCHER_ENABLED" = "true" ]; then
     --process-workers "$PROCESS_WORKERS" \
     --pkg-watcher-enabled "$PKG_WATCHER_ENABLED" \
     --auto-indexer-enabled "$AUTO_INDEXER_ENABLED" \
+    --index-json-enabled "$INDEX_JSON_ENABLED" \
     --auto-renamer-enabled "$AUTO_RENAMER_ENABLED" \
     --auto-mover-enabled "$AUTO_MOVER_ENABLED" \
     --auto-renamer-mode "$AUTO_RENAMER_MODE" \
