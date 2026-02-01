@@ -101,15 +101,14 @@ class AutoFormatter:
         :param sfo_data: Parsed PARAM.SFO data
         :return: New filename if renamed, otherwise None
         """
+        if not pkg.exists():
+            log("error", "PKG file not found", message=f"{pkg}", module="AUTO_FORMATTER")
+            return None
+
         planned_name = self.dry_run(pkg, sfo_data)
 
         if pkg.name == planned_name:
-            log(
-                "info",
-                "Skipping rename",
-                message=f"{planned_name} (PKG is already renamed)",
-                module="AUTO_FORMATTER",
-            )
+            log("info","Skipping rename",message=f"{planned_name} (PKG is already renamed)",module="AUTO_FORMATTER")
             return None
 
         try:
