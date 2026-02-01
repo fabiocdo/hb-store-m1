@@ -18,7 +18,7 @@ class PkgUtils:
 
         :param pkgtool_path: Path to the pkgtool executable
         """
-        self.pkgtool_path = pkgtool_path or os.getenv("CDN_PKGTOOL_PATH", "./src/utils/bin/pkgtool")
+        self.pkgtool_path = pkgtool_path or os.getenv("PKGTOOL_PATH", "./src/utils/bin/pkgtool")
         self.env = {
             "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1",
         }

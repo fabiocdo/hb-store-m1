@@ -198,6 +198,7 @@ Dependencies and behavior:
 - `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE` only apply when `AUTO_FORMATTER_ENABLED=true` and the watcher is enabled.
 - Conflicting files are moved to `_error/`.
 
+
 ## Modules
 
 ### Watcher

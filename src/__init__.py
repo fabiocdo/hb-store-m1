@@ -29,7 +29,7 @@ if path.exists():
             k, v = line.split("=", 1)
             os.environ.setdefault(k.strip(), v.strip())
 
-os.environ.setdefault("DATA_DIR", str(root / "data"))
+os.environ.setdefault("DATA_DIR", "/data")
 data_dir = pathlib.Path(os.environ["DATA_DIR"])
 pkg_dir = data_dir / "pkg"
 os.environ.setdefault("PKG_DIR", str(pkg_dir))

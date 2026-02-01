@@ -16,7 +16,8 @@ RUN apt update && apt install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # Use the PkgTool bundled in the official OpenOrbis image
-RUN if command -v PkgTool.Core >/dev/null 2>&1; then ln -s "$(command -v PkgTool.Core)" /usr/local/bin/pkgtool; fi
+RUN mkdir -p /app/bin \
+ && if command -v PkgTool.Core >/dev/null 2>&1; then ln -s "$(command -v PkgTool.Core)" /app/bin/pkgtool; fi
 
 # Install pip globally
 RUN python3 -m pip install --upgrade pip setuptools wheel --no-cache-dir \
