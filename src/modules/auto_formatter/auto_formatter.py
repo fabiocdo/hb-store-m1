@@ -13,11 +13,11 @@ class AutoFormatter:
         """
         Initialize the formatter.
 
-        :param template: Filename template (e.g. "{TITLE_ID} - {TITLE}")
+        :param template: Filename template (e.g. "{title} {title_id} {app_type}")
         :param mode: Text mode for title normalization
                      ("uppercase", "lowercase", "capitalize", or None)
         """
-        self.template = template or ""
+        self.template = template or "{title} {title_id} {app_type}"
         self.mode = mode
 
     class _SafeDict(dict):
@@ -45,7 +45,15 @@ class AutoFormatter:
             if self.mode == "lowercase":
                 return value.lower()
             if self.mode == "capitalize":
-                return " ".join(part.capitalize() for part in value.split())
+                import re
+                roman_numerals = r"^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$"
+                parts = []
+                for part in value.split():
+                    if re.match(roman_numerals, part.upper()):
+                        parts.append(part.upper())
+                    else:
+                        parts.append(part.capitalize())
+                return " ".join(parts)
 
         return value
 
@@ -91,8 +99,8 @@ class AutoFormatter:
 
         try:
             pkg.rename(pkg.with_name(planned_name))
-        except Exception:
-            log("error", "AUTO FORMATTER ERROR", module="AUTO_FORMATTER")
+        except Exception as e:
+            log("error", "Failed to rename PKG", message=f"{pkg.name} -> {planned_name}: {str(e)}", module="AUTO_FORMATTER")
             return None
 
         return planned_name

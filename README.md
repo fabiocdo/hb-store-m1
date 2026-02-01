@@ -32,7 +32,7 @@ docker run -d \
   -e INDEX_JSON_ENABLED=false \
   -e AUTO_FORMATTER_ENABLED=true \
   -e AUTO_FORMATTER_MODE=none \
-  -e AUTO_FORMATTER_TEMPLATE="{title} [{titleid}][{apptype}]" \
+  -e AUTO_FORMATTER_TEMPLATE="{title} {title_id} {app_type}" \
   -e AUTO_SORTER_ENABLED=true \
   -e PERIODIC_SCAN_SECONDS=30 \
   -v ./data:/data \
@@ -59,7 +59,7 @@ services:
       - INDEX_JSON_ENABLED=false
       - AUTO_FORMATTER_ENABLED=true
       - AUTO_FORMATTER_MODE=none
-      - AUTO_FORMATTER_TEMPLATE={title} [{titleid}][{apptype}]
+      - AUTO_FORMATTER_TEMPLATE="{title} {title_id} {app_type}"
       - AUTO_SORTER_ENABLED=true
       - PERIODIC_SCAN_SECONDS=30
     volumes:
@@ -192,7 +192,7 @@ Fields:
 | `INDEX_JSON_ENABLED`        | Enable creating/updating `index.json` and `index-cache.json`.                                                            | `false`                          |
 | `AUTO_FORMATTER_ENABLED`      | Enable PKG formatting using `AUTO_FORMATTER_TEMPLATE`.                                                                     | `true`                           |
 | `AUTO_FORMATTER_MODE`         | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
-| `AUTO_FORMATTER_TEMPLATE`     | Template using `{title}`, `{titleid}`, `{region}`, `{apptype}`, `{version}`, `{category}`, `{content_id}`, `{app_type}`. | `{title} [{titleid}][{apptype}]` |
+| `AUTO_FORMATTER_TEMPLATE`     | Template using `{title}`, `{title_id}`, `{region}`, `{app_type}`, `{version}`, `{category}`, `{content_id}`. | `{title} {title_id} {app_type}` |
 | `AUTO_SORTER_ENABLED`        | Enable auto-sorting PKGs into `game/`, `dlc/`, `update/` folders.                                                        | `true`                           |
 | `PERIODIC_SCAN_SECONDS`     | Interval in seconds for periodic PKG scans (no inotify watcher).                                                        | `30`                             |
 | `CDN_DATA_DIR`              | Host path mapped to `/data`.                                                                                             | `./data`                         |
@@ -213,19 +213,19 @@ Dependencies and behavior:
 
 ### Auto Formatter
 
-- Location: `modules/auto_formatter/auto_formatter.py`
+- Location: `src/modules/auto_formatter/auto_formatter.py`
 - Renames PKGs based on `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE`.
 - Moves conflicts to `_errors/`.
 
 ### Auto Sorter
 
-- Location: `modules/auto_sorter/auto_sorter.py`
+- Location: `src/modules/auto_sorter/auto_sorter.py`
 - Sorts PKGs into `game/`, `dlc/`, `update/` based on SFO metadata.
 - Moves conflicts to `_errors/`.
 
 ### Auto Indexer
 
-- Location: `modules/auto_indexer/auto_indexer.py`
+- Location: `src/modules/auto_indexer/auto_indexer.py`
 - Builds `index.json` and `_cache/index-cache.json` from scanned PKGs.
 - Only logs when content changes (or icons are extracted).
 - Uses `_cache/index-cache.json` to skip reprocessing unchanged PKGs.
@@ -233,7 +233,7 @@ Dependencies and behavior:
 
 ### PKG Utilities
 
-- Location: `utils/pkg_utils.py`
+- Location: `src/utils/pkg_utils.py`
 - Uses `pkgtool` to read SFO metadata and extract icons.
 
 ### Log Utilities
@@ -278,36 +278,31 @@ Output format: `<timestamp UTC> | [MODULE] Action: Message` (with module-specifi
 
 Example: `2024-05-20 14:30:05 UTC | [WATCHER] Starting periodic scan` (where `[WATCHER]` is white and the message is white).
 
-### PKG Tool Wrapper
-
-- Location: `tools/pkg_tool.py`
-- Wraps the `pkgtool` binary calls used by the indexer.
-
 ## Flow diagram (ASCII)
 
 ```
 periodic scan
                 |
                 v
-           [watcher.py]
+           [src/modules/watcher/watcher.py]
                 |
                 v
-   per-file pipeline (sharded)
+   per-file pipeline
                 |
                 v
-        [auto_formatter/formatter.py]
+        [src/modules/auto_formatter/auto_formatter.py]
                 |
           (conflict?)----yes----> /data/_errors
                 |
                no
                 v
-          [auto_sorter/sorter.py]
+          [src/modules/auto_sorter/auto_sorter.py]
                 |
           (conflict?)----yes----> /data/_errors
                 |
                no
                 v
-     [auto_indexer.py]
+     [src/modules/auto_indexer/auto_indexer.py]
                 |
                 v
            index.json

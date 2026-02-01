@@ -51,8 +51,8 @@ class AutoSorter:
         try:
             target_path.parent.mkdir(parents=True, exist_ok=True)
             pkg_path.rename(target_path)
-        except Exception:
-            log("error", "AUTO SORTER ERROR", module="AUTO_SORTER")
+        except Exception as e:
+            log("error", "Failed to move PKG", message=f"{pkg_path} -> {target_path}: {str(e)}", module="AUTO_SORTER")
             return None
 
         return str(target_path)

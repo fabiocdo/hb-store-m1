@@ -14,7 +14,7 @@ class PkgUtils:
 
     def __init__(self, pkgtool_path: str = "./src/utils/bin/pkgtool"):
         """
-        Initialize PkgUtils with the path to the pkgtool binary.
+        Initialize PkgUtils.
 
         :param pkgtool_path: Path to the pkgtool executable
         """
