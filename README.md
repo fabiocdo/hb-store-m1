@@ -217,13 +217,13 @@ Dependencies and behavior:
 
 ### Auto Formatter
 
-- Location: `modules/auto_formatter.py`
+- Location: `modules/auto_formatter/formatter.py`
 - Renames PKGs based on `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE`.
 - Moves conflicts to `_errors/`.
 
 ### Auto Sorter
 
-- Location: `modules/auto_sorter.py`
+- Location: `modules/auto_sorter/sorter.py`
 - Sorts PKGs into `game/`, `dlc/`, `update/` based on SFO metadata.
 - Moves conflicts to `_errors/`.
 
@@ -257,13 +257,13 @@ periodic scan
    per-file pipeline (sharded)
                 |
                 v
-        [auto_formatter.py]
+        [auto_formatter/formatter.py]
                 |
           (conflict?)----yes----> /data/_errors
                 |
                no
                 v
-          [auto_sorter.py]
+          [auto_sorter/sorter.py]
                 |
           (conflict?)----yes----> /data/_errors
                 |
