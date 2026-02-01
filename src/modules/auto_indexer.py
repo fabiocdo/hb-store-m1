@@ -13,6 +13,7 @@ class AutoIndexer:
         """
         Plan the indexing process without applying changes.
         """
+        # 1. no modulo pkg_utils tem um metodo chamado
         pass
 
     def run(self):

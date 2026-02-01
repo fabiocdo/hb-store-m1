@@ -2,6 +2,7 @@ import subprocess
 import tempfile
 import struct
 from pathlib import Path
+from enum import Enum
 import os
 
 
@@ -12,82 +13,77 @@ class PkgUtils:
     It handles entry listing, SFO metadata extraction and icon extraction.
     """
 
-    def __init__(self, pkgtool_path: str | None = None):
+    class ExtractResult(Enum):
+        OK = "ok"
+        SKIP = "skip"
+        NOT_FOUND = "not_found"
+        INVALID = "invalid"
+        ERROR = "error"
+
+    def __init__(self):
         """
         Initialize PkgUtils.
-
-        :param pkgtool_path: Path to the pkgtool executable
         """
-        self.pkgtool_path = pkgtool_path or os.getenv("PKGTOOL_PATH", "./src/utils/bin/pkgtool")
+        self.pkgtool_path = os.getenv("PKGTOOL_PATH")
         self.env = {
-            "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1",
+            "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": os.environ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"],
         }
 
-    def get_data_indexes(self, pkg_args: list[str]) -> dict[str, int]:
-        """
-        Get indexes for PARAM_SFO and ICON0_PNG from a PKG using pkgtool.
-
-        :param pkg_args: List of arguments to pass to pkg_listentries (e.g. [pkg_path])
-        :return: Dictionary mapping entry names to their numeric indexes
-        """
-        result = subprocess.run(
-            [self.pkgtool_path, "pkg_listentries"] + pkg_args,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            env=self.env,
-        )
-
-        pkg_indexes = {}
-        lines = result.stdout.strip().splitlines()
-
-        for line in lines[1:]:
-            parts = line.split()
-            if len(parts) < 5:
-                continue
-            index = int(parts[3])
-            name = parts[5] if parts[4].isdigit() else parts[4]
-
-            if name in ("PARAM_SFO", "ICON0_PNG"):
-                pkg_indexes[name] = index
-
-        return pkg_indexes
-
-    def extract_sfo_data(self, pkg_path: str, pkg_indexes: dict[str, int]) -> dict:
+    def extract_pkg_data(self, pkg: Path) -> tuple[ExtractResult, str]:
         """
         Extract and parse PARAM.SFO data from a PKG.
 
-        :param pkg_path: Path to the PKG file
-        :param pkg_indexes: Dictionary containing PKG entry indexes
-        :return: Dictionary containing parsed SFO metadata
-        :raises KeyError: If PARAM_SFO index is missing
-        :raises ValueError: If the extracted SFO is invalid
+        :param pkg: Path to the PKG file
+        :return: Tuple of (ExtractResult, path string)
         """
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            if "PARAM_SFO" not in pkg_indexes:
-                raise KeyError("TODO: PARAM_SFO index not found in pkg_indexes")
 
-            param_sfo_index = pkg_indexes["PARAM_SFO"]
-            param_sfo_path = os.path.join(tmp_dir, "PARAM.SFO")
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                result = subprocess.run(
+                    [self.pkgtool_path, "pkg_listentries", str(pkg)],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    env=self.env,
+                )
 
-            subprocess.run(
-                [
-                    self.pkgtool_path,
-                    "pkg_extractentry",
-                    pkg_path,
-                    str(param_sfo_index),
-                    param_sfo_path,
-                ],
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                env=self.env,
-            )
+                param_sfo_index = None
+                lines = result.stdout.strip().splitlines()
+                for line in lines[1:]:
+                    parts = line.split()
+                    if len(parts) < 5:
+                        continue
+                    index = int(parts[3])
+                    name = parts[5] if parts[4].isdigit() else parts[4]
+                    if name == "PARAM_SFO":
+                        param_sfo_index = index
+                        break
 
-            with open(param_sfo_path, "rb") as f:
-                data = f.read()
+                if param_sfo_index is None:
+                    return self.ExtractResult.NOT_FOUND, str(pkg)
+
+                param_sfo_path = os.path.join(tmp_dir, "PARAM.SFO")
+
+                subprocess.run(
+                    [
+                        self.pkgtool_path,
+                        "pkg_extractentry",
+                        str(pkg),
+                        str(param_sfo_index),
+                        param_sfo_path,
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    env=self.env,
+                )
+
+                with open(param_sfo_path, "rb") as f:
+                    data = f.read()
+        except subprocess.CalledProcessError:
+            return self.ExtractResult.ERROR, str(pkg)
 
         result = {}
 
@@ -96,7 +92,7 @@ class PkgUtils:
         )
 
         if magic != b"\x00PSF":
-            raise ValueError("Invalid PARAM.SFO")
+            return self.ExtractResult.INVALID, str(pkg)
 
         entries_offset = 0x14
 
@@ -133,34 +129,61 @@ class PkgUtils:
 
             result[key] = value
 
-        return result
+            if key == "PUBTOOLINFO" and isinstance(value, str):
+                for part in value.split(","):
+                    if part.startswith("c_date="):
+                        c_date = part.split("=", 1)[1].strip()
+                        if len(c_date) == 8 and c_date.isdigit():
+                            result["release_date"] = f"{c_date[:4]}-{c_date[4:6]}-{c_date[6:8]}"
+                        break
 
-    def extract_pkg_icon(self, pkg_path: str, pkg_indexes: dict[str, int], output_dir: str, output_name: str) -> str:
+        return self.ExtractResult.OK, str(pkg)
+
+    def extract_pkg_icon(self, pkg: Path, content_id: str) -> tuple[ExtractResult, str]:
         """
         Extract ICON0.PNG from a PKG.
 
-        :param pkg_path: Path to the PKG file
-        :param pkg_indexes: Dictionary containing PKG entry indexes
-        :param output_dir: Directory where the icon will be saved
-        :param output_name: Basename for the output file (without extension)
-        :return: Full path to the extracted icon
-        :raises KeyError: If ICON0_PNG index is missing
+        :param pkg: Path to the PKG file
+        :param content_id: Content ID used as icon filename (without extension)
+        :return: Tuple of (ExtractResult, path string)
         """
+        output_dir = os.environ["MEDIA_DIR"]
         os.makedirs(output_dir, exist_ok=True)
 
-        if "ICON0_PNG" not in pkg_indexes:
-            raise KeyError("TODO: ICON0_PNG index not found in pkg_indexes")
+        result = subprocess.run(
+            [self.pkgtool_path, "pkg_listentries", str(pkg)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            env=self.env,
+        )
 
-        icon_index = pkg_indexes["ICON0_PNG"]
+        icon_index = None
+        lines = result.stdout.strip().splitlines()
+        for line in lines[1:]:
+            parts = line.split()
+            if len(parts) < 5:
+                continue
+            index = int(parts[3])
+            name = parts[5] if parts[4].isdigit() else parts[4]
+            if name == "ICON0_PNG":
+                icon_index = index
+                break
 
-        final_name = f"{output_name}.png"
+        final_name = f"{content_id}.png"
         final_path = os.path.join(output_dir, final_name)
+        if os.path.exists(final_path):
+            return self.ExtractResult.SKIP, final_path
+
+        if icon_index is None:
+            return self.ExtractResult.NOT_FOUND, str(pkg)
 
         subprocess.run(
             [
                 self.pkgtool_path,
                 "pkg_extractentry",
-                pkg_path,
+                str(pkg),
                 str(icon_index),
                 final_path,
             ],
@@ -171,4 +194,4 @@ class PkgUtils:
             env=self.env,
         )
 
-        return final_path
+        return self.ExtractResult.OK, final_path
