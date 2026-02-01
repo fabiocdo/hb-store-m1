@@ -2,14 +2,14 @@ import unittest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 from src.modules.auto_sorter import AutoSorter
-from tests.fixtures import SFO_GAME, SFO_DLC, SFO_UPDATE, SFO_SAVE, SFO_UNKNOWN
+from .fixtures import SFO_GAME, SFO_DLC, SFO_UPDATE, SFO_SAVE, SFO_UNKNOWN
+
 
 class TestAutoSorter(unittest.TestCase):
     def setUp(self):
-        self.default_sorter = AutoSorter()
+        self.sorter = AutoSorter()
 
-    def test_init_defaults(self):
-        sorter = AutoSorter()
+    def test_category_map(self):
         expected_map = {
             "ac": "dlc",
             "gc": "game",
@@ -17,95 +17,109 @@ class TestAutoSorter(unittest.TestCase):
             "gp": "update",
             "sd": "save",
         }
-        self.assertEqual(sorter.category_map, expected_map)
+        self.assertEqual(AutoSorter.CATEGORY_MAP, expected_map)
 
-    def test_init_custom(self):
-        custom_map = {"gd": "juegos"}
-        sorter = AutoSorter(category_map=custom_map)
-        self.assertEqual(sorter.category_map, custom_map)
+    @patch('src.modules.auto_sorter.settings')
+    def test_dry_run_not_found(self, mock_settings):
+        mock_settings.PKG_DIR = Path("/data/pkg")
+        pkg = MagicMock(spec=Path)
+        pkg.exists.return_value = False
 
-    def test_dry_run_basic(self):
-        pkg_path = Path("/data/pkg/game.pkg")
-        category = "gd"
-        expected = Path("/data/pkg/game/game.pkg")
-        self.assertEqual(self.default_sorter.dry_run(pkg_path, category), expected)
+        result, target_dir = self.sorter.dry_run(pkg, "gd")
 
-    def test_dry_run_all_fixtures(self):
-        pkg_path = Path("/data/pkg/file.pkg")
-        fixtures = [
-            (SFO_GAME["category"], Path("/data/pkg/game/file.pkg")),
-            (SFO_DLC["category"], Path("/data/pkg/dlc/file.pkg")),
-            (SFO_UPDATE["category"], Path("/data/pkg/update/file.pkg")),
-            (SFO_SAVE["category"], Path("/data/pkg/save/file.pkg")),
-            (SFO_UNKNOWN["category"], Path("/data/pkg/_unknown/file.pkg")),
-        ]
-        for category, expected in fixtures:
-            with self.subTest(category=category):
-                self.assertEqual(self.default_sorter.dry_run(pkg_path, category), expected)
+        self.assertEqual(result, AutoSorter.PlanResult.NOT_FOUND)
+        self.assertIsNone(target_dir)
 
-    @patch("src.modules.auto_sorter.auto_sorter.Path.mkdir")
-    @patch("src.modules.auto_sorter.auto_sorter.Path.rename")
-    def test_run_moves_file(self, mock_rename, mock_mkdir):
-        pkg_path = MagicMock(spec=Path)
-        pkg_path.name = "my_game.pkg"
-        pkg_path.parent = Path("/data/pkg")
-        pkg_path.__eq__.side_effect = lambda other: str(pkg_path) == str(other)
-        
-        target_path = Path("/data/pkg/game/my_game.pkg")
-        
-        # We need to mock dry_run to return our controlled target_path
-        with patch.object(AutoSorter, 'dry_run', return_value=target_path):
-            result = self.default_sorter.run(pkg_path, "gd")
-            
-            self.assertEqual(result, str(target_path))
-            mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
-            pkg_path.rename.assert_called_once_with(target_path)
+    @patch('src.modules.auto_sorter.settings')
+    def test_dry_run_skip(self, mock_settings):
+        mock_settings.PKG_DIR = Path("/data/pkg")
+        pkg = MagicMock(spec=Path)
+        pkg.exists.return_value = True
+        pkg.name = "game.pkg"
+        pkg.parent = Path("/data/pkg/game")
 
-    def test_run_no_move_needed(self):
-        # File is already in the correct folder
-        pkg_path = Path("/data/pkg/game/my_game.pkg")
-        result = self.default_sorter.run(pkg_path, "gd")
-        
-        self.assertIsNone(result)
+        result, target_dir = self.sorter.dry_run(pkg, "gd")
+        self.assertEqual(result, AutoSorter.PlanResult.SKIP)
+        self.assertEqual(target_dir, Path("/data/pkg/game"))
 
-    @patch("src.modules.auto_sorter.auto_sorter.Path.mkdir")
-    def test_run_error_handling(self, mock_mkdir):
-        pkg_path = MagicMock(spec=Path)
-        pkg_path.name = "error.pkg"
-        pkg_path.parent = Path("/data/pkg")
-        pkg_path.__eq__.return_value = False
-        
-        # Ensure exists() returns False so it doesn't trigger conflict logic
-        pkg_path.exists.return_value = False
-        
-        mock_mkdir.side_effect = Exception("Permission Denied")
-        
-        # Mock dry_run to return a path
-        target_path = Path("/data/pkg/game/error.pkg")
-        with patch.object(AutoSorter, 'dry_run', return_value=target_path):
-            # Mock error_path
-            mock_error_path = MagicMock(spec=Path)
-            with patch("src.modules.auto_sorter.auto_sorter.Path", return_value=mock_error_path):
-                sorter = AutoSorter(error_path="/data/_errors")
-                result = sorter.run(pkg_path, "gd")
-                
-                self.assertIsNone(result)
-                mock_error_path.mkdir.assert_called_once_with(parents=True, exist_ok=True)
-                # Should have been moved to errors folder due to exception
-                pkg_path.rename.assert_called_with(mock_error_path / "error.pkg")
+    @patch('src.modules.auto_sorter.settings')
+    def test_dry_run_conflict(self, mock_settings):
+        mock_settings.PKG_DIR = Path("/data/pkg")
+        pkg = MagicMock(spec=Path)
+        pkg.exists.return_value = True
+        pkg.name = "game.pkg"
+        pkg.parent = Path("/data/pkg/other")
 
-    def test_run_conflict_handling(self):
-        pkg_path = MagicMock(spec=Path)
-        pkg_path.name = "conflict.pkg"
-        pkg_path.parent = Path("/data/pkg")
-        pkg_path.__eq__.return_value = False
-        
-        # Conflict is now detected in dry_run
-        with patch.object(AutoSorter, 'dry_run', return_value=None):
-            result = self.default_sorter.run(pkg_path, "gd")
-            
+        with patch('pathlib.Path.exists', return_value=True):
+            result, target_dir = self.sorter.dry_run(pkg, "gd")
+            self.assertEqual(result, AutoSorter.PlanResult.CONFLICT)
+
+    @patch('src.modules.auto_sorter.settings')
+    def test_dry_run_ok(self, mock_settings):
+        mock_settings.PKG_DIR = Path("/data/pkg")
+        pkg = MagicMock(spec=Path)
+        pkg.exists.return_value = True
+        pkg.name = "game.pkg"
+        pkg.parent = Path("/data/pkg/other")
+
+        target_path = MagicMock(spec=Path)
+        target_path.exists.return_value = False
+
+        with patch('src.modules.auto_sorter.Path', return_value=target_path):
+            result, _ = self.sorter.dry_run(pkg, "gd")
+            self.assertEqual(result, AutoSorter.PlanResult.OK)
+
+    @patch('src.modules.auto_sorter.settings')
+    def test_run_not_found(self, mock_settings):
+        pkg = MagicMock(spec=Path)
+        with patch.object(AutoSorter, 'dry_run', return_value=(AutoSorter.PlanResult.NOT_FOUND, None)):
+            result = self.sorter.run(pkg, "gd")
             self.assertIsNone(result)
-            pkg_path.rename.assert_not_called()
+            pkg.rename.assert_not_called()
+
+    @patch('src.modules.auto_sorter.settings')
+    def test_run_skip(self, mock_settings):
+        pkg = MagicMock(spec=Path)
+        target_dir = Path("/data/pkg/game")
+        with patch.object(AutoSorter, 'dry_run', return_value=(AutoSorter.PlanResult.SKIP, target_dir)):
+            result = self.sorter.run(pkg, "gd")
+            self.assertIsNone(result)
+            pkg.rename.assert_not_called()
+
+    @patch('src.modules.auto_sorter.settings')
+    def test_run_conflict_moves_to_errors(self, mock_settings):
+        mock_settings.ERROR_DIR = MagicMock(spec=Path)
+        pkg = MagicMock(spec=Path)
+        pkg.name = "conflict.pkg"
+        pkg.stem = "conflict"
+        pkg.suffix = ".pkg"
+
+        error_file = MagicMock(spec=Path)
+        error_file.exists.return_value = False
+        mock_settings.ERROR_DIR.__truediv__.return_value = error_file
+
+        with patch.object(AutoSorter, 'dry_run', return_value=(AutoSorter.PlanResult.CONFLICT, Path("/data/pkg/game"))):
+            result = self.sorter.run(pkg, "gd")
+            self.assertIsNone(result)
+            mock_settings.ERROR_DIR.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+            pkg.rename.assert_called_once_with(error_file)
+
+    @patch('src.modules.auto_sorter.settings')
+    def test_run_ok_moves_successfully(self, mock_settings):
+        pkg = MagicMock(spec=Path)
+        pkg.name = "game.pkg"
+
+        target_dir = MagicMock(spec=Path)
+        target_dir.name = "game"
+        target_path = MagicMock(spec=Path)
+        target_dir.__truediv__.return_value = target_path
+
+        with patch.object(AutoSorter, 'dry_run', return_value=(AutoSorter.PlanResult.OK, target_dir)):
+            result = self.sorter.run(pkg, "gd")
+            self.assertEqual(result, str(target_path))
+            target_dir.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+            pkg.rename.assert_called_once_with(target_path)
+
 
 if __name__ == "__main__":
     unittest.main()
