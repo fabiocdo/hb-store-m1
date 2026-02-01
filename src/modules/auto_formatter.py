@@ -20,8 +20,8 @@ class AutoFormatter:
                      ("uppercase", "lowercase", "capitalize", or None)
         :param error_path: Path where conflicting files will be moved
         """
-        self.template = template or "{title} {title_id} {app_type}"
-        self.mode = mode
+        self.template = template or settings.AUTO_FORMATTER_TEMPLATE
+        self.mode = mode or settings.AUTO_FORMATTER_MODE
         self.error_path = Path(error_path) if error_path else settings.ERROR_DIR
 
     class _SafeDict(dict):
@@ -88,7 +88,7 @@ class AutoFormatter:
         if pkg_path.name != planned_name:
             target_path = pkg_path.with_name(planned_name)
             if target_path.exists():
-                log("error", "Rename conflict detected", message=f"{pkg_path.name} -> {planned_name} (Target already exists)", module="AUTO_FORMATTER")
+                log("error", "Failed to rename PKG", message=f"{pkg_path.name} -> {planned_name} (Target already exists)", module="AUTO_FORMATTER")
                 return None
 
         return planned_name
@@ -103,26 +103,38 @@ class AutoFormatter:
         """
         planned_name = self.dry_run(pkg, sfo_data)
 
-        if not planned_name:
-            return None
-
         if pkg.name == planned_name:
+            log(
+                "info",
+                "Skipping rename",
+                message=f"{planned_name} (PKG is already renamed)",
+                module="AUTO_FORMATTER",
+            )
             return None
-
-        target_path = pkg.with_name(planned_name)
 
         try:
+            target_path = pkg.with_name(planned_name)
             pkg.rename(target_path)
-        except Exception as e:
-            log("error", "Failed to rename PKG", message=f"{pkg.name} -> {planned_name}: {str(e)}", module="AUTO_FORMATTER")
+
+        except Exception:
             if self.error_path:
                 try:
                     self.error_path.mkdir(parents=True, exist_ok=True)
+
                     conflict_path = self.error_path / pkg.name
+                    counter = 1
+
+                    while conflict_path.exists():
+                        conflict_path = self.error_path / f"{pkg.stem}_{counter}{pkg.suffix}"
+                        counter += 1
+
                     pkg.rename(conflict_path)
-                    log("warn", "PKG moved to errors folder due to execution error", message=f"{pkg.name} -> {pkg.name}", module="AUTO_FORMATTER")
+
+                    log("warn", "PKG moved to errors folder due to execution error", message=f"{pkg.name} -> {conflict_path.name}", module="AUTO_FORMATTER")
+
                 except Exception as move_err:
                     log("error", "Failed to move PKG to errors folder", message=f"{pkg.name}: {str(move_err)}", module="AUTO_FORMATTER")
+
             return None
 
         return planned_name

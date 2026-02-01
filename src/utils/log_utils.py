@@ -8,11 +8,10 @@ class Logger:
     and modular tags with colorized output for better readability in the terminal.
     """
 
-    def __init__(self, name=None, log_level="info"):
+    def __init__(self, log_level="info"):
         """
         Initialize the Logger with a name and a minimum log level.
 
-        :param name: Optional name for the logger (currently unused)
         :param log_level: Minimum severity level to log ("debug", "info", "warn", "error")
         """
         self.levels = {

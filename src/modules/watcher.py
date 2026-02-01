@@ -1,9 +1,8 @@
-import time
 from src.utils import log
 from src import settings
-from src.modules.auto_formatter.auto_formatter import AutoFormatter
-from src.modules.auto_sorter.auto_sorter import AutoSorter
-from src.modules.auto_indexer.auto_indexer import AutoIndexer
+from src.modules.auto_formatter import AutoFormatter
+from src.modules.auto_sorter import AutoSorter
+from src.modules.auto_indexer import AutoIndexer
 
 
 class Watcher:

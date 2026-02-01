@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
-from src.modules.auto_sorter.auto_sorter import AutoSorter
+from src.modules.auto_sorter import AutoSorter
 from tests.fixtures import SFO_GAME, SFO_DLC, SFO_UPDATE, SFO_SAVE, SFO_UNKNOWN
 
 class TestAutoSorter(unittest.TestCase):
