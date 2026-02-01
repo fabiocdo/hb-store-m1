@@ -32,38 +32,6 @@ class AutoFormatter:
         def __missing__(self, key):
             return ""
 
-    def _normalize_value(self, key: str, value):
-        """
-        Normalize SFO values according to key and formatter mode.
-
-        :param key: SFO field name
-        :param value: Raw SFO value
-        :return: Normalized string value
-        """
-        if value is None:
-            return ""
-
-        value = str(value)
-
-        if key.lower() == "title":
-            mode = os.getenv("AUTO_FORMATTER_MODE", "none")
-            if mode == "uppercase":
-                return value.upper()
-            if mode == "lowercase":
-                return value.lower()
-            if mode == "capitalize":
-                import re
-                roman_numerals = r"^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$"
-                parts = []
-                for part in value.split():
-                    if re.match(roman_numerals, part.upper()):
-                        parts.append(part.upper())
-                    else:
-                        parts.append(part.capitalize())
-                return " ".join(parts)
-
-        return value
-
     def dry_run(self, pkg: Path, sfo_data: dict) -> tuple[PlanResult, str | None]:
         """
         Plan the final PKG filename and check for conflicts.
@@ -139,3 +107,36 @@ class AutoFormatter:
         pkg.rename(target_path)
         log("info", "PKG renamed successfully", message=f"{pkg.name} -> {planned_name}", module="AUTO_FORMATTER")
         return planned_name
+
+    @staticmethod
+    def _normalize_value(key: str, value):
+        """
+        Normalize SFO values according to key and formatter mode.
+
+        :param key: SFO field name
+        :param value: Raw SFO value
+        :return: Normalized string value
+        """
+        if value is None:
+            return ""
+
+        value = str(value)
+
+        if key.lower() == "title":
+            mode = os.getenv("AUTO_FORMATTER_MODE", "none")
+            if mode == "uppercase":
+                return value.upper()
+            if mode == "lowercase":
+                return value.lower()
+            if mode == "capitalize":
+                import re
+                roman_numerals = r"^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$"
+                parts = []
+                for part in value.split():
+                    if re.match(roman_numerals, part.upper()):
+                        parts.append(part.upper())
+                    else:
+                        parts.append(part.capitalize())
+                return " ".join(parts)
+
+        return value
