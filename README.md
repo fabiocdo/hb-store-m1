@@ -211,25 +211,25 @@ Dependencies and behavior:
 
 ### Watcher
 
-- Location: `watcher.py`
+- Location: `src/modules/watcher/watcher.py`
 - Runs periodic scans under `pkg/`.
 - Runs a per-file pipeline (formatter → sorter → indexer), sharded across `PROCESS_WORKERS`.
 
 ### Auto Formatter
 
-- Location: `modules/auto_formatter/formatter.py`
+- Location: `modules/auto_formatter/auto_formatter.py`
 - Renames PKGs based on `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE`.
 - Moves conflicts to `_errors/`.
 
 ### Auto Sorter
 
-- Location: `modules/auto_sorter/sorter.py`
+- Location: `modules/auto_sorter/auto_sorter.py`
 - Sorts PKGs into `game/`, `dlc/`, `update/` based on SFO metadata.
 - Moves conflicts to `_errors/`.
 
 ### Auto Indexer
 
-- Location: `modules/auto_indexer.py`
+- Location: `modules/auto_indexer/auto_indexer.py`
 - Builds `index.json` and `_cache/index-cache.json` from scanned PKGs.
 - Only logs when content changes (or icons are extracted).
 - Uses `_cache/index-cache.json` to skip reprocessing unchanged PKGs.
