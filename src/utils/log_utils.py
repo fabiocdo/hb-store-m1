@@ -24,7 +24,7 @@ class Logger:
         
         # ANSI Color Codes
         self.colors = {
-            "AUTO_INDEXER": "\033[0;92m",   # Green
+            "AUTO_INDEXER": "\033[1;92m",   # Green
             "AUTO_SORTER": "\033[1;93m",    # Yellow
             "AUTO_FORMATTER": "\033[1;94m", # Blue
             "WATCHER": "\033[1;97m",        # White
@@ -33,7 +33,7 @@ class Logger:
 
         self.level_colors = {
             "debug": "\033[0;90m",  # Gray
-            "info": "\033[1;97m",   # White
+            "info": "\033[0;97m",   # White
             "warn": "\033[0;33m",   # Orange/Yellow
             "error": "\033[0;31m"   # Red
         }

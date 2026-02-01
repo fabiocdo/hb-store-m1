@@ -19,9 +19,9 @@ def start():
         "category": "ac",
         "content_id": "UP9000-CUSA01021_00-DLC0000000000001"
     }
-    pkg_path = Path("/home/fabio/dev/homebrew-store-cdn/data/pkg/dlc/1.pkg")
-    sorter.run(pkg_path, "ac")
-    # formatter.dry_run(pkg_path, SFO_DLC)
+    pkg_path = Path("/home/fabio/dev/homebrew-store-cdn/data/pkg/1.pkg")
+    # sorter.run(pkg_path, "ac")
+    formatter.run(pkg_path, SFO_DLC)
 
 if __name__ == "__main__":
     start()
