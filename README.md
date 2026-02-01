@@ -187,7 +187,7 @@ Fields:
 | `INDEX_JSON_ENABLED`        | Enable creating/updating `index.json` and `index-cache.json`.                                                            | `false`                          |
 | `AUTO_FORMATTER_ENABLED`      | Enable PKG formatting using `AUTO_FORMATTER_TEMPLATE`.                                                                     | `true`                           |
 | `AUTO_FORMATTER_MODE`         | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
-| `AUTO_FORMATTER_TEMPLATE`     | Template using `{title}`, `{title_id}`, `{region}`, `{app_type}`, `{version}`, `{category}`, `{content_id}`. | `{title} {title_id} {app_type}` |
+| `AUTO_FORMATTER_TEMPLATE`     | Template using `{title}`, `{title_id}`, `{content_id}`, `{category}`, `{version}`, `{release_date}`, `{region}`, `{app_type}`. | `{title} {title_id} {app_type}` |
 | `AUTO_SORTER_ENABLED`        | Enable auto-sorting PKGs into `game/`, `dlc/`, `update/`, `save/`, `_unknown/` folders.                                  | `true`                           |
 | `PERIODIC_SCAN_SECONDS`     | Interval in seconds for periodic PKG scans (no inotify watcher).                                                        | `30`                             |
 | `DATA_DIR`                  | Host path mapped to `/data`.                                                                                             | `/data`                          |
@@ -212,6 +212,21 @@ Dependencies and behavior:
 - Location: `src/modules/auto_formatter.py`
 - Renames PKGs based on `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE`.
 - Moves conflicts to `_error/`.
+
+Template data example:
+
+```python
+{
+  "title": "Aged Wild Steak",
+  "title_id": "CUSA14655",
+  "content_id": "UP0700-CUSA14655_00-NEWDBZRPG0000005",
+  "category": "ac",
+  "version": "01.00",
+  "release_date": "2023-01-13",
+  "region": "USA",
+  "app_type": "dlc"
+}
+```
 
 ### Auto Sorter
 
