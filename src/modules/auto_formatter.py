@@ -1,4 +1,5 @@
 from pathlib import Path
+from enum import Enum
 from src.utils import log
 from src import settings
 
@@ -11,18 +12,19 @@ class AutoFormatter:
     template and formatting mode.
     """
 
-    def __init__(self, template: str | None = None, mode: str | None = None, error_path: str | Path | None = None):
+    class PlanResult(Enum):
+        """Enumeration of dry-run planning results."""
+        OK = "ok"
+        SKIP = "skip"
+        CONFLICT = "conflict"
+        NOT_FOUND = "not_found"
+        INVALID = "invalid"
+
+    def __init__(self):
         """
         Initialize the formatter.
-
-        :param template: Filename template (e.g. "{title} {title_id} {app_type}")
-        :param mode: Text mode for title normalization
-                     ("uppercase", "lowercase", "capitalize", or None)
-        :param error_path: Path where conflicting files will be moved
         """
-        self.template = template or settings.AUTO_FORMATTER_TEMPLATE
-        self.mode = mode or settings.AUTO_FORMATTER_MODE
-        self.error_path = Path(error_path) if error_path else settings.ERROR_DIR
+        pass
 
     class _SafeDict(dict):
         """Dictionary that returns empty string for missing keys."""
@@ -44,11 +46,11 @@ class AutoFormatter:
         value = str(value)
 
         if key.lower() == "title":
-            if self.mode == "uppercase":
+            if settings.AUTO_FORMATTER_MODE == "uppercase":
                 return value.upper()
-            if self.mode == "lowercase":
+            if settings.AUTO_FORMATTER_MODE == "lowercase":
                 return value.lower()
-            if self.mode == "capitalize":
+            if settings.AUTO_FORMATTER_MODE == "capitalize":
                 import re
                 roman_numerals = r"^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$"
                 parts = []
@@ -61,39 +63,40 @@ class AutoFormatter:
 
         return value
 
-    def dry_run(self, pkg: Path, sfo_data: dict) -> tuple[str | None, bool]:
+    def dry_run(self, pkg: Path, sfo_data: dict) -> tuple[PlanResult, str | None]:
         """
         Plan the final PKG filename and check for conflicts.
 
         :param pkg: Path object representing the source PKG file
         :param sfo_data: Parsed PARAM.SFO data
-        :return: Tuple of (Planned filename or None, has_conflict)
+        :return: Tuple of (PlanResult, Planned filename or current name)
         """
+        if not pkg.exists():
+            return self.PlanResult.NOT_FOUND, pkg.name
+
         safe_data = {
             key: self._normalize_value(key, value)
             for key, value in (sfo_data or {}).items()
         }
 
         planned_name = (
-            self.template.format_map(self._SafeDict(safe_data)).strip()
+            settings.AUTO_FORMATTER_TEMPLATE.format_map(self._SafeDict(safe_data)).strip()
         )
 
         if not planned_name:
-            return None, False
+            return self.PlanResult.INVALID, pkg.name
 
         if not planned_name.lower().endswith(".pkg"):
             planned_name = f"{planned_name}.pkg"
 
         if pkg.name == planned_name:
-            log("info", "Skipping rename", message=f"{planned_name} (PKG is already renamed)", module="AUTO_FORMATTER")
-            return None, False
+            return self.PlanResult.SKIP, planned_name
 
         target_path = pkg.with_name(planned_name)
         if target_path.exists():
-            log("error", "Failed to rename PKG", message=f"{pkg.name} -> {planned_name} (Target already exists)", module="AUTO_FORMATTER")
-            return None, True
+            return self.PlanResult.CONFLICT, planned_name
 
-        return planned_name, False
+        return self.PlanResult.OK, planned_name
 
     def run(self, pkg: Path, sfo_data: dict) -> str | None:
         """
@@ -103,45 +106,33 @@ class AutoFormatter:
         :param sfo_data: Parsed PARAM.SFO data
         :return: New filename if renamed, otherwise None
         """
-        if not pkg.exists():
+        plan_result, planned_name = self.dry_run(pkg, sfo_data)
+
+        if plan_result == self.PlanResult.NOT_FOUND:
             log("error", "PKG file not found", message=f"{pkg}", module="AUTO_FORMATTER")
             return None
 
-        planned_name, has_conflict = self.dry_run(pkg, sfo_data)
-
-        if not planned_name and not has_conflict:
+        if plan_result == self.PlanResult.INVALID:
+            log("error", "Failed to generate filename from template", message=f"{pkg.name}", module="AUTO_FORMATTER")
             return None
 
-        if has_conflict:
-            try:
-                self.error_path.mkdir(parents=True, exist_ok=True)
-                conflict_path = self.error_path / pkg.name
-                counter = 1
-                while conflict_path.exists():
-                    conflict_path = self.error_path / f"{pkg.stem}_{counter}{pkg.suffix}"
-                    counter += 1
-                pkg.rename(conflict_path)
-                log("warn", "PKG moved to errors folder", message=f"{pkg.name} -> {conflict_path.name}", module="AUTO_FORMATTER")
-            except Exception as move_err:
-                log("error", "Failed to move PKG to errors folder", message=f"{pkg.name}: {str(move_err)}", module="AUTO_FORMATTER")
+        if plan_result == self.PlanResult.SKIP:
+            log("info", "Skipping rename. PKG is already renamed", message=f"{planned_name}", module="AUTO_FORMATTER")
             return None
 
-        try:
-            target_path = pkg.with_name(planned_name)
-            pkg.rename(target_path)
-            log("info", "PKG renamed successfully", message=f"{pkg.name} -> {planned_name}", module="AUTO_FORMATTER")
-            return planned_name
-
-        except Exception as e:
-            try:
-                self.error_path.mkdir(parents=True, exist_ok=True)
-                conflict_path = self.error_path / pkg.name
-                counter = 1
-                while conflict_path.exists():
-                    conflict_path = self.error_path / f"{pkg.stem}_{counter}{pkg.suffix}"
-                    counter += 1
-                pkg.rename(conflict_path)
-                log("warn", "PKG moved to errors folder due to execution error", message=f"{pkg.name} -> {conflict_path.name}", module="AUTO_FORMATTER")
-            except Exception as move_err:
-                log("error", "Failed to move PKG to errors folder", message=f"{pkg.name}: {str(move_err)}", module="AUTO_FORMATTER")
+        if plan_result == self.PlanResult.CONFLICT:
+            log("error", "Failed to rename PKG. Target name already exists", message=f"{pkg.name} -> {planned_name}", module="AUTO_FORMATTER")
+            settings.ERROR_DIR.mkdir(parents=True, exist_ok=True)
+            conflict_path = settings.ERROR_DIR / pkg.name
+            counter = 1
+            while conflict_path.exists():
+                conflict_path = settings.ERROR_DIR / f"{pkg.stem}_{counter}{pkg.suffix}"
+                counter += 1
+            pkg.rename(conflict_path)
+            log("warn", "PKG moved to errors folder", message=f"{pkg.name} -> {conflict_path.name}", module="AUTO_FORMATTER")
             return None
+
+        target_path = pkg.with_name(planned_name)
+        pkg.rename(target_path)
+        log("info", "PKG renamed successfully", message=f"{pkg.name} -> {planned_name}", module="AUTO_FORMATTER")
+        return planned_name
