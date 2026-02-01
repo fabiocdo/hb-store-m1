@@ -1,8 +1,10 @@
+import os
 from .log_utils import Logger
 from .pkg_utils import PkgUtils
 
 # Default Logger instance for compatibility
-_default_logger = Logger()
+_log_level = os.getenv("LOG_LEVEL", "info")
+_default_logger = Logger(log_level=_log_level)
 log = _default_logger.log
 set_worker_label = _default_logger.set_worker_label
 clear_worker_label = _default_logger.clear_worker_label

@@ -33,7 +33,6 @@ AUTO_FORMATTER_ENABLED = None
 AUTO_FORMATTER_TEMPLATE = None
 AUTO_FORMATTER_MODE = None
 AUTO_SORTER_ENABLED = None
-PROCESS_WORKERS = None
 PERIODIC_SCAN_SECONDS = None
 
 # CLI Arguments
@@ -50,6 +49,5 @@ CLI_ARGS = [
         "--auto-formatter-mode",
         {"required": True, "choices": ["none", "uppercase", "lowercase", "capitalize"]},
     ),
-    ("--process-workers", {"required": True}),
     ("--periodic-scan-seconds", {"required": True}),
 ]

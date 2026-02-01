@@ -27,7 +27,6 @@ docker run -d \
   -p 8080:80 \
   -e BASE_URL=http://127.0.0.1:8080 \
   -e LOG_LEVEL=info \
-  -e PROCESS_WORKERS=4 \
   -e PKG_WATCHER_ENABLED=true \
   -e AUTO_INDEXER_ENABLED=true \
   -e INDEX_JSON_ENABLED=false \
@@ -55,7 +54,6 @@ services:
     environment:
       - BASE_URL=http://127.0.0.1:8080
       - LOG_LEVEL=info
-      - PROCESS_WORKERS=4
       - PKG_WATCHER_ENABLED=true
       - AUTO_INDEXER_ENABLED=true
       - INDEX_JSON_ENABLED=false
@@ -189,7 +187,6 @@ Fields:
 |-----------------------------|--------------------------------------------------------------------------------------------------------------------------|----------------------------------|
 | `BASE_URL`                  | Base URL written in `index.json`.                                                                                        | `http://127.0.0.1:8080`          |
 | `LOG_LEVEL`                 | Log verbosity: `debug`, `info`, `warn`, `error`.                                                                          | `info`                           |
-| `PROCESS_WORKERS`           | Number of parallel pipeline workers (sharded by PKG path).                                                                | CPU core count                   |
 | `PKG_WATCHER_ENABLED`       | Master switch for watcher-driven automations (format, move, index).                                                     | `true`                           |
 | `AUTO_INDEXER_ENABLED`      | Enable the auto-indexer pipeline (icons and indexing).                                                                   | `true`                           |
 | `INDEX_JSON_ENABLED`        | Enable creating/updating `index.json` and `index-cache.json`.                                                            | `false`                          |
@@ -203,7 +200,6 @@ Fields:
 Dependencies and behavior:
 
 - `PKG_WATCHER_ENABLED=false` disables all automations (format, move, index) and the watcher does not start.
-- `PROCESS_WORKERS` only affects the per-file format/move/icon pipeline (indexing remains single-threaded).
 - `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE` only apply when `AUTO_FORMATTER_ENABLED=true` and the watcher is enabled.
 - Conflicting files are moved to `_errors/`.
 
@@ -213,7 +209,7 @@ Dependencies and behavior:
 
 - Location: `src/modules/watcher/watcher.py`
 - Runs periodic scans under `pkg/`.
-- Runs a per-file pipeline (formatter → sorter → indexer), sharded across `PROCESS_WORKERS`.
+- Runs a per-file pipeline (formatter → sorter → indexer).
 
 ### Auto Formatter
 

@@ -7,7 +7,6 @@ export TERM
 # DEFAULT ENVIRONMENT VARIABLES
 DEFAULT_BASE_URL="http://127.0.0.1:8080"
 DEFAULT_LOG_LEVEL="info"
-DEFAULT_PROCESS_WORKERS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
 DEFAULT_PKG_WATCHER_ENABLED="true"
 DEFAULT_AUTO_INDEXER_ENABLED="true"
 DEFAULT_INDEX_JSON_ENABLED="false"
@@ -29,7 +28,6 @@ use_default_if_unset() {
 
 use_default_if_unset BASE_URL "$DEFAULT_BASE_URL"
 use_default_if_unset LOG_LEVEL "$DEFAULT_LOG_LEVEL"
-use_default_if_unset PROCESS_WORKERS "$DEFAULT_PROCESS_WORKERS"
 use_default_if_unset PKG_WATCHER_ENABLED "$DEFAULT_PKG_WATCHER_ENABLED"
 use_default_if_unset AUTO_INDEXER_ENABLED "$DEFAULT_AUTO_INDEXER_ENABLED"
 use_default_if_unset INDEX_JSON_ENABLED "$DEFAULT_INDEX_JSON_ENABLED"
@@ -121,7 +119,6 @@ build_content_lines_plain() {
   printf "\n"
   format_kv_plain "BASE_URL" "$(format_value BASE_URL "$BASE_URL")"
   format_kv_plain "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
-  format_kv_plain "PROCESS_WORKERS" "$(format_value PROCESS_WORKERS "$PROCESS_WORKERS")"
   printf "\n"
   format_kv_plain "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
   printf "\n"
@@ -142,7 +139,6 @@ build_content_lines_colored() {
   printf "\n"
   format_kv_plain "BASE_URL" "$(format_value BASE_URL "$BASE_URL")"
   format_kv_plain "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
-  format_kv_plain "PROCESS_WORKERS" "$(format_value PROCESS_WORKERS "$PROCESS_WORKERS")"
   printf "\n"
   format_kv_plain "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
   printf "\n"
@@ -280,7 +276,6 @@ clear_console
 BOX_KEY_WIDTH=$(printf "%s\n" \
   "BASE_URL" \
   "LOG_LEVEL" \
-  "PROCESS_WORKERS" \
   "PKG_WATCHER_ENABLED" \
   "AUTO_INDEXER_ENABLED" \
   "INDEX_JSON_ENABLED" \
@@ -312,7 +307,6 @@ if [ "$PKG_WATCHER_ENABLED" = "true" ]; then
   exec python3 -u /app/watcher.py \
     --base-url "$BASE_URL" \
     --log-level "$LOG_LEVEL" \
-    --process-workers "$PROCESS_WORKERS" \
     --pkg-watcher-enabled "$PKG_WATCHER_ENABLED" \
     --auto-indexer-enabled "$AUTO_INDEXER_ENABLED" \
     --index-json-enabled "$INDEX_JSON_ENABLED" \

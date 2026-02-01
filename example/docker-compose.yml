@@ -10,7 +10,6 @@ services:
     environment:
       - BASE_URL=http://127.0.0.1:8080
       - LOG_LEVEL=info
-      - PROCESS_WORKERS=4
       - PKG_WATCHER_ENABLED=true
       - AUTO_INDEXER_ENABLED=true
       - AUTO_FORMATTER_ENABLED=true
