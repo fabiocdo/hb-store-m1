@@ -1,5 +1,5 @@
 from pathlib import Path
-from src.utils.log_utils import log
+from src.utils import log
 
 
 class AutoSorter:

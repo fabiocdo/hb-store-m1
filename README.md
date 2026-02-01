@@ -240,6 +240,12 @@ Dependencies and behavior:
 - Location: `utils/pkg_utils.py`
 - Uses `pkgtool` to read SFO metadata and extract icons.
 
+### Log Utilities
+
+- Location: `utils/log_utils.py`
+- Modular tagging and color support.
+- Handles formatted and colored logging.
+
 ### PKG Tool Wrapper
 
 - Location: `tools/pkg_tool.py`
