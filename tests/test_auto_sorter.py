@@ -13,22 +13,12 @@ class TestAutoSorter(unittest.TestCase):
     def setUp(self):
         self.sorter = AutoSorter()
 
-    def test_category_map(self):
-        expected_map = {
-            "ac": "dlc",
-            "gc": "game",
-            "gd": "game",
-            "gp": "update",
-            "sd": "save",
-        }
-        self.assertEqual(AutoSorter.CATEGORY_MAP, expected_map)
-
     def test_dry_run_not_found(self):
         with patch.dict(os.environ, {"PKG_DIR": "/data/pkg"}, clear=False):
             pkg = MagicMock(spec=Path)
             pkg.exists.return_value = False
 
-            result, target_dir = self.sorter.dry_run(pkg, "gd")
+            result, target_dir = self.sorter.dry_run(pkg, "game")
 
             self.assertEqual(result, AutoSorter.PlanResult.NOT_FOUND)
             self.assertIsNone(target_dir)
@@ -40,7 +30,7 @@ class TestAutoSorter(unittest.TestCase):
             pkg.name = "game.pkg"
             pkg.parent = Path("/data/pkg/game")
 
-            result, target_dir = self.sorter.dry_run(pkg, "gd")
+            result, target_dir = self.sorter.dry_run(pkg, "game")
             self.assertEqual(result, AutoSorter.PlanResult.SKIP)
             self.assertEqual(target_dir, Path("/data/pkg/game"))
 
@@ -52,7 +42,7 @@ class TestAutoSorter(unittest.TestCase):
             pkg.parent = Path("/data/pkg/other")
 
             with patch('pathlib.Path.exists', return_value=True):
-                result, target_dir = self.sorter.dry_run(pkg, "gd")
+                result, target_dir = self.sorter.dry_run(pkg, "game")
                 self.assertEqual(result, AutoSorter.PlanResult.CONFLICT)
 
     def test_dry_run_ok(self):
@@ -63,13 +53,13 @@ class TestAutoSorter(unittest.TestCase):
                 pkg.name = "game.pkg"
                 pkg.parent = Path(tmp_dir) / "other"
 
-                result, _ = self.sorter.dry_run(pkg, "gd")
+                result, _ = self.sorter.dry_run(pkg, "game")
                 self.assertEqual(result, AutoSorter.PlanResult.OK)
 
     def test_run_not_found(self):
         pkg = MagicMock(spec=Path)
         with patch.object(AutoSorter, 'dry_run', return_value=(AutoSorter.PlanResult.NOT_FOUND, None)):
-            result = self.sorter.run(pkg, "gd")
+            result = self.sorter.run(pkg, "game")
             self.assertIsNone(result)
             pkg.rename.assert_not_called()
 
@@ -77,7 +67,7 @@ class TestAutoSorter(unittest.TestCase):
         pkg = MagicMock(spec=Path)
         target_dir = Path("/data/pkg/game")
         with patch.object(AutoSorter, 'dry_run', return_value=(AutoSorter.PlanResult.SKIP, target_dir)):
-            result = self.sorter.run(pkg, "gd")
+            result = self.sorter.run(pkg, "game")
             self.assertIsNone(result)
             pkg.rename.assert_not_called()
 
@@ -90,7 +80,7 @@ class TestAutoSorter(unittest.TestCase):
                 pkg.suffix = ".pkg"
 
                 with patch.object(AutoSorter, 'dry_run', return_value=(AutoSorter.PlanResult.CONFLICT, Path("/data/pkg/game"))):
-                    result = self.sorter.run(pkg, "gd")
+                    result = self.sorter.run(pkg, "game")
                     self.assertIsNone(result)
                     pkg.rename.assert_called_once()
 
@@ -104,7 +94,7 @@ class TestAutoSorter(unittest.TestCase):
         target_dir.__truediv__.return_value = target_path
 
         with patch.object(AutoSorter, 'dry_run', return_value=(AutoSorter.PlanResult.OK, target_dir)):
-            result = self.sorter.run(pkg, "gd")
+            result = self.sorter.run(pkg, "game")
             self.assertEqual(result, str(target_path))
             target_dir.mkdir.assert_called_once_with(parents=True, exist_ok=True)
             pkg.rename.assert_called_once_with(target_path)

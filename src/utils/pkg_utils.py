@@ -29,12 +29,12 @@ class PkgUtils:
             "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": os.environ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"],
         }
 
-    def extract_pkg_data(self, pkg: Path) -> tuple[ExtractResult, str]:
+    def extract_pkg_data(self, pkg: Path) -> tuple[ExtractResult, dict | str]:
         """
         Extract and parse PARAM.SFO data from a PKG.
 
         :param pkg: Path to the PKG file
-        :return: Tuple of (ExtractResult, path string)
+        :return: Tuple of (ExtractResult, dict or pkg path)
         """
 
         try:
@@ -134,10 +134,37 @@ class PkgUtils:
                     if part.startswith("c_date="):
                         c_date = part.split("=", 1)[1].strip()
                         if len(c_date) == 8 and c_date.isdigit():
-                            result["release_date"] = f"{c_date[:4]}-{c_date[4:6]}-{c_date[6:8]}"
+                            result["RELEASE_DATE"] = f"{c_date[:4]}-{c_date[4:6]}-{c_date[6:8]}"
                         break
 
-        return self.ExtractResult.OK, str(pkg)
+        content_id = result.get("CONTENT_ID", "")
+        region_map = {
+            "UP": "USA",
+            "EP": "EUR",
+            "JP": "JAP",
+            "HP": "ASIA",
+            "AP": "ASIA",
+            "KP": "ASIA",
+        }
+        prefix = content_id[:2].upper() if content_id else ""
+        result["REGION"] = region_map.get(prefix, "UNK")
+
+        category = str(result.get("CATEGORY", "")).lower()
+        app_type_map = {
+            "ac": "dlc",
+            "gc": "game",
+            "gd": "game",
+            "gp": "update",
+            "sd": "save",
+        }
+        result["APP_TYPE"] = app_type_map.get(category, "_unknown")
+
+        selected = {}
+        for field in ("TITLE", "TITLE_ID", "CONTENT_ID", "CATEGORY", "VERSION", "RELEASE_DATE", "REGION", "APP_TYPE"):
+            if field in result and result[field] is not None:
+                selected[field] = result[field]
+
+        return self.ExtractResult.OK, {key.lower(): value for key, value in selected.items()}
 
     def extract_pkg_icon(self, pkg: Path, content_id: str) -> tuple[ExtractResult, str]:
         """

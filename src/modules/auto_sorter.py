@@ -18,32 +18,24 @@ class AutoSorter:
         CONFLICT = "conflict"
         NOT_FOUND = "not_found"
 
-    CATEGORY_MAP = {
-        "ac": "dlc",
-        "gc": "game",
-        "gd": "game",
-        "gp": "update",
-        "sd": "save",
-    }
-
     def __init__(self):
         """
         Initialize the sorter.
         """
         pass
 
-    def dry_run(self, pkg: Path, category: str) -> tuple[PlanResult, Path | None]:
+    def dry_run(self, pkg: Path, app_type: str) -> tuple[PlanResult, Path | None]:
         """
         Plan the PKG destination directory and check for conflicts.
 
         :param pkg: Path object representing the PKG file
-        :param category: SFO category (e.g. "gd", "ac")
+        :param app_type: App type (e.g. "game", "dlc")
         :return: Tuple of (PlanResult, Planned directory Path or None)
         """
         if not pkg.exists():
             return self.PlanResult.NOT_FOUND, None
 
-        target_folder = self.CATEGORY_MAP.get(category, "_unknown")
+        target_folder = app_type
         pkg_dir = Path(os.environ["PKG_DIR"])
         target_dir = pkg_dir / target_folder
         target_path = target_dir / pkg.name
@@ -56,15 +48,15 @@ class AutoSorter:
 
         return self.PlanResult.OK, target_dir
 
-    def run(self, pkg: Path, category: str) -> str | None:
+    def run(self, pkg: Path, app_type: str) -> str | None:
         """
         Move the PKG file to its category folder.
 
         :param pkg: Path object representing the PKG file
-        :param category: SFO category (e.g. "gd", "ac")
+        :param app_type: App type (e.g. "game", "dlc")
         :return: New path string if moved, otherwise None
         """
-        plan_result, target_dir = self.dry_run(pkg, category)
+        plan_result, target_dir = self.dry_run(pkg, app_type)
 
         if plan_result == self.PlanResult.NOT_FOUND:
             log("error", "PKG file not found", message=f"{pkg}", module="AUTO_SORTER")
