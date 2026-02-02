@@ -19,7 +19,7 @@ formatting, sorting, icon extraction, and index/database generation.
 docker run -d \
   --name homebrew-store-cdn \
   -p 8080:80 \
-  -e BASE_URL=http://127.0.0.1:8080 \
+  -e BASE_URL=http://127.0.0.1 \
   -e LOG_LEVEL=info \
   -e WATCHER_ENABLED=true \
   -e AUTO_INDEXER_OUTPUT_FORMAT=db,json \
@@ -39,23 +39,13 @@ services:
     image: fabiocdo/homebrew-store-cdn:latest
     container_name: homebrew-store-cdn
     ports:
-      - "8080:80"
+      - "80:80"
     env_file:
       - ./settings.env
     volumes:
       - ./data:/data
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped
-```
-
-### Local (Python)
-
-```bash
-# default settings.env
-python3 -m src
-
-# custom settings file
-python3 -m src -E local
 ```
 
 ## Environment variables
