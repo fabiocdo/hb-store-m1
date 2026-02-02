@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 LOG_LEVELS = {
     "debug": 0,
     "info": 1,

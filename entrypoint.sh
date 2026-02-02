@@ -14,11 +14,10 @@ fi
 DEFAULT_BASE_URL="http://127.0.0.1:8080"
 DEFAULT_LOG_LEVEL="info"
 DEFAULT_WATCHER_ENABLED="true"
-DEFAULT_INDEX_JSON_ENABLED="false"
-DEFAULT_AUTO_INDEXER_OUTPUT_FORMAT="DB"
-DEFAULT_AUTO_FORMATTER_TEMPLATE="{title} {title_id} {app_type}"
-DEFAULT_AUTO_FORMATTER_MODE="none"
 DEFAULT_WATCHER_PERIODIC_SCAN_SECONDS="30"
+DEFAULT_AUTO_INDEXER_OUTPUT_FORMAT="db,json"
+DEFAULT_AUTO_FORMATTER_TEMPLATE="{title}_[{region}]_[{app_type}]_[{version}]"
+DEFAULT_AUTO_FORMATTER_MODE="snake_uppercase"
 
 # ENVIRONMENT VARIABLES
 use_default_if_unset() {
@@ -33,11 +32,13 @@ use_default_if_unset() {
 use_default_if_unset BASE_URL "$DEFAULT_BASE_URL"
 use_default_if_unset LOG_LEVEL "$DEFAULT_LOG_LEVEL"
 use_default_if_unset WATCHER_ENABLED "$DEFAULT_WATCHER_ENABLED"
-use_default_if_unset INDEX_JSON_ENABLED "$DEFAULT_INDEX_JSON_ENABLED"
 use_default_if_unset AUTO_INDEXER_OUTPUT_FORMAT "$DEFAULT_AUTO_INDEXER_OUTPUT_FORMAT"
 use_default_if_unset WATCHER_PERIODIC_SCAN_SECONDS "$DEFAULT_WATCHER_PERIODIC_SCAN_SECONDS"
 use_default_if_unset AUTO_FORMATTER_MODE "$DEFAULT_AUTO_FORMATTER_MODE"
 use_default_if_unset AUTO_FORMATTER_TEMPLATE "$DEFAULT_AUTO_FORMATTER_TEMPLATE"
+
+# Normalize boolean-like values
+WATCHER_ENABLED=$(printf "%s" "$WATCHER_ENABLED" | tr '[:upper:]' '[:lower:]')
 
 # PATHs
 DATA_DIR="/data"
@@ -61,6 +62,7 @@ log() {
 COLOR_GREEN="\033[0;92m"
 COLOR_BLUE="\033[1;94m"
 COLOR_YELLOW="\033[1;93m"
+COLOR_PURPLE="\033[0;95m"
 
 clear_console(){
   printf "\033c\n"
@@ -125,15 +127,13 @@ box_line() {
 }
 
 build_content_lines_plain() {
-  printf "%s\n" "HOMEBREW-STORE-CDN"
+  printf "%s\n" "$APP_LABEL"
   printf "\n"
   format_kv_plain "BASE_URL" "$(format_value BASE_URL "$BASE_URL")"
   format_kv_plain "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
-  format_kv_plain "DATA_DIR" "$(format_value DATA_DIR "$DATA_DIR")"
   printf "\n"
   format_kv_plain "WATCHER_ENABLED" "$(format_value WATCHER_ENABLED "$WATCHER_ENABLED")"
   printf "\n"
-  format_kv_plain "INDEX_JSON_ENABLED" "$(format_value INDEX_JSON_ENABLED "$INDEX_JSON_ENABLED")"
   format_kv_plain "AUTO_INDEXER_OUTPUT_FORMAT" "$(format_value AUTO_INDEXER_OUTPUT_FORMAT "$AUTO_INDEXER_OUTPUT_FORMAT")"
   printf "\n"
   format_kv_plain "AUTO_FORMATTER_MODE" "$(format_value AUTO_FORMATTER_MODE "$AUTO_FORMATTER_MODE")"
@@ -144,18 +144,16 @@ build_content_lines_plain() {
 }
 
 build_content_lines_colored() {
-  printf "%s\n" "HOMEBREW-STORE-CDN"
+  printf "%s\n" "$APP_LABEL"
   printf "\n"
   format_kv_plain "BASE_URL" "$(format_value BASE_URL "$BASE_URL")"
   format_kv_plain "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
-  format_kv_plain "DATA_DIR" "$(format_value DATA_DIR "$DATA_DIR")"
-  printf "\n"
-  format_kv_plain "WATCHER_ENABLED" "$(format_value WATCHER_ENABLED "$WATCHER_ENABLED")"
   printf "\n"
   format_kv_colored \
-    "INDEX_JSON_ENABLED" \
-    "$(color_value "INDEX_JSON_ENABLED" "$COLOR_GREEN")" \
-    "$(color_value "$(format_value INDEX_JSON_ENABLED "$INDEX_JSON_ENABLED")" "$COLOR_GREEN")"
+    "WATCHER_ENABLED" \
+    "$(color_value "WATCHER_ENABLED" "$COLOR_PURPLE")" \
+    "$(color_value "$(format_value WATCHER_ENABLED "$WATCHER_ENABLED")" "$COLOR_PURPLE")"
+  printf "\n"
   format_kv_colored \
     "AUTO_INDEXER_OUTPUT_FORMAT" \
     "$(color_value "AUTO_INDEXER_OUTPUT_FORMAT" "$COLOR_GREEN")" \
@@ -276,12 +274,24 @@ if [ "$host" = "$hostport" ]; then
 fi
 
 clear_console
+APP_NAME="homebrew-store-cdn"
+APP_VERSION=""
+if [ -f /app/pyproject.toml ]; then
+  toml_name=$(awk -F'=' '/^name[[:space:]]*=/ {gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); gsub(/^"|"$/, "", $2); print $2; exit}' /app/pyproject.toml)
+  if [ -n "$toml_name" ]; then
+    APP_NAME="$toml_name"
+  fi
+  APP_VERSION=$(awk -F'"' '/^version[[:space:]]*=/ {print $2; exit}' /app/pyproject.toml)
+fi
+APP_LABEL="$APP_NAME"
+if [ -n "$APP_VERSION" ]; then
+  APP_LABEL="${APP_NAME} v${APP_VERSION}"
+fi
+
 BOX_KEY_WIDTH=$(printf "%s\n" \
   "BASE_URL" \
   "LOG_LEVEL" \
-  "DATA_DIR" \
   "WATCHER_ENABLED" \
-  "INDEX_JSON_ENABLED" \
   "AUTO_INDEXER_OUTPUT_FORMAT" \
   "AUTO_FORMATTER_MODE" \
   "AUTO_FORMATTER_TEMPLATE" \
@@ -306,13 +316,6 @@ compile_binaries
 
 log ""
 if [ "$WATCHER_ENABLED" = "true" ]; then
-  exec python3 -u /app/watcher.py \
-    --base-url "$BASE_URL" \
-    --log-level "$LOG_LEVEL" \
-    --index-json-enabled "$INDEX_JSON_ENABLED" \
-    --periodic-scan-seconds "$WATCHER_PERIODIC_SCAN_SECONDS" \
-    --auto-formatter-mode "$AUTO_FORMATTER_MODE" \
-    --auto-formatter-template "$AUTO_FORMATTER_TEMPLATE"
+  exec python3 -u -m src
 fi
-log "Watcher is disabled."
 exec tail -f /dev/null

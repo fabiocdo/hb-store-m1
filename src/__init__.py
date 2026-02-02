@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import pathlib
 import sys
@@ -29,12 +31,14 @@ if path.exists():
             k, v = line.split("=", 1)
             os.environ.setdefault(k.strip(), v.strip())
 
-os.environ.setdefault("DATA_DIR", "/data")
-os.environ.setdefault("STORE_DIR", str(pathlib.Path(os.environ["DATA_DIR"])))
-os.environ.setdefault("INDEX_DIR", str(pathlib.Path(os.environ["DATA_DIR"])))
-os.environ.setdefault("PKG_DIR", str(pathlib.Path(os.environ["DATA_DIR"]) / "pkg"))
-os.environ.setdefault("ERROR_DIR", str(pathlib.Path(os.environ["DATA_DIR"]) / "_error"))
-os.environ.setdefault("CACHE_DIR", str(pathlib.Path(os.environ["DATA_DIR"]) / "_cache"))
+data_dir = pathlib.Path("/data")
+os.environ["DATA_DIR"] = str(data_dir)
+os.environ.setdefault("STORE_DIR", str(data_dir))
+os.environ.setdefault("STORE_DIR", str(data_dir))
+os.environ.setdefault("INDEX_DIR", str(data_dir))
+os.environ.setdefault("PKG_DIR", str(data_dir / "pkg"))
+os.environ.setdefault("ERROR_DIR", str(data_dir / "_error"))
+os.environ.setdefault("CACHE_DIR", str(data_dir / "_cache"))
 os.environ.setdefault("MEDIA_DIR", str(pathlib.Path(os.environ["PKG_DIR"]) / "_media"))
 os.environ.setdefault("GAME_DIR", str(pathlib.Path(os.environ["PKG_DIR"]) / "game"))
 os.environ.setdefault("DLC_DIR", str(pathlib.Path(os.environ["PKG_DIR"]) / "dlc"))

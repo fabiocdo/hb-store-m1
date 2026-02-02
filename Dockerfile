@@ -9,9 +9,7 @@ USER root
 # Install system dependencies
 RUN apt update && apt install -y --no-install-recommends \
     nginx \
-    inotify-tools \
     python3 \
-    python3-pip \
     sqlite3 \
  && rm -rf /var/lib/apt/lists/*
 
@@ -19,22 +17,18 @@ RUN apt update && apt install -y --no-install-recommends \
 RUN mkdir -p /app/bin \
  && if command -v PkgTool.Core >/dev/null 2>&1; then ln -s "$(command -v PkgTool.Core)" /app/bin/pkgtool; fi
 
-# Install pip globally
-RUN python3 -m pip install --upgrade pip setuptools wheel --no-cache-dir \
- && python3 -m pip cache purge
-
 # NGINX configuration
 RUN rm /etc/nginx/sites-enabled/default
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy app files
 COPY entrypoint.sh /entrypoint.sh
-COPY src/__main__.py settings.env /app/
-COPY src/modules/ /app/modules/
-COPY src/utils/ /app/utils/
-COPY src/tools/ /app/tools/
-COPY lib/ /app/lib/
+COPY settings.env pyproject.toml /app/
+COPY src/ /app/src/
 RUN chmod +x /entrypoint.sh
+
+# Default workdir
+WORKDIR /app
 
 # Data volume
 VOLUME ["/data"]

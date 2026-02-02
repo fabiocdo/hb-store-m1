@@ -1,4 +1,6 @@
-from src.modules.helpers.watcher_planner import plan_pkgs
-from src.modules.helpers.watcher_executor import execute_plan
+from __future__ import annotations
 
-__all__ = ["plan_pkgs", "execute_plan"]
+from src.modules.helpers.watcher_planner import WatcherPlanner
+from src.modules.helpers.watcher_executor import WatcherExecutor
+
+__all__ = ["WatcherPlanner", "WatcherExecutor"]

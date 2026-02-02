@@ -7,14 +7,8 @@ services:
     container_name: homebrew-store-cdn
     ports:
       - "8080:80"
-    environment:
-      - BASE_URL=http://127.0.0.1:8080
-      - LOG_LEVEL=info
-      - WATCHER_ENABLED=true
-      - AUTO_INDEXER_OUTPUT_FORMAT=DB,JSON
-      - AUTO_FORMATTER_MODE=none
-      - AUTO_FORMATTER_TEMPLATE={title} {title_id} {app_type}
-      - WATCHER_PERIODIC_SCAN_SECONDS=30
+    env_file:
+      - ./settings.env
     volumes:
       - ./data:/data
       - ./nginx.conf:/etc/nginx/nginx.conf:ro

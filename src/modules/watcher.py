@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import os
 import time
 from src.utils import PkgUtils, log
 from src.modules.auto_formatter import AutoFormatter
 from src.modules.auto_sorter import AutoSorter
 from src.modules.auto_indexer import AutoIndexer
-from src.modules.helpers.watcher_planner import plan_pkgs
-from src.modules.helpers.watcher_executor import execute_plan
+from src.modules.helpers.watcher_planner import WatcherPlanner
+from src.modules.helpers.watcher_executor import WatcherExecutor
 
 
 class Watcher:
@@ -33,6 +35,8 @@ class Watcher:
         self.formatter = AutoFormatter()
         self.sorter = AutoSorter()
         self.indexer = AutoIndexer()
+        self.planner = WatcherPlanner(self.pkg_utils, self.formatter, self.sorter)
+        self.executor = WatcherExecutor(self.pkg_utils, self.formatter, self.sorter)
 
     def start(self):
         """
@@ -53,17 +57,11 @@ class Watcher:
                 time.sleep(next_run - now)
             start = time.monotonic()
             try:
-                results, sfo_cache = plan_pkgs(self.pkg_utils, self.formatter, self.sorter)
+                results, sfo_cache = self.planner.plan()
                 if not results:
                     next_run = start + interval
                     continue
-                sfo_cache, _stats = execute_plan(
-                    results,
-                    sfo_cache,
-                    self.pkg_utils,
-                    self.formatter,
-                    self.sorter,
-                )
+                sfo_cache, _stats = self.executor.run(results, sfo_cache)
                 self.indexer.run(results, sfo_cache)
             except Exception as exc:
                 log("error", "Watcher cycle failed", message=str(exc), module="WATCHER")

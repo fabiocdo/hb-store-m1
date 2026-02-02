@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import os
 from src.utils.models.log_models import LOG_LEVELS, MODULE_COLORS, LEVEL_COLORS

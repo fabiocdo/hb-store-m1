@@ -5,7 +5,7 @@ Shared test fixtures for the homebrew-store-cdn project.
 SFO_GAME = {
     "title": "Horizon Zero Dawn",
     "title_id": "CUSA01021",
-    "app_type": "app",
+    "app_type": "game",
     "region": "US",
     "version": "01.00",
     "category": "gd",
@@ -15,7 +15,7 @@ SFO_GAME = {
 SFO_DLC = {
     "title": "The Frozen Wilds",
     "title_id": "CUSA01021",
-    "app_type": "addon",
+    "app_type": "dlc",
     "region": "US",
     "version": "01.00",
     "category": "ac",
@@ -25,7 +25,7 @@ SFO_DLC = {
 SFO_UPDATE = {
     "title": "Horizon Zero Dawn Update",
     "title_id": "CUSA01021",
-    "app_type": "patch",
+    "app_type": "update",
     "region": "US",
     "version": "01.50",
     "category": "gp",
@@ -45,7 +45,7 @@ SFO_SAVE = {
 SFO_UNKNOWN = {
     "title": "Unknown Title",
     "title_id": "XXXX00000",
-    "app_type": "unknown",
+    "app_type": "_unknown",
     "region": "XX",
     "version": "00.00",
     "category": "xx",
