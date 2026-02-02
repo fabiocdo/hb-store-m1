@@ -6,7 +6,7 @@ services:
     image: fabiocdo/homebrew-store-cdn:latest
     container_name: homebrew-store-cdn
     ports:
-      - "8080:80"
+      - "80:80"
     env_file:
       - ./settings.env
     volumes:
