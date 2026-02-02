@@ -112,47 +112,31 @@ initialize_store_db() {
   fi
   sqlite3 "$STORE_DB_PATH" <<'SQL'
 CREATE TABLE IF NOT EXISTS homebrews (
-  pid INTEGER,
-  id TEXT,
-  name TEXT,
+  "pid" INTEGER,
+  "id" TEXT,
+  "name" TEXT,
   "desc" TEXT,
-  image TEXT,
-  package TEXT,
-  version TEXT,
-  picpath TEXT,
-  desc_1 TEXT,
-  desc_2 TEXT,
-  ReviewStars REAL,
-  Size INTEGER,
-  Author TEXT,
-  apptype TEXT,
-  pv TEXT,
-  main_icon_path TEXT,
-  main_menu_pic TEXT,
-  releaseddate TEXT
+  "image" TEXT,
+  "package" TEXT,
+  "version" TEXT,
+  "picpath" TEXT,
+  "desc_1" TEXT,
+  "desc_2" TEXT,
+  "ReviewStars" REAL,
+  "Size" INTEGER,
+  "Author" TEXT,
+  "apptype" TEXT,
+  "pv" TEXT,
+  "main_icon_path" TEXT,
+  "main_menu_pic" TEXT,
+  "releaseddate" TEXT,
+  "number_of_downloads" TEXT,
+  "github" TEXT,
+  "video" TEXT,
+  "twitter" TEXT,
+  "md5" TEXT
 );
 SQL
-}
-
-compile_binaries() {
-  tool_source="/app/tools/sfotool.c"
-  tool_binary="/app/bin/sfotool"
-  if [ ! -f "$tool_source" ]; then
-    return
-  fi
-  if [ -f "$tool_binary" ]; then
-    return
-  fi
-  if command -v cc >/dev/null 2>&1; then
-    mkdir -p "/app/bin"
-    if cc "$tool_source" -o "$tool_binary" >/dev/null 2>&1; then
-      log "Compiled sfotool to $tool_binary"
-    else
-      log "Failed to compile sfotool"
-    fi
-  else
-    log "cc not found; skipping sfotool compilation."
-  fi
 }
 
 hostport="${BASE_URL#*://}"
@@ -171,7 +155,6 @@ log "NGINX is running on ${host}:${port}"
 log ""
 
 initialize_store_db
-compile_binaries
 
 if [ "$WATCHER_ENABLED" = "true" ]; then
   exec python3 -u -m src

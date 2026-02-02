@@ -104,6 +104,13 @@ The `/data` volume follows this layout:
 |   |-- *.pkg
 |-- _cache/
 |   |-- index-cache.json
+|   |-- remote.md5
+|   |-- store.db.md5
+|   |-- store.db.json
+|   |-- homebrew.elf
+|   |-- homebrew.elf.sig
+|   |-- store.prx
+|   |-- store.prx.sig
 |-- _error/
 |-- _logs/
 |   |-- errors.log
@@ -116,6 +123,11 @@ Notes:
 - PKGs placed in `pkg/` are formatted and sorted, but only indexed once under a category folder.
 - Files under `_error/` are not indexed.
 - `index.json` is written only when `AUTO_INDEXER_OUTPUT_FORMAT` includes `JSON`.
+- Update assets are downloaded from the official PS4-Store releases if missing:
+  - Required: `homebrew.elf`, `homebrew.elf.sig`, `remote.md5`
+  - Optional (if present in the release): `store.prx`, `store.prx.sig`
+- `store.db.md5` (plain hash) and `store.db.json` (JSON with `hash`) are generated from `store.db`
+  and used by `/api.php?db_check_hash=true`.
 
 ## index.json format
 
@@ -145,6 +157,7 @@ Example payload:
 - Uses `WATCHER_PERIODIC_SCAN_SECONDS` for the scan interval.
 - Skips execution when cache detects no changes.
 - When `WATCHER_ACCESS_LOG_TAIL=true`, tails `/data/_logs/access.log` in a background thread.
+- Downloads missing HB-Store update assets into `/data/_cache/`.
 
 ### Auto Formatter (`src/modules/auto_formatter.py`)
 
@@ -229,11 +242,12 @@ Watcher.start()
 
 - Missing or unreadable `PARAM.SFO` -> PKG moved to `_error/`.
 - Duplicate planned names or existing target paths -> PKG moved to `_error/`.
-- Missing `ICON0_PNG` -> icon extraction skipped.
+- Missing or invalid `ICON0_PNG` -> PKG moved to `_error/`.
 - If a PKG is already in the correct folder and name, it is marked `skip`.
 - If `BASE_URL` changes, the index is regenerated even when PKGs are unchanged.
 - Encrypted PKGs may cause `pkgtool` to fail; these are moved to `_error/`.
 - Icons are only extracted when needed (non-existent and not duplicated by another plan item).
+- Extracted icons are optimized with `optipng` when available (lossless).
 
 ## Nginx behavior
 
@@ -241,6 +255,13 @@ Watcher.start()
 - `index.json` and `store.db` are served with `no-store` to avoid stale caches.
 - Images and PKGs use long-lived cache headers.
 - Access logs are written to `/data/_logs/access.log` (tail with `tail -f`).
+- Update endpoints are served from `/data/_cache/`:
+  - `/update/remote.md5`
+  - `/update/homebrew.elf`
+  - `/update/homebrew.elf.sig`
+  - `/update/store.prx`
+  - `/update/store.prx.sig`
+- `/api.php?db_check_hash=true` returns `/data/_cache/store.db.json`.
 
 ## Troubleshooting
 

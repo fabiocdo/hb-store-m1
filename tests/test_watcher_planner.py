@@ -120,18 +120,55 @@ class TestWatcherPlanner(unittest.TestCase):
     def test_plan_skip_when_already_in_place(self):
         planner, pkg_utils, formatter, sorter = self._make_planner()
         formatter.dry_run.return_value = (AutoFormatter.PlanResult.SKIP, "same.pkg")
-        pkg_utils.extract_pkg_icon.return_value = None
+        pkg_utils.extract_pkg_icon.return_value = Path("/tmp/icon.png")
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             with patch.dict(os.environ, {"PKG_DIR": tmp_dir}, clear=False):
                 pkg_path = Path(tmp_dir) / "same.pkg"
                 pkg_path.touch()
                 sorter.dry_run.return_value = (AutoSorter.PlanResult.SKIP, pkg_path.parent)
-                scan_results = [(pkg_path, {"content_id": ""})]
+                scan_results = [(pkg_path, {"content_id": "CID1"})]
                 with patch("src.modules.helpers.watcher_planner.scan_pkgs", return_value=(scan_results, True)):
                     results, _ = planner.plan()
 
         self.assertEqual(results[0]["pkg"]["action"], PlanOutput.SKIP)
+
+    def test_plan_missing_icon_rejects(self):
+        planner, pkg_utils, formatter, sorter = self._make_planner()
+        formatter.dry_run.return_value = (AutoFormatter.PlanResult.OK, "ok.pkg")
+        sorter.dry_run.return_value = (AutoSorter.PlanResult.OK, Path("/tmp"))
+        pkg_utils.extract_pkg_icon.return_value = None
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with patch.dict(os.environ, {"PKG_DIR": tmp_dir}, clear=False):
+                pkg_path = Path(tmp_dir) / "a.pkg"
+                pkg_path.touch()
+                scan_results = [(pkg_path, {"content_id": "CID1"})]
+                with patch("src.modules.helpers.watcher_planner.scan_pkgs", return_value=(scan_results, True)):
+                    results, _ = planner.plan()
+
+        self.assertEqual(results[0]["pkg"]["action"], PlanOutput.REJECT)
+        self.assertEqual(results[0]["pkg"]["reason"], "missing_icon")
+
+    def test_plan_invalid_icon_rejects(self):
+        planner, pkg_utils, formatter, sorter = self._make_planner()
+        formatter.dry_run.return_value = (AutoFormatter.PlanResult.OK, "ok.pkg")
+        sorter.dry_run.return_value = (AutoSorter.PlanResult.OK, Path("/tmp"))
+        pkg_utils.is_valid_png.return_value = False
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with patch.dict(os.environ, {"PKG_DIR": tmp_dir}, clear=False):
+                pkg_path = Path(tmp_dir) / "a.pkg"
+                pkg_path.touch()
+                icon_path = Path(tmp_dir) / "icon.png"
+                icon_path.touch()
+                pkg_utils.extract_pkg_icon.return_value = icon_path
+                scan_results = [(pkg_path, {"content_id": "CID1"})]
+                with patch("src.modules.helpers.watcher_planner.scan_pkgs", return_value=(scan_results, True)):
+                    results, _ = planner.plan()
+
+        self.assertEqual(results[0]["pkg"]["action"], PlanOutput.REJECT)
+        self.assertEqual(results[0]["pkg"]["reason"], "invalid_icon")
 
     def test_plan_icon_actions(self):
         planner, pkg_utils, formatter, sorter = self._make_planner()

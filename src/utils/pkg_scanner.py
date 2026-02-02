@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from src.utils.pkg_utils import PkgUtils
-from src.utils.index_cache import load_cache, save_cache, hash_file
+from src.utils.index_cache import load_cache, save_cache, hash_file, DB_SCHEMA_VERSION
 
 
 def scan_pkgs(pkg_dir: Path, pkg_utils: PkgUtils) -> tuple[list[tuple[Path, dict | None]], bool]:
@@ -20,6 +20,8 @@ def scan_pkgs(pkg_dir: Path, pkg_utils: PkgUtils) -> tuple[list[tuple[Path, dict
     any_changes = False
     base_url = os.environ["BASE_URL"].rstrip("/")
     if meta.get("base_url") != base_url:
+        any_changes = True
+    if meta.get("db_schema_version") != DB_SCHEMA_VERSION:
         any_changes = True
 
     for pkg in pkg_dir.rglob("*.pkg"):
@@ -58,5 +60,7 @@ def scan_pkgs(pkg_dir: Path, pkg_utils: PkgUtils) -> tuple[list[tuple[Path, dict
     if removed:
         any_changes = True
 
-    save_cache(new_cache, index_cache, {"base_url": base_url})
+    meta_out = dict(meta)
+    meta_out["base_url"] = base_url
+    save_cache(new_cache, index_cache, meta_out)
     return results, any_changes

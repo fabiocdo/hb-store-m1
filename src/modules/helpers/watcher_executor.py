@@ -79,6 +79,7 @@ class WatcherExecutor:
             moved_to_error += 1
 
         icons_extracted = 0
+        icon_failed = set()
         for item in icon_allowed:
             pkg_path = Path(item["source"])
             icon_log_path = item["icon"]["planned_path"] or ""
@@ -92,15 +93,54 @@ class WatcherExecutor:
             planned_icon = item["icon"]["planned_path"]
             pre_exists = Path(planned_icon).exists() if planned_icon else False
             extracted_path = self.pkg_utils.extract_pkg_icon(pkg_path, content_id, dry_run=False)
-            if extracted_path and not pre_exists and extracted_path.exists():
-                icons_extracted += 1
-                log("info", "Icon extracted", message=str(extracted_path), module="WATCHER_EXECUTOR")
-            elif not extracted_path:
+            if extracted_path and extracted_path.exists():
+                if not self.pkg_utils.is_valid_png(extracted_path):
+                    try:
+                        extracted_path.unlink()
+                    except Exception:
+                        pass
+                    icon_failed.add(item["source"])
+                    log("error", "Invalid icon extracted", message=str(pkg_path), module="WATCHER_EXECUTOR")
+                    continue
+                if self.pkg_utils.optimize_png(extracted_path):
+                    log("debug", "Icon optimized", message=str(extracted_path), module="WATCHER_EXECUTOR")
+                if not pre_exists:
+                    icons_extracted += 1
+                    log("info", "Icon extracted", message=str(extracted_path), module="WATCHER_EXECUTOR")
+            else:
+                icon_failed.add(item["source"])
                 log("error", "Failed to extract icon", message=str(pkg_path), module="WATCHER_EXECUTOR")
+
+        if icon_failed:
+            for source in icon_failed:
+                pkg_path = Path(source)
+                if not pkg_path.exists():
+                    continue
+                conflict_path = error_dir / pkg_path.name
+                counter = 1
+                while conflict_path.exists():
+                    conflict_path = error_dir / f"{pkg_path.stem}_{counter}{pkg_path.suffix}"
+                    counter += 1
+                pkg_path.rename(conflict_path)
+                log("warn", "PKG moved to errors folder", message=f"{pkg_path} -> {conflict_path}", module="WATCHER_EXECUTOR")
+                reason = "icon_extract_failed"
+                log_path = log_dir / "errors.log"
+                timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+                line = (
+                    f"{timestamp} | reason={reason} | "
+                    f"source={source} | planned_path=icon_extract_failed | "
+                    f"moved_to={conflict_path}\n"
+                )
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                with log_path.open("a", encoding="utf-8") as handle:
+                    handle.write(line)
+                moved_to_error += 1
 
         renamed_count = 0
         moved_count = 0
         for item in pkg_allowed:
+            if item["source"] in icon_failed:
+                continue
             pkg_path = Path(item["source"])
             log("debug", "Processing PKG for format/sort", message=str(pkg_path), module="WATCHER_EXECUTOR")
             sfo_data = sfo_cache.get(str(pkg_path))

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from src.utils import PkgUtils, log
+from src.utils.update_fetcher import UpdateFetcher
 from src.modules.auto_formatter import AutoFormatter
 from src.modules.auto_sorter import AutoSorter
 from src.modules.auto_indexer import AutoIndexer
@@ -36,9 +39,24 @@ class Watcher:
         self.access_log_path = "/data/_logs/access.log"
         self.access_log_interval = int(os.environ.get("WATCHER_ACCESS_LOG_INTERVAL"))
         self._access_log_offset = 0
+        self._access_log_since = None
+        self._access_log_time_re = re.compile(r"\[(?P<ts>[^\]]+)\]")
         self._access_log_thread = None
         self._access_log_stop = threading.Event()
+        self._update_assets_checked = False
 
+        self.update_fetcher = UpdateFetcher(
+            source_url="https://api.github.com/repos/LightningMods/PS4-Store/releases",
+            required_files=[
+                "homebrew.elf",
+                "homebrew.elf.sig",
+                "remote.md5",
+            ],
+            optional_files=[
+                "store.prx",
+                "store.prx.sig",
+            ],
+        )
         self.pkg_utils = PkgUtils()
         self.formatter = AutoFormatter()
         self.sorter = AutoSorter()
@@ -49,6 +67,7 @@ class Watcher:
     def _read_access_log(self) -> None:
         """
         Read new lines from the access log and emit them as debug logs.
+        Filters out lines that predate watcher initialization.
 
         :param: None
         :return: None
@@ -67,8 +86,18 @@ class Watcher:
                 handle.seek(self._access_log_offset)
                 lines = handle.read().splitlines()
                 self._access_log_offset = handle.tell()
+            since = self._access_log_since
             for line in lines:
                 if line.strip():
+                    if since:
+                        match = self._access_log_time_re.search(line)
+                        if match:
+                            try:
+                                ts = datetime.strptime(match.group("ts"), "%d/%b/%Y:%H:%M:%S %z")
+                                if ts.astimezone(timezone.utc) < since:
+                                    continue
+                            except ValueError:
+                                pass
                     log("debug", "Access log", message=line, module="WATCHER")
         except Exception as exc:
             log("warn", "Access log tail failed", message=str(exc), module="WATCHER")
@@ -96,8 +125,70 @@ class Watcher:
             return
         if self._access_log_thread and self._access_log_thread.is_alive():
             return
+        self._access_log_since = datetime.now(timezone.utc)
+        try:
+            log_path = Path(self.access_log_path)
+            if log_path.exists():
+                self._access_log_offset = log_path.stat().st_size
+        except Exception:
+            self._access_log_offset = 0
         self._access_log_thread = threading.Thread(target=self._access_log_worker, daemon=True)
         self._access_log_thread.start()
+
+    def _ensure_update_assets(self) -> None:
+        """
+        Ensure HB-Store update assets exist for connectivity.
+
+        :param: None
+        :return: None
+        """
+        try:
+            if self._update_assets_checked:
+                return
+            self._update_assets_checked = True
+            cache_dir = Path(os.environ["CACHE_DIR"])
+            result = self.update_fetcher.ensure_assets(cache_dir)
+            if (result["missing_required"] or result["missing_optional"]) and result["downloaded"]:
+                log(
+                    "info",
+                    "Downloaded update assets",
+                    message=", ".join(result["downloaded"]),
+                    module="WATCHER",
+                )
+            if result["unavailable_required"]:
+                log(
+                    "warn",
+                    "Required update assets not found in release",
+                    message=", ".join(result["unavailable_required"]),
+                    module="WATCHER",
+                )
+            if result["errors"]:
+                log(
+                    "warn",
+                    "Failed to download update assets",
+                    message="; ".join(result["errors"]),
+                    module="WATCHER",
+                )
+        except Exception as exc:
+            log("warn", "Update asset check failed", message=str(exc), module="WATCHER")
+
+    def _ensure_store_db_md5(self) -> None:
+        """
+        Ensure store.db.md5 exists for DB hash checks.
+
+        :param: None
+        :return: None
+        """
+        try:
+            cache_dir = Path(os.environ["CACHE_DIR"])
+            md5_path = cache_dir / "store.db.md5"
+            json_path = cache_dir / "store.db.json"
+            if md5_path.exists() and json_path.exists():
+                return
+            log("info", "Generating store.db checksum files. File is missing", module="WATCHER")
+            self.indexer.write_store_db_md5()
+        except Exception as exc:
+            log("warn", "store.db.md5 check failed", message=str(exc), module="WATCHER")
 
     def start(self):
         """
@@ -119,6 +210,8 @@ class Watcher:
                 time.sleep(next_run - now)
             start = time.monotonic()
             try:
+                self._ensure_update_assets()
+                self._ensure_store_db_md5()
                 results, sfo_cache = self.planner.plan()
                 if not results:
                     next_run = start + interval

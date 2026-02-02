@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import shutil
 import tempfile
 import struct
 from pathlib import Path
@@ -31,6 +32,62 @@ class PkgUtils:
         self.env = {
             "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": os.environ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"],
         }
+
+    @staticmethod
+    def is_valid_png(path: Path, max_bytes: int = 8 * 1024 * 1024) -> bool:
+        """
+        Validate a PNG file using header and basic IHDR checks.
+
+        :param path: Path to PNG file
+        :param max_bytes: Maximum file size in bytes
+        :return: True if valid PNG, otherwise False
+        """
+        try:
+            if not path.exists():
+                return False
+            size = path.stat().st_size
+            if size <= 0 or size > max_bytes:
+                return False
+            with path.open("rb") as handle:
+                data = handle.read(33)
+            if len(data) < 24:
+                return False
+            if data[:8] != b"\x89PNG\r\n\x1a\n":
+                return False
+            ihdr_len = int.from_bytes(data[8:12], "big")
+            if data[12:16] != b"IHDR" or ihdr_len < 13:
+                return False
+            width = int.from_bytes(data[16:20], "big")
+            height = int.from_bytes(data[20:24], "big")
+            if width <= 0 or height <= 0:
+                return False
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    def optimize_png(path: Path) -> bool:
+        """
+        Optimize a PNG file using optipng when available.
+
+        :param path: Path to PNG file
+        :return: True if optimization ran, otherwise False
+        """
+        try:
+            if not path.exists():
+                return False
+            tool = shutil.which("optipng")
+            if not tool:
+                return False
+            subprocess.run(
+                [tool, "-o2", "-strip", "all", "-quiet", str(path)],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except Exception:
+            return False
 
     def extract_pkg_data(self, pkg: Path) -> tuple[ExtractResult, dict | str]:
         """

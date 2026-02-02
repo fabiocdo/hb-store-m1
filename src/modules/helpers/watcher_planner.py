@@ -66,6 +66,10 @@ class WatcherPlanner:
 
             content_id = sfo_data.get("content_id", "")
             icon_path = self.pkg_utils.extract_pkg_icon(pkg, content_id, dry_run=True) if content_id else None
+            icon_invalid = False
+            if icon_path and Path(icon_path).exists():
+                icon_invalid = not self.pkg_utils.is_valid_png(Path(icon_path))
+            missing_icon = icon_path is None
 
             formatter_result, planned_name = self.formatter.dry_run(pkg, sfo_data)
             planned_name = planned_name or pkg.name
@@ -95,6 +99,9 @@ class WatcherPlanner:
                 reason = "planned_path_conflict"
             else:
                 planned_pkg_action = PlanOutput.ALLOW
+            if planned_pkg_action != PlanOutput.REJECT and (missing_icon or icon_invalid):
+                planned_pkg_action = PlanOutput.REJECT
+                reason = "missing_icon" if missing_icon else "invalid_icon"
             planned_paths.add(planned_pkg_path)
 
             planned_icon_allowed = (
@@ -111,7 +118,9 @@ class WatcherPlanner:
                 if sorter_result == AutoSorter.PlanResult.OK:
                     planned_moves += 1
 
-            if planned_icon_path is None:
+            if icon_invalid:
+                icon_action = PlanOutput.REJECT
+            elif planned_icon_path is None:
                 icon_action = PlanOutput.REJECT
             elif Path(planned_icon_path).exists():
                 icon_action = PlanOutput.SKIP

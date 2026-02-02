@@ -33,6 +33,18 @@ APP_TYPE_MAP = {
     "sd": "save",
 }
 
+STORE_APP_TYPE_MAP = {
+    "game": "Game",
+    "update": "Patch",
+    "dlc": "DLC",
+    "theme": "Theme",
+    "app": "App",
+    "save": "Other",
+    "_unknown": "Unknown",
+    "unknown": "Unknown",
+    "other": "Other",
+}
+
 SELECTED_FIELDS = (
     "TITLE",
     "TITLE_ID",

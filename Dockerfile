@@ -8,7 +8,9 @@ USER root
 
 # Install system dependencies
 RUN apt update && apt install -y --no-install-recommends \
+    ca-certificates \
     nginx \
+    optipng \
     python3 \
     sqlite3 \
  && rm -rf /var/lib/apt/lists/*

@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 
 CACHE_VERSION = 2
+DB_SCHEMA_VERSION = 6
 CACHE_FILENAME = "index-cache.json"
 
 
