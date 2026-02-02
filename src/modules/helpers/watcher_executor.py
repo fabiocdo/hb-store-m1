@@ -43,6 +43,8 @@ class WatcherExecutor:
         log("info", "Executing planned changes...", module="WATCHER_EXECUTOR")
         error_dir = Path(os.environ["ERROR_DIR"])
         error_dir.mkdir(parents=True, exist_ok=True)
+        log_dir = Path(os.environ.get("LOG_DIR", error_dir))
+        log_dir.mkdir(parents=True, exist_ok=True)
 
         rejected = [item for item in results if item["pkg"]["action"] == PlanOutput.REJECT]
         icon_allowed = [
@@ -63,18 +65,17 @@ class WatcherExecutor:
                 counter += 1
             pkg_path.rename(conflict_path)
             log("warn", "PKG moved to errors folder", message=f"{pkg_path} -> {conflict_path}", module="WATCHER_EXECUTOR")
-            reason = item.get("pkg", {}).get("reason")
-            if reason:
-                log_path = error_dir / "errors.log"
-                timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-                line = (
-                    f"{timestamp} | reason={reason} | "
-                    f"source={item['source']} | planned_path={item['pkg']['planned_path']} | "
-                    f"moved_to={conflict_path}\n"
-                )
-                log_path.parent.mkdir(parents=True, exist_ok=True)
-                with log_path.open("a", encoding="utf-8") as handle:
-                    handle.write(line)
+            reason = item.get("pkg", {}).get("reason") or "unknown"
+            log_path = log_dir / "errors.log"
+            timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+            line = (
+                f"{timestamp} | reason={reason} | "
+                f"source={item['source']} | planned_path={item['pkg']['planned_path']} | "
+                f"moved_to={conflict_path}\n"
+            )
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with log_path.open("a", encoding="utf-8") as handle:
+                handle.write(line)
             moved_to_error += 1
 
         icons_extracted = 0

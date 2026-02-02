@@ -66,6 +66,8 @@ python3 -m src -E local
 | `LOG_LEVEL` | Log verbosity: `debug`, `info`, `warn`, `error`. | `info` |
 | `WATCHER_ENABLED` | Master switch for watcher-driven automation. | `true` |
 | `WATCHER_PERIODIC_SCAN_SECONDS` | Periodic scan interval in seconds. | `30` |
+| `WATCHER_ACCESS_LOG_TAIL` | Enable tailing Nginx access log from watcher. | `true` |
+| `WATCHER_ACCESS_LOG_INTERVAL` | Tail interval in seconds. | `5` |
 | `AUTO_INDEXER_OUTPUT_FORMAT` | Output targets: `DB`, `JSON` (comma-separated). | `db,json` |
 | `AUTO_FORMATTER_MODE` | Title mode: `none`, `uppercase`, `lowercase`, `capitalize`, `snake_uppercase`, `snake_lowercase`. | `snake_uppercase` |
 | `AUTO_FORMATTER_TEMPLATE` | Template using `{title}`, `{title_id}`, `{content_id}`, `{category}`, `{version}`, `{release_date}`, `{region}`, `{app_type}`. | `{title}_[{region}]_[{app_type}]_[{version}]` |
@@ -75,7 +77,8 @@ Notes:
 - `WATCHER_ENABLED=false` stops all automation.
 - `AUTO_INDEXER_OUTPUT_FORMAT` controls output: include `JSON` to write `index.json`, include `DB` to update `store.db`.
 - Data paths are fixed to `/data` inside the container.
-- Conflicts are moved to `/data/_error/` with a reason appended to `/data/_error/errors.log`.
+- Conflicts are moved to `/data/_error/` with a reason appended to `/data/_logs/errors.log`.
+- Access log tailing writes lines as `WATCHER` debug logs.
 
 ## Volumes
 
@@ -102,6 +105,7 @@ The `/data` volume follows this layout:
 |-- _cache/
 |   |-- index-cache.json
 |-- _error/
+|-- _logs/
 |   |-- errors.log
 |-- index.json
 |-- store.db
@@ -140,6 +144,7 @@ Example payload:
 - Periodically scans `pkg/` and orchestrates the pipeline.
 - Uses `WATCHER_PERIODIC_SCAN_SECONDS` for the scan interval.
 - Skips execution when cache detects no changes.
+- When `WATCHER_ACCESS_LOG_TAIL=true`, tails `/data/_logs/access.log` in a background thread.
 
 ### Auto Formatter (`src/modules/auto_formatter.py`)
 
@@ -169,7 +174,7 @@ Example payload:
 ### WatcherExecutor (`src/modules/helpers/watcher_executor.py`)
 
 - Executes the plan in order: move errors, extract icons, rename/sort PKGs.
-- Appends reasons to `/data/_error/errors.log` when rejecting.
+- Appends reasons to `/data/_logs/errors.log` when rejecting.
 - Returns execution stats (moves, renames, extractions, errors, skipped).
 
 ## Utils
@@ -235,9 +240,10 @@ Watcher.start()
 - Serves `/data` directly and supports HTTP range requests for `.pkg`.
 - `index.json` and `store.db` are served with `no-store` to avoid stale caches.
 - Images and PKGs use long-lived cache headers.
+- Access logs are written to `/data/_logs/access.log` (tail with `tail -f`).
 
 ## Troubleshooting
 
 - If the index is not updating, delete `/data/_cache/index-cache.json` to force a rebuild.
-- If files are stuck in `_error/`, check `/data/_error/errors.log` for the reason.
+- If files are stuck in `_error/`, check `/data/_logs/errors.log` for the reason.
 - Ensure `BASE_URL` matches the host and port used by clients.

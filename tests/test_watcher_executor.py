@@ -12,6 +12,24 @@ from tests.fixtures.fixtures import SFO_GAME
 
 
 class TestWatcherExecutor(unittest.TestCase):
+    def setUp(self):
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self._prev_error = os.environ.get("ERROR_DIR")
+        self._prev_log = os.environ.get("LOG_DIR")
+        os.environ["ERROR_DIR"] = self._temp_dir.name
+        os.environ["LOG_DIR"] = self._temp_dir.name
+
+    def tearDown(self):
+        if self._prev_error is None:
+            os.environ.pop("ERROR_DIR", None)
+        else:
+            os.environ["ERROR_DIR"] = self._prev_error
+        if self._prev_log is None:
+            os.environ.pop("LOG_DIR", None)
+        else:
+            os.environ["LOG_DIR"] = self._prev_log
+        self._temp_dir.cleanup()
+
     def _make_executor(self):
         pkg_utils = MagicMock()
         formatter = MagicMock(spec=AutoFormatter)
@@ -29,7 +47,8 @@ class TestWatcherExecutor(unittest.TestCase):
             pkg_path = pkg_dir / "bad.pkg"
             pkg_path.write_text("x", encoding="utf-8")
 
-            with patch.dict(os.environ, {"ERROR_DIR": str(error_dir)}, clear=False):
+            log_dir = Path(data_dir) / "_logs"
+            with patch.dict(os.environ, {"ERROR_DIR": str(error_dir), "LOG_DIR": str(log_dir)}, clear=False):
                 results = [
                     {
                         "source": str(pkg_path),
@@ -47,7 +66,7 @@ class TestWatcherExecutor(unittest.TestCase):
             moved_path = error_dir / "bad.pkg"
             self.assertTrue(moved_path.exists())
             self.assertEqual(stats["errors"], 1)
-            log_path = error_dir / "errors.log"
+            log_path = log_dir / "errors.log"
             self.assertTrue(log_path.exists())
             self.assertIn("formatter_conflict", log_path.read_text(encoding="utf-8"))
 
@@ -55,7 +74,8 @@ class TestWatcherExecutor(unittest.TestCase):
         executor, pkg_utils, formatter, sorter = self._make_executor()
         with tempfile.TemporaryDirectory() as tmp_dir:
             error_dir = Path(tmp_dir) / "_error"
-            with patch.dict(os.environ, {"ERROR_DIR": str(error_dir)}, clear=False):
+            log_dir = Path(tmp_dir) / "_logs"
+            with patch.dict(os.environ, {"ERROR_DIR": str(error_dir), "LOG_DIR": str(log_dir)}, clear=False):
                 results = [
                     {
                         "source": str(Path(tmp_dir) / "missing.pkg"),
@@ -68,7 +88,7 @@ class TestWatcherExecutor(unittest.TestCase):
 
             self.assertEqual(stats["errors"], 0)
             self.assertTrue(error_dir.exists())
-            self.assertFalse((error_dir / "errors.log").exists())
+            self.assertFalse((log_dir / "errors.log").exists())
 
     def test_icon_extraction_success(self):
         executor, pkg_utils, formatter, sorter = self._make_executor()
