@@ -2,7 +2,12 @@ from enum import Enum
 
 
 class SorterPlanResult(Enum):
-    """Enumeration of sorter dry-run planning results."""
+    """
+    Enumeration of sorter dry-run planning results.
+
+    :param: None
+    :return: None
+    """
     OK = "ok"
     SKIP = "skip"
     CONFLICT = "conflict"

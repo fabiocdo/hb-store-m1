@@ -12,6 +12,14 @@ def plan_pkgs(
     formatter: AutoFormatter,
     sorter: AutoSorter,
 ) -> tuple[list[dict], dict[str, dict]]:
+    """
+    Plan changes for all PKGs using the current filesystem and cache state.
+
+    :param pkg_utils: PkgUtils instance
+    :param formatter: AutoFormatter instance
+    :param sorter: AutoSorter instance
+    :return: Tuple of (planned items, SFO cache)
+    """
     log("info", "Detecting changes...", module="WATCHER_PLANNER")
     pkg_dir = Path(os.environ["PKG_DIR"])
     scan_results, has_changes = scan_pkgs(pkg_dir, pkg_utils)

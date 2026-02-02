@@ -6,25 +6,41 @@ from src.modules.models.formatter_models import FormatterPlanResult
 
 class AutoFormatter:
     """
-    AutoFormatter handles PKG renaming based on PARAM.SFO metadata.
+    Renames PKG files based on SFO metadata and a template.
 
-    It supports dry-run planning and real renaming using a user-defined
-    template and formatting mode.
+    Formatting is driven by AUTO_FORMATTER_MODE and AUTO_FORMATTER_TEMPLATE.
+
+    :param: None
+    :return: None
     """
 
     PlanResult = FormatterPlanResult
 
     def __init__(self):
         """
-        Initialize the formatter.
+        Initialize formatter settings from env.
+
+        :param: None
+        :return: None
         """
         self.mode = os.environ["AUTO_FORMATTER_MODE"]
         self.template = os.environ["AUTO_FORMATTER_TEMPLATE"]
 
     class _SafeDict(dict):
-        """Dictionary that returns empty string for missing keys."""
+        """
+        Dictionary that returns empty string for missing keys.
+
+        :param: None
+        :return: None
+        """
 
         def __missing__(self, key):
+            """
+            Return empty string when a key is missing.
+
+            :param key: Missing key name
+            :return: Empty string
+            """
             return ""
 
     def dry_run(self, pkg: Path, sfo_data: dict) -> tuple[PlanResult, str | None]:
@@ -33,7 +49,7 @@ class AutoFormatter:
 
         :param pkg: Path object representing the source PKG file
         :param sfo_data: Parsed PARAM.SFO data
-        :return: Tuple of (PlanResult, Planned filename or current name)
+        :return: Tuple of (PlanResult, planned filename or current name)
         """
         if not pkg.exists():
             return self.PlanResult.NOT_FOUND, pkg.name
@@ -63,7 +79,7 @@ class AutoFormatter:
 
     def run(self, pkg: Path, sfo_data: dict) -> str | None:
         """
-        Rename the PKG file using SFO metadata.
+        Rename the PKG file based on SFO metadata.
 
         :param pkg: Path object representing the PKG file
         :param sfo_data: Parsed PARAM.SFO data
@@ -103,7 +119,7 @@ class AutoFormatter:
 
     def _normalize_value(self, key: str, value):
         """
-        Normalize SFO values according to key and formatter mode.
+        Normalize SFO values according to the formatter mode.
 
         :param key: SFO field name
         :param value: Raw SFO value
@@ -142,6 +158,9 @@ class AutoFormatter:
     def _sanitize_filename(name: str) -> str:
         """
         Sanitize a filename by removing path separators and invalid characters.
+
+        :param name: Raw filename
+        :return: Sanitized filename
         """
         invalid = '<>:"/\\|?*'
         table = str.maketrans({ch: "_" for ch in invalid})

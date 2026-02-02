@@ -11,6 +11,9 @@ class PkgUtils:
     PkgUtils provides methods to interact with PKG files via pkgtool.
 
     It handles entry listing, SFO metadata extraction and icon extraction.
+
+    :param: None
+    :return: None
     """
 
     ExtractResult = ExtractResult
@@ -18,6 +21,9 @@ class PkgUtils:
     def __init__(self):
         """
         Initialize PkgUtils.
+
+        :param: None
+        :return: None
         """
         self.pkgtool_path = os.environ["PKGTOOL_PATH"]
         self.env = {
@@ -29,7 +35,7 @@ class PkgUtils:
         Extract and parse PARAM.SFO data from a PKG.
 
         :param pkg: Path to the PKG file
-        :return: Tuple of (ExtractResult, dict or pkg path)
+        :return: Tuple of (ExtractResult, dict on success or pkg path on error)
         """
 
         try:
@@ -158,7 +164,7 @@ class PkgUtils:
         :param pkg: Path to the PKG file
         :param content_id: Content ID used as icon filename (without extension)
         :param dry_run: When True, do not extract; only return the expected output path
-        :return: Path to the icon or None if not found
+        :return: Path to the icon or None if not found/extraction fails
         """
         output_dir = Path(os.environ["MEDIA_DIR"])
         output_dir.mkdir(parents=True, exist_ok=True)

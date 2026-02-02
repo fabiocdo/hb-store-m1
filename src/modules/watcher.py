@@ -10,17 +10,24 @@ from src.modules.helpers.watcher_executor import execute_plan
 
 class Watcher:
     """
-    Watcher orchestrates AutoFormatter, AutoSorter, and AutoIndexer modules.
+    Orchestrates periodic planning, execution, and indexing.
 
-    It runs periodic scans and processes PKG files through the automation pipeline.
+    The watcher runs continuously with a fixed interval and skips work
+    when no changes are detected.
+
+    :param: None
+    :return: None
     """
 
     def __init__(self):
-        self.pkg_watcher_enabled = os.environ["PKG_WATCHER_ENABLED"].lower() == "true"
-        self.auto_indexer_enabled = os.environ["AUTO_INDEXER_ENABLED"].lower() == "true"
-        self.auto_formatter_enabled = os.environ["AUTO_FORMATTER_ENABLED"].lower() == "true"
-        self.auto_sorter_enabled = os.environ["AUTO_SORTER_ENABLED"].lower() == "true"
-        self.periodic_scan_seconds = int(os.environ["PKG_WATCHER_PERIODIC_SCAN_SECONDS"])
+        """
+        Initialize watcher dependencies from env.
+
+        :param: None
+        :return: None
+        """
+        self.watcher_enabled = os.environ["WATCHER_ENABLED"].lower() == "true"
+        self.periodic_scan_seconds = int(os.environ["WATCHER_PERIODIC_SCAN_SECONDS"])
 
         self.pkg_utils = PkgUtils()
         self.formatter = AutoFormatter()
@@ -29,9 +36,12 @@ class Watcher:
 
     def start(self):
         """
-        Execute the watcher pipeline once.
+        Start the periodic watcher loop.
+
+        :param: None
+        :return: None
         """
-        if not self.pkg_watcher_enabled:
+        if not self.watcher_enabled:
             log("info", "Watcher is disabled. Skipping...", module="WATCHER")
             return
         interval = max(1, self.periodic_scan_seconds)
@@ -54,8 +64,7 @@ class Watcher:
                     self.formatter,
                     self.sorter,
                 )
-                if self.auto_indexer_enabled:
-                    self.indexer.run(results, sfo_cache)
+                self.indexer.run(results, sfo_cache)
             except Exception as exc:
                 log("error", "Watcher cycle failed", message=str(exc), module="WATCHER")
             next_run = start + interval

@@ -6,9 +6,12 @@ from src.modules.models.sorter_models import SorterPlanResult
 
 class AutoSorter:
     """
-    AutoSorter handles PKG organization into category folders.
+    AutoSorter organizes PKGs into app-type folders.
 
-    It supports dry-run planning and real moving based on PKG category.
+    It supports dry-run planning and real moving based on app_type.
+
+    :param: None
+    :return: None
     """
 
     PlanResult = SorterPlanResult
@@ -16,6 +19,9 @@ class AutoSorter:
     def __init__(self):
         """
         Initialize the sorter.
+
+        :param: None
+        :return: None
         """
         pass
 
@@ -45,7 +51,7 @@ class AutoSorter:
 
     def run(self, pkg: Path, app_type: str) -> str | None:
         """
-        Move the PKG file to its category folder.
+        Move the PKG file to its app-type folder.
 
         :param pkg: Path object representing the PKG file
         :param app_type: App type (e.g. "game", "dlc")

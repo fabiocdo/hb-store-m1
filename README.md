@@ -6,7 +6,7 @@ index generation and icon extraction.
 ## What it does
 
 - Serves `.pkg` files over HTTP.
-- Generates `index.json` for Homebrew Store clients.
+- Generates `index.json` (when JSON output is enabled) for Homebrew Store clients.
 - Extracts `icon0.png` from each PKG and serves it from `pkg/_media`.
 - Organizes PKGs into `game/`, `update/`, `dlc/`, `save/`, and `_unknown/` folders.
 - Moves files with rename/move conflicts into `_error/`.
@@ -27,14 +27,11 @@ docker run -d \
   -p 8080:80 \
   -e BASE_URL=http://127.0.0.1:8080 \
   -e LOG_LEVEL=info \
-  -e PKG_WATCHER_ENABLED=true \
-  -e AUTO_INDEXER_ENABLED=true \
-  -e INDEX_JSON_ENABLED=false \
-  -e AUTO_FORMATTER_ENABLED=true \
+  -e WATCHER_ENABLED=true \
+  -e AUTO_INDEXER_OUTPUT_FORMAT=DB,JSON \
   -e AUTO_FORMATTER_MODE=none \
   -e AUTO_FORMATTER_TEMPLATE="{title} {title_id} {app_type}" \
-  -e AUTO_SORTER_ENABLED=true \
-  -e PKG_WATCHER_PERIODIC_SCAN_SECONDS=30 \
+  -e WATCHER_PERIODIC_SCAN_SECONDS=30 \
   -v ./data:/data \
   -v ./nginx.conf:/etc/nginx/nginx.conf:ro \
   fabiocdo/homebrew-store-cdn:latest
@@ -54,14 +51,11 @@ services:
     environment:
       - BASE_URL=http://127.0.0.1:8080
       - LOG_LEVEL=info
-      - PKG_WATCHER_ENABLED=true
-      - AUTO_INDEXER_ENABLED=true
-      - INDEX_JSON_ENABLED=false
-      - AUTO_FORMATTER_ENABLED=true
+      - WATCHER_ENABLED=true
+      - AUTO_INDEXER_OUTPUT_FORMAT=DB,JSON
       - AUTO_FORMATTER_MODE=none
       - AUTO_FORMATTER_TEMPLATE="{title} {title_id} {app_type}"
-      - AUTO_SORTER_ENABLED=true
-      - PKG_WATCHER_PERIODIC_SCAN_SECONDS=30
+      - WATCHER_PERIODIC_SCAN_SECONDS=30
     volumes:
       - ./data:/data
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
@@ -133,7 +127,7 @@ The host directory mapped to `/data` must follow this layout:
 
 Notes:
 
-- `index.json` and `pkg/_media/*.png` are generated automatically.
+- `index.json` is generated when JSON output is enabled; `pkg/_media/*.png` is generated automatically.
 - PKGs are processed even if they are inside folders that start with `_`.
 - PKGs placed directly in `pkg/` are processed by formatter/sorter but are not indexed.
 - The `_PUT_YOUR_PKGS_HERE` file is a marker created on container startup.
@@ -154,28 +148,32 @@ During indexing, packages are classified by their `CATEGORY` from `param.sfo`:
 
 ## index.json format
 
-Example entry:
+Example payload:
 
 ```json
 {
-  "id": "CUSA12345",
-  "name": "Example Game",
-  "version": "1.00",
-  "apptype": "game",
-  "pkg": "http://127.0.0.1:8080/pkg/game/Example%20Game%20%5BCUSA12345%5D.pkg",
-  "icon": "http://127.0.0.1:8080/pkg/_media/CUSA12345.png",
-  "category": "gd",
-  "region": "EUR"
+  "DATA": {
+    "http://127.0.0.1:8080/pkg/game/Example%20Game%20%5BCUSA12345%5D.pkg": {
+      "region": "USA",
+      "name": "Example Game",
+      "version": "01.00",
+      "release": "01-13-2023",
+      "size": 123456789,
+      "min_fw": null,
+      "cover_url": "http://127.0.0.1:8080/pkg/_media/UP0000-CUSA12345_00-EXAMPLE.png"
+    }
+  }
 }
 ```
 
 Fields:
 
-- `id`, `name`, `version`: extracted from `param.sfo`.
-- `apptype`: derived from `CATEGORY` or forced to `app` for `pkg/app`.
-- `pkg`, `icon`: URLs built from `BASE_URL`.
-- `category`: optional, only when present.
-- `region`: optional, derived from `CONTENT_ID`.
+- `DATA`: mapping of `pkg_url -> metadata`.
+- `region`, `name`, `version`: extracted from `param.sfo`.
+- `release`: extracted from `param.sfo` and formatted as `MM-DD-YYYY`.
+- `size`: file size in bytes.
+- `min_fw`: currently `null`.
+- `cover_url`: icon URL built from `BASE_URL` when an icon exists.
 
 ## Environment variables
 
@@ -183,20 +181,18 @@ Fields:
 |-----------------------------|--------------------------------------------------------------------------------------------------------------------------|----------------------------------|
 | `BASE_URL`                  | Base URL written in `index.json`.                                                                                        | `http://127.0.0.1:8080`          |
 | `LOG_LEVEL`                 | Log verbosity: `debug`, `info`, `warn`, `error`.                                                                          | `info`                           |
-| `PKG_WATCHER_ENABLED`       | Master switch for watcher-driven automations (format, move, index).                                                     | `true`                           |
-| `AUTO_INDEXER_ENABLED`      | Enable the auto-indexer pipeline (icons and indexing).                                                                   | `true`                           |
-| `INDEX_JSON_ENABLED`        | Enable creating/updating `index.json` and `index-cache.json`.                                                            | `false`                          |
-| `AUTO_FORMATTER_ENABLED`      | Enable PKG formatting using `AUTO_FORMATTER_TEMPLATE`.                                                                     | `true`                           |
-| `AUTO_FORMATTER_MODE`         | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
+| `WATCHER_ENABLED`           | Master switch for watcher-driven automations (format, move, index).                                                     | `true`                           |
+| `WATCHER_PERIODIC_SCAN_SECONDS` | Interval in seconds for periodic PKG scans (no inotify watcher).                                                     | `30`                             |
+| `AUTO_INDEXER_OUTPUT_FORMAT`| Output targets (comma-separated): `DB`, `JSON`.                                                                          | `DB`                             |
+| `AUTO_FORMATTER_MODE`         | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`, `snake_uppercase`, `snake_lowercase`. | `none`                           |
 | `AUTO_FORMATTER_TEMPLATE`     | Template using `{title}`, `{title_id}`, `{content_id}`, `{category}`, `{version}`, `{release_date}`, `{region}`, `{app_type}`. | `{title} {title_id} {app_type}` |
-| `AUTO_SORTER_ENABLED`        | Enable auto-sorting PKGs into `game/`, `dlc/`, `update/`, `save/`, `_unknown/` folders.                                  | `true`                           |
-| `PKG_WATCHER_PERIODIC_SCAN_SECONDS`     | Interval in seconds for periodic PKG scans (no inotify watcher).                                                        | `30`                             |
 | `DATA_DIR`                  | Host path mapped to `/data`.                                                                                             | `/data`                          |
 
 Dependencies and behavior:
 
-- `PKG_WATCHER_ENABLED=false` disables all automations (format, move, index) and the watcher does not start.
-- `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE` only apply when `AUTO_FORMATTER_ENABLED=true` and the watcher is enabled.
+- `WATCHER_ENABLED=false` disables all automations (format, move, index) and the watcher does not start.
+- `AUTO_INDEXER_OUTPUT_FORMAT` controls index outputs: include `JSON` to write `index.json`, include `DB` to update `store.db`.
+- `AUTO_FORMATTER_TEMPLATE` and `AUTO_FORMATTER_MODE` apply during the formatting stage when the watcher is enabled.
 - Conflicting files are moved to `_error/`.
 
 
@@ -242,6 +238,7 @@ Template data example:
 - Only logs when content changes (or icons are extracted).
 - Uses `_cache/index-cache.json` to skip reprocessing unchanged PKGs.
 - Icon extraction runs per-file in the same pipeline as formatter/sorter.
+- Output targets are controlled by `AUTO_INDEXER_OUTPUT_FORMAT` (e.g. `DB,JSON`).
 
 ### PKG Utilities
 
@@ -272,6 +269,10 @@ log("warn", "Category mapping missing", module="AUTO_SORTER")
 
 # Auto Indexer
 log("info", "Indexing started", module="AUTO_INDEXER")
+
+# Planner / Executor
+log("debug", "Planning changes", module="WATCHER_PLANNER")
+log("debug", "Executing planned changes", module="WATCHER_EXECUTOR")
 ```
 
 Output format: `<timestamp UTC> | [MODULE] Action: Message` (with module-specific colors).
@@ -281,6 +282,8 @@ Output format: `<timestamp UTC> | [MODULE] Action: Message` (with module-specifi
 - `AUTO_SORTER`: Yellow
 - `AUTO_FORMATTER`: Blue
 - `WATCHER`: White
+- `WATCHER_PLANNER`: Cyan
+- `WATCHER_EXECUTOR`: Gray
 
 **Level Colors:**
 - `DEBUG`: Gray
@@ -296,28 +299,28 @@ Example: `2024-05-20 14:30:05 UTC | [WATCHER] Starting periodic scan` (where `[W
 periodic scan
                 |
                 v
-           [src/modules/watcher/watcher.py]
+           [src/modules/watcher.py]
                 |
                 v
-   per-file pipeline
+   planner -> executor
                 |
                 v
-        [src/modules/auto_formatter/auto_formatter.py]
+        [src/modules/auto_formatter.py]
                 |
           (conflict?)----yes----> /data/_error
                 |
                no
                 v
-          [src/modules/auto_sorter/auto_sorter.py]
+          [src/modules/auto_sorter.py]
                 |
           (conflict?)----yes----> /data/_error
                 |
                no
                 v
-     [src/modules/auto_indexer/auto_indexer.py]
+     [src/modules/auto_indexer.py]
                 |
                 v
-           index.json
+     index.json / store.db
                 |
                 v
        _cache/index-cache.json
@@ -348,4 +351,4 @@ as shown in the quick start examples.
 - Files in `_error/` are not indexed.
 - Resolve conflicts manually and move the file back into `pkg/`.
 - PKG metadata errors are logged with a human-friendly stage (e.g. `Reading PKG entries`, `PARAM.SFO not found`).
-- Each error move appends the full console-formatted line to `/data/_error/error_log.txt`.
+- Each error move appends the full console-formatted line to `/data/_error/errors.log`.

@@ -10,12 +10,18 @@ from src.utils.index_cache import load_cache, save_cache
 
 class AutoIndexer:
     """
-    AutoIndexer handles the creation and maintenance of the store index.
+    Builds and persists the JSON index and store DB using a delta strategy.
+
+    :param: None
+    :return: None
     """
 
     def __init__(self):
         """
-        Initialize the indexer.
+        Initialize the indexer with output formats from env.
+
+        :param: None
+        :return: None
         """
         raw_formats = os.environ["AUTO_INDEXER_OUTPUT_FORMAT"]
         self.output_formats = {
@@ -26,7 +32,14 @@ class AutoIndexer:
 
     def run(self, items: list[dict], sfo_cache: dict[str, dict]) -> None:
         """
-        Write the index using a provided plan and SFO cache.
+        Apply JSON/DB updates using the planned items and SFO cache.
+
+        This method computes added/updated/removed entries from the cache
+        and only writes when changes are detected.
+
+        :param items: Planned items from the watcher
+        :param sfo_cache: Cached SFO data keyed by source path
+        :return: None
         """
         files_cache, index_cache, meta = load_cache()
         current_index, db_rows = self._build_entries(items, sfo_cache)
@@ -75,6 +88,13 @@ class AutoIndexer:
         save_cache(files_cache, current_index, meta)
 
     def _build_entries(self, items: list[dict], sfo_cache: dict[str, dict]) -> tuple[dict[str, dict], dict[str, dict]]:
+        """
+        Build index entries and DB rows for the current plan.
+
+        :param items: Planned items from the watcher
+        :param sfo_cache: Cached SFO data keyed by source path
+        :return: Tuple of (index entries, db rows) keyed by pkg_url
+        """
         data_dir = Path(os.environ["DATA_DIR"])
         pkg_dir = Path(os.environ["PKG_DIR"])
         base_url = os.environ["BASE_URL"].rstrip("/")
@@ -157,6 +177,15 @@ class AutoIndexer:
         removed: dict,
         db_rows: dict[str, dict],
     ) -> None:
+        """
+        Apply DB changes using delete + insert for removed and updated rows.
+
+        :param added: Added entries keyed by pkg_url
+        :param updated: Updated entries keyed by pkg_url
+        :param removed: Removed entries keyed by pkg_url
+        :param db_rows: Full DB rows keyed by pkg_url
+        :return: None
+        """
         db_dir = Path(os.environ["STORE_DIR"])
         db_dir.mkdir(parents=True, exist_ok=True)
         db_path = db_dir / "store.db"

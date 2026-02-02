@@ -2,6 +2,12 @@ from enum import Enum
 
 
 class ExtractResult(Enum):
+    """
+    Enumeration of PKG extraction outcomes.
+
+    :param: None
+    :return: None
+    """
     OK = "ok"
     NOT_FOUND = "not_found"
     INVALID = "invalid"

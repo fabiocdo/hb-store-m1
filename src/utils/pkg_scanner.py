@@ -6,11 +6,11 @@ from src.utils.index_cache import load_cache, save_cache, hash_file
 
 def scan_pkgs(pkg_dir: Path, pkg_utils: PkgUtils) -> tuple[list[tuple[Path, dict | None]], bool]:
     """
-    Scan for PKG files and extract SFO data.
+    Scan for PKGs, extract SFO data, and detect changes.
 
     :param pkg_dir: Directory to scan for PKG files
     :param pkg_utils: PkgUtils instance
-    :return: List of (pkg path, sfo data or None)
+    :return: (list of (pkg path, sfo data or None), has_changes flag)
     """
     results: list[tuple[Path, dict | None]] = []
     files_cache, index_cache, meta = load_cache()

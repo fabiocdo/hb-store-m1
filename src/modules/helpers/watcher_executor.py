@@ -14,6 +14,16 @@ def execute_plan(
     formatter: AutoFormatter,
     sorter: AutoSorter,
 ) -> tuple[dict, dict]:
+    """
+    Execute a planned set of PKG operations and return updated cache and stats.
+
+    :param results: Planned items from the planner
+    :param sfo_cache: Cached SFO data keyed by source path
+    :param pkg_utils: PkgUtils instance
+    :param formatter: AutoFormatter instance
+    :param sorter: AutoSorter instance
+    :return: Tuple of (updated SFO cache, stats dict)
+    """
     log("info", "Executing planned changes...", module="WATCHER_EXECUTOR")
     error_dir = Path(os.environ["ERROR_DIR"])
     error_dir.mkdir(parents=True, exist_ok=True)

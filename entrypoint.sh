@@ -13,15 +13,12 @@ fi
 # DEFAULT ENVIRONMENT VARIABLES
 DEFAULT_BASE_URL="http://127.0.0.1:8080"
 DEFAULT_LOG_LEVEL="info"
-DEFAULT_PKG_WATCHER_ENABLED="true"
-DEFAULT_AUTO_INDEXER_ENABLED="true"
+DEFAULT_WATCHER_ENABLED="true"
 DEFAULT_INDEX_JSON_ENABLED="false"
 DEFAULT_AUTO_INDEXER_OUTPUT_FORMAT="DB"
-DEFAULT_AUTO_FORMATTER_ENABLED="true"
 DEFAULT_AUTO_FORMATTER_TEMPLATE="{title} {title_id} {app_type}"
 DEFAULT_AUTO_FORMATTER_MODE="none"
-DEFAULT_AUTO_SORTER_ENABLED="true"
-DEFAULT_PKG_WATCHER_PERIODIC_SCAN_SECONDS="30"
+DEFAULT_WATCHER_PERIODIC_SCAN_SECONDS="30"
 
 # ENVIRONMENT VARIABLES
 use_default_if_unset() {
@@ -35,13 +32,10 @@ use_default_if_unset() {
 
 use_default_if_unset BASE_URL "$DEFAULT_BASE_URL"
 use_default_if_unset LOG_LEVEL "$DEFAULT_LOG_LEVEL"
-use_default_if_unset PKG_WATCHER_ENABLED "$DEFAULT_PKG_WATCHER_ENABLED"
-use_default_if_unset AUTO_INDEXER_ENABLED "$DEFAULT_AUTO_INDEXER_ENABLED"
+use_default_if_unset WATCHER_ENABLED "$DEFAULT_WATCHER_ENABLED"
 use_default_if_unset INDEX_JSON_ENABLED "$DEFAULT_INDEX_JSON_ENABLED"
 use_default_if_unset AUTO_INDEXER_OUTPUT_FORMAT "$DEFAULT_AUTO_INDEXER_OUTPUT_FORMAT"
-use_default_if_unset AUTO_FORMATTER_ENABLED "$DEFAULT_AUTO_FORMATTER_ENABLED"
-use_default_if_unset AUTO_SORTER_ENABLED "$DEFAULT_AUTO_SORTER_ENABLED"
-use_default_if_unset PKG_WATCHER_PERIODIC_SCAN_SECONDS "$DEFAULT_PKG_WATCHER_PERIODIC_SCAN_SECONDS"
+use_default_if_unset WATCHER_PERIODIC_SCAN_SECONDS "$DEFAULT_WATCHER_PERIODIC_SCAN_SECONDS"
 use_default_if_unset AUTO_FORMATTER_MODE "$DEFAULT_AUTO_FORMATTER_MODE"
 use_default_if_unset AUTO_FORMATTER_TEMPLATE "$DEFAULT_AUTO_FORMATTER_TEMPLATE"
 
@@ -137,18 +131,15 @@ build_content_lines_plain() {
   format_kv_plain "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
   format_kv_plain "DATA_DIR" "$(format_value DATA_DIR "$DATA_DIR")"
   printf "\n"
-  format_kv_plain "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
+  format_kv_plain "WATCHER_ENABLED" "$(format_value WATCHER_ENABLED "$WATCHER_ENABLED")"
   printf "\n"
-  format_kv_plain "AUTO_INDEXER_ENABLED" "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")"
   format_kv_plain "INDEX_JSON_ENABLED" "$(format_value INDEX_JSON_ENABLED "$INDEX_JSON_ENABLED")"
   format_kv_plain "AUTO_INDEXER_OUTPUT_FORMAT" "$(format_value AUTO_INDEXER_OUTPUT_FORMAT "$AUTO_INDEXER_OUTPUT_FORMAT")"
   printf "\n"
-  format_kv_plain "AUTO_FORMATTER_ENABLED" "$(format_value AUTO_FORMATTER_ENABLED "$AUTO_FORMATTER_ENABLED")"
   format_kv_plain "AUTO_FORMATTER_MODE" "$(format_value AUTO_FORMATTER_MODE "$AUTO_FORMATTER_MODE")"
   format_kv_plain "AUTO_FORMATTER_TEMPLATE" "$(format_value AUTO_FORMATTER_TEMPLATE "$AUTO_FORMATTER_TEMPLATE")"
   printf "\n"
-  format_kv_plain "AUTO_SORTER_ENABLED" "$(format_value AUTO_SORTER_ENABLED "$AUTO_SORTER_ENABLED")"
-  format_kv_plain "PKG_WATCHER_PERIODIC_SCAN_SECONDS" "$(format_value PKG_WATCHER_PERIODIC_SCAN_SECONDS "$PKG_WATCHER_PERIODIC_SCAN_SECONDS")"
+  format_kv_plain "WATCHER_PERIODIC_SCAN_SECONDS" "$(format_value WATCHER_PERIODIC_SCAN_SECONDS "$WATCHER_PERIODIC_SCAN_SECONDS")"
   printf "\n"
 }
 
@@ -159,12 +150,8 @@ build_content_lines_colored() {
   format_kv_plain "LOG_LEVEL" "$(format_value LOG_LEVEL "$LOG_LEVEL")"
   format_kv_plain "DATA_DIR" "$(format_value DATA_DIR "$DATA_DIR")"
   printf "\n"
-  format_kv_plain "PKG_WATCHER_ENABLED" "$(format_value PKG_WATCHER_ENABLED "$PKG_WATCHER_ENABLED")"
+  format_kv_plain "WATCHER_ENABLED" "$(format_value WATCHER_ENABLED "$WATCHER_ENABLED")"
   printf "\n"
-  format_kv_colored \
-    "AUTO_INDEXER_ENABLED" \
-    "$(color_value "AUTO_INDEXER_ENABLED" "$COLOR_GREEN")" \
-    "$(color_value "$(format_value AUTO_INDEXER_ENABLED "$AUTO_INDEXER_ENABLED")" "$COLOR_GREEN")"
   format_kv_colored \
     "INDEX_JSON_ENABLED" \
     "$(color_value "INDEX_JSON_ENABLED" "$COLOR_GREEN")" \
@@ -175,10 +162,6 @@ build_content_lines_colored() {
     "$(color_value "$(format_value AUTO_INDEXER_OUTPUT_FORMAT "$AUTO_INDEXER_OUTPUT_FORMAT")" "$COLOR_GREEN")"
   printf "\n"
   format_kv_colored \
-    "AUTO_FORMATTER_ENABLED" \
-    "$(color_value "AUTO_FORMATTER_ENABLED" "$COLOR_BLUE")" \
-    "$(color_value "$(format_value AUTO_FORMATTER_ENABLED "$AUTO_FORMATTER_ENABLED")" "$COLOR_BLUE")"
-  format_kv_colored \
     "AUTO_FORMATTER_MODE" \
     "$(color_value "AUTO_FORMATTER_MODE" "$COLOR_BLUE")" \
     "$(color_value "$(format_value AUTO_FORMATTER_MODE "$AUTO_FORMATTER_MODE")" "$COLOR_BLUE")"
@@ -188,13 +171,9 @@ build_content_lines_colored() {
     "$(color_value "$(format_value AUTO_FORMATTER_TEMPLATE "$AUTO_FORMATTER_TEMPLATE")" "$COLOR_BLUE")"
   printf "\n"
   format_kv_colored \
-    "AUTO_SORTER_ENABLED" \
-    "$(color_value "AUTO_SORTER_ENABLED" "$COLOR_YELLOW")" \
-    "$(color_value "$(format_value AUTO_SORTER_ENABLED "$AUTO_SORTER_ENABLED")" "$COLOR_YELLOW")"
-  format_kv_colored \
-    "PKG_WATCHER_PERIODIC_SCAN_SECONDS" \
-    "$(color_value "PKG_WATCHER_PERIODIC_SCAN_SECONDS" "$COLOR_YELLOW")" \
-    "$(color_value "$(format_value PKG_WATCHER_PERIODIC_SCAN_SECONDS "$PKG_WATCHER_PERIODIC_SCAN_SECONDS")" "$COLOR_YELLOW")"
+    "WATCHER_PERIODIC_SCAN_SECONDS" \
+    "$(color_value "WATCHER_PERIODIC_SCAN_SECONDS" "$COLOR_YELLOW")" \
+    "$(color_value "$(format_value WATCHER_PERIODIC_SCAN_SECONDS "$WATCHER_PERIODIC_SCAN_SECONDS")" "$COLOR_YELLOW")"
   printf "\n"
 }
 
@@ -301,15 +280,12 @@ BOX_KEY_WIDTH=$(printf "%s\n" \
   "BASE_URL" \
   "LOG_LEVEL" \
   "DATA_DIR" \
-  "PKG_WATCHER_ENABLED" \
-  "AUTO_INDEXER_ENABLED" \
+  "WATCHER_ENABLED" \
   "INDEX_JSON_ENABLED" \
   "AUTO_INDEXER_OUTPUT_FORMAT" \
-  "AUTO_FORMATTER_ENABLED" \
   "AUTO_FORMATTER_MODE" \
   "AUTO_FORMATTER_TEMPLATE" \
-  "AUTO_SORTER_ENABLED" \
-  "PKG_WATCHER_PERIODIC_SCAN_SECONDS" \
+  "WATCHER_PERIODIC_SCAN_SECONDS" \
   | awk '{ if (length($0) > max) max = length($0) } END { print max + 2 }')
 BOX_CONTENT_WIDTH=$(build_content_lines_plain | awk '{ if (length($0) > max) max = length($0) } END { print max + 0 }')
 BOX_WIDTH=$((BOX_CONTENT_WIDTH + 6))
@@ -329,18 +305,14 @@ initialize_store_db
 compile_binaries
 
 log ""
-if [ "$PKG_WATCHER_ENABLED" = "true" ]; then
+if [ "$WATCHER_ENABLED" = "true" ]; then
   exec python3 -u /app/watcher.py \
     --base-url "$BASE_URL" \
     --log-level "$LOG_LEVEL" \
-    --pkg-watcher-enabled "$PKG_WATCHER_ENABLED" \
-    --auto-indexer-enabled "$AUTO_INDEXER_ENABLED" \
     --index-json-enabled "$INDEX_JSON_ENABLED" \
-    --auto-formatter-enabled "$AUTO_FORMATTER_ENABLED" \
-    --auto-sorter-enabled "$AUTO_SORTER_ENABLED" \
-    --periodic-scan-seconds "$PKG_WATCHER_PERIODIC_SCAN_SECONDS" \
+    --periodic-scan-seconds "$WATCHER_PERIODIC_SCAN_SECONDS" \
     --auto-formatter-mode "$AUTO_FORMATTER_MODE" \
     --auto-formatter-template "$AUTO_FORMATTER_TEMPLATE"
 fi
-log "PKG watcher is disabled."
+log "Watcher is disabled."
 exec tail -f /dev/null

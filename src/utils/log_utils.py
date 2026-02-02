@@ -8,13 +8,17 @@ class Logger:
 
     Provides a centralized logging mechanism that supports different severity levels
     and modular tags with colorized output for better readability in the terminal.
+
+    :param: None
+    :return: None
     """
 
     def __init__(self, log_level="info"):
         """
-        Initialize the Logger with a name and a minimum log level.
+        Initialize the Logger with a minimum log level.
 
         :param log_level: Minimum severity level to log ("debug", "info", "warn", "error")
+        :return: None
         """
         self.levels = LOG_LEVELS
         self.log_level = self.levels.get(log_level.lower(), 1)
@@ -32,6 +36,7 @@ class Logger:
         :param action: The main action or event being logged
         :param message: Optional detailed message or context
         :param module: Optional module tag (e.g., "WATCHER", "AUTO_FORMATTER")
+        :return: None
         """
         level_val = self.levels.get(level.lower(), 1)
         if level_val >= self.log_level:
@@ -51,6 +56,12 @@ _LOGGER = None
 
 
 def _get_logger() -> Logger:
+    """
+    Lazily initialize and return the global logger.
+
+    :param: None
+    :return: Logger instance
+    """
     global _LOGGER
     if _LOGGER is None:
         _LOGGER = Logger(os.environ["LOG_LEVEL"])
@@ -58,4 +69,13 @@ def _get_logger() -> Logger:
 
 
 def log(level, action, message=None, module=None):
+    """
+    Log a message using the shared Logger instance.
+
+    :param level: Severity level ("debug", "info", "warn", "error")
+    :param action: The main action or event being logged
+    :param message: Optional detailed message or context
+    :param module: Optional module tag (e.g., "WATCHER", "AUTO_FORMATTER")
+    :return: None
+    """
     _get_logger().log(level, action, message=message, module=module)
