@@ -1,4 +1,5 @@
 import datetime
+import os
 
 class Logger:
     """
@@ -27,7 +28,7 @@ class Logger:
             "AUTO_INDEXER": "\033[1;92m",   # Green
             "AUTO_SORTER": "\033[1;93m",    # Yellow
             "AUTO_FORMATTER": "\033[1;94m", # Blue
-            "WATCHER": "\033[1;97m",        # White
+            "WATCHER": "\033[1;95m",        # Purple
             "RESET": "\033[0m"
         }
 
@@ -61,3 +62,17 @@ class Logger:
             msg_str = f": {message}" if message else ""
             
             print(f"{timestamp} | {module_str}{level_color}{action}{msg_str}{reset}")
+
+
+_LOGGER = None
+
+
+def _get_logger() -> Logger:
+    global _LOGGER
+    if _LOGGER is None:
+        _LOGGER = Logger(os.environ["LOG_LEVEL"])
+    return _LOGGER
+
+
+def log(level, action, message=None, module=None):
+    _get_logger().log(level, action, message=message, module=module)

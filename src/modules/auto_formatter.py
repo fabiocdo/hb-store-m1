@@ -24,7 +24,8 @@ class AutoFormatter:
         """
         Initialize the formatter.
         """
-        pass
+        self.mode = os.environ["AUTO_FORMATTER_MODE"]
+        self.template = os.environ["AUTO_FORMATTER_TEMPLATE"]
 
     class _SafeDict(dict):
         """Dictionary that returns empty string for missing keys."""
@@ -48,8 +49,7 @@ class AutoFormatter:
             for key, value in (sfo_data or {}).items()
         }
 
-        template = os.environ["AUTO_FORMATTER_TEMPLATE"]
-        planned_name = template.format_map(self._SafeDict(safe_data)).strip()
+        planned_name = self.template.format_map(self._SafeDict(safe_data)).strip()
         planned_name = self._sanitize_filename(planned_name)
 
         if not planned_name:
@@ -91,9 +91,7 @@ class AutoFormatter:
 
         if plan_result == self.PlanResult.CONFLICT:
             log("error", "Failed to rename PKG. Target name already exists", message=f"{pkg.name} -> {planned_name}", module="AUTO_FORMATTER")
-            error_dir = Path(
-                os.getenv("ERROR_DIR", str(Path(os.getenv("DATA_DIR", "data")) / "_error"))
-            )
+            error_dir = Path(os.environ["ERROR_DIR"])
             error_dir.mkdir(parents=True, exist_ok=True)
             conflict_path = error_dir / pkg.name
             counter = 1
@@ -109,8 +107,7 @@ class AutoFormatter:
         log("info", "PKG renamed successfully", message=f"{pkg.name} -> {planned_name}", module="AUTO_FORMATTER")
         return planned_name
 
-    @staticmethod
-    def _normalize_value(key: str, value):
+    def _normalize_value(self, key: str, value):
         """
         Normalize SFO values according to key and formatter mode.
 
@@ -124,12 +121,11 @@ class AutoFormatter:
         value = str(value)
 
         if key.lower() == "title":
-            mode = os.getenv("AUTO_FORMATTER_MODE", "none")
-            if mode == "uppercase":
+            if self.mode == "uppercase":
                 return value.upper()
-            if mode == "lowercase":
+            if self.mode == "lowercase":
                 return value.lower()
-            if mode == "capitalize":
+            if self.mode == "capitalize":
                 import re
                 roman_numerals = r"^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$"
                 parts = []
@@ -139,11 +135,11 @@ class AutoFormatter:
                     else:
                         parts.append(part.capitalize())
                 return " ".join(parts)
-            if mode == "snake_case":
+            if self.mode == "snake_case":
                 return "_".join(value.split())
-            if mode == "snake_uppercase":
+            if self.mode == "snake_uppercase":
                 return "_".join(value.split()).upper()
-            if mode == "snake_lowercase":
+            if self.mode == "snake_lowercase":
                 return "_".join(value.split()).lower()
 
         return value

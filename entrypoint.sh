@@ -21,7 +21,7 @@ DEFAULT_AUTO_FORMATTER_ENABLED="true"
 DEFAULT_AUTO_FORMATTER_TEMPLATE="{title} {title_id} {app_type}"
 DEFAULT_AUTO_FORMATTER_MODE="none"
 DEFAULT_AUTO_SORTER_ENABLED="true"
-DEFAULT_PERIODIC_SCAN_SECONDS="30"
+DEFAULT_PKG_WATCHER_PERIODIC_SCAN_SECONDS="30"
 
 # ENVIRONMENT VARIABLES
 use_default_if_unset() {
@@ -41,7 +41,7 @@ use_default_if_unset INDEX_JSON_ENABLED "$DEFAULT_INDEX_JSON_ENABLED"
 use_default_if_unset AUTO_INDEXER_OUTPUT_FORMAT "$DEFAULT_AUTO_INDEXER_OUTPUT_FORMAT"
 use_default_if_unset AUTO_FORMATTER_ENABLED "$DEFAULT_AUTO_FORMATTER_ENABLED"
 use_default_if_unset AUTO_SORTER_ENABLED "$DEFAULT_AUTO_SORTER_ENABLED"
-use_default_if_unset PERIODIC_SCAN_SECONDS "$DEFAULT_PERIODIC_SCAN_SECONDS"
+use_default_if_unset PKG_WATCHER_PERIODIC_SCAN_SECONDS "$DEFAULT_PKG_WATCHER_PERIODIC_SCAN_SECONDS"
 use_default_if_unset AUTO_FORMATTER_MODE "$DEFAULT_AUTO_FORMATTER_MODE"
 use_default_if_unset AUTO_FORMATTER_TEMPLATE "$DEFAULT_AUTO_FORMATTER_TEMPLATE"
 
@@ -53,7 +53,7 @@ DLC_DIR="${PKG_DIR}/dlc"
 UPDATE_DIR="${PKG_DIR}/update"
 SAVE_DIR="${PKG_DIR}/save"
 UNKNOWN_DIR="${PKG_DIR}/_unknown"
-MEDIA_DIR="${DATA_DIR}/_media"
+MEDIA_DIR="${PKG_DIR}/_media"
 CACHE_DIR="${DATA_DIR}/_cache"
 ERROR_DIR="${DATA_DIR}/_error"
 STORE_DIR="${DATA_DIR}"
@@ -148,7 +148,7 @@ build_content_lines_plain() {
   format_kv_plain "AUTO_FORMATTER_TEMPLATE" "$(format_value AUTO_FORMATTER_TEMPLATE "$AUTO_FORMATTER_TEMPLATE")"
   printf "\n"
   format_kv_plain "AUTO_SORTER_ENABLED" "$(format_value AUTO_SORTER_ENABLED "$AUTO_SORTER_ENABLED")"
-  format_kv_plain "PERIODIC_SCAN_SECONDS" "$(format_value PERIODIC_SCAN_SECONDS "$PERIODIC_SCAN_SECONDS")"
+  format_kv_plain "PKG_WATCHER_PERIODIC_SCAN_SECONDS" "$(format_value PKG_WATCHER_PERIODIC_SCAN_SECONDS "$PKG_WATCHER_PERIODIC_SCAN_SECONDS")"
   printf "\n"
 }
 
@@ -192,9 +192,9 @@ build_content_lines_colored() {
     "$(color_value "AUTO_SORTER_ENABLED" "$COLOR_YELLOW")" \
     "$(color_value "$(format_value AUTO_SORTER_ENABLED "$AUTO_SORTER_ENABLED")" "$COLOR_YELLOW")"
   format_kv_colored \
-    "PERIODIC_SCAN_SECONDS" \
-    "$(color_value "PERIODIC_SCAN_SECONDS" "$COLOR_YELLOW")" \
-    "$(color_value "$(format_value PERIODIC_SCAN_SECONDS "$PERIODIC_SCAN_SECONDS")" "$COLOR_YELLOW")"
+    "PKG_WATCHER_PERIODIC_SCAN_SECONDS" \
+    "$(color_value "PKG_WATCHER_PERIODIC_SCAN_SECONDS" "$COLOR_YELLOW")" \
+    "$(color_value "$(format_value PKG_WATCHER_PERIODIC_SCAN_SECONDS "$PKG_WATCHER_PERIODIC_SCAN_SECONDS")" "$COLOR_YELLOW")"
   printf "\n"
 }
 
@@ -206,7 +206,7 @@ initialize_data_dir(){
   create_path "$UPDATE_DIR" "update/" "$PKG_DIR/"
   create_path "$SAVE_DIR" "save/" "$PKG_DIR/"
   create_path "$UNKNOWN_DIR" "_unknown/" "$PKG_DIR/"
-  create_path "$MEDIA_DIR" "_media/" "$DATA_DIR/"
+  create_path "$MEDIA_DIR" "_media/" "$PKG_DIR/"
   create_path "$CACHE_DIR" "_cache/" "$DATA_DIR/"
   create_path "$ERROR_DIR" "_error/" "$DATA_DIR/"
   marker_path="$PKG_DIR/_PUT_YOUR_PKGS_HERE"
@@ -309,7 +309,7 @@ BOX_KEY_WIDTH=$(printf "%s\n" \
   "AUTO_FORMATTER_MODE" \
   "AUTO_FORMATTER_TEMPLATE" \
   "AUTO_SORTER_ENABLED" \
-  "PERIODIC_SCAN_SECONDS" \
+  "PKG_WATCHER_PERIODIC_SCAN_SECONDS" \
   | awk '{ if (length($0) > max) max = length($0) } END { print max + 2 }')
 BOX_CONTENT_WIDTH=$(build_content_lines_plain | awk '{ if (length($0) > max) max = length($0) } END { print max + 0 }')
 BOX_WIDTH=$((BOX_CONTENT_WIDTH + 6))
@@ -338,7 +338,7 @@ if [ "$PKG_WATCHER_ENABLED" = "true" ]; then
     --index-json-enabled "$INDEX_JSON_ENABLED" \
     --auto-formatter-enabled "$AUTO_FORMATTER_ENABLED" \
     --auto-sorter-enabled "$AUTO_SORTER_ENABLED" \
-    --periodic-scan-seconds "$PERIODIC_SCAN_SECONDS" \
+    --periodic-scan-seconds "$PKG_WATCHER_PERIODIC_SCAN_SECONDS" \
     --auto-formatter-mode "$AUTO_FORMATTER_MODE" \
     --auto-formatter-template "$AUTO_FORMATTER_TEMPLATE"
 fi

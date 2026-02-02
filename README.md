@@ -7,7 +7,7 @@ index generation and icon extraction.
 
 - Serves `.pkg` files over HTTP.
 - Generates `index.json` for Homebrew Store clients.
-- Extracts `icon0.png` from each PKG and serves it from `_media`.
+- Extracts `icon0.png` from each PKG and serves it from `pkg/_media`.
 - Organizes PKGs into `game/`, `update/`, `dlc/`, `save/`, and `_unknown/` folders.
 - Moves files with rename/move conflicts into `_error/`.
 - Watches the `pkg/` tree and refreshes `index.json` after file changes.
@@ -34,7 +34,7 @@ docker run -d \
   -e AUTO_FORMATTER_MODE=none \
   -e AUTO_FORMATTER_TEMPLATE="{title} {title_id} {app_type}" \
   -e AUTO_SORTER_ENABLED=true \
-  -e PERIODIC_SCAN_SECONDS=30 \
+  -e PKG_WATCHER_PERIODIC_SCAN_SECONDS=30 \
   -v ./data:/data \
   -v ./nginx.conf:/etc/nginx/nginx.conf:ro \
   fabiocdo/homebrew-store-cdn:latest
@@ -61,7 +61,7 @@ services:
       - AUTO_FORMATTER_MODE=none
       - AUTO_FORMATTER_TEMPLATE="{title} {title_id} {app_type}"
       - AUTO_SORTER_ENABLED=true
-      - PERIODIC_SCAN_SECONDS=30
+      - PKG_WATCHER_PERIODIC_SCAN_SECONDS=30
     volumes:
       - ./data:/data
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
@@ -122,7 +122,8 @@ The host directory mapped to `/data` must follow this layout:
 |   |-- _unknown/          # Auto-created
 |   |-- _PUT_YOUR_PKGS_HERE
 |   |-- Game Name [CUSA12345].pkg
-|-- _media/                # Auto-generated icons
+|-- pkg/
+|   |-- _media/            # Auto-generated icons
 |   |-- CUSA12345.png
 |-- _cache/                # Auto-generated cache
 |   |-- index-cache.json
@@ -132,7 +133,7 @@ The host directory mapped to `/data` must follow this layout:
 
 Notes:
 
-- `index.json` and `_media/*.png` are generated automatically.
+- `index.json` and `pkg/_media/*.png` are generated automatically.
 - PKGs are processed even if they are inside folders that start with `_`.
 - PKGs placed directly in `pkg/` are processed by formatter/sorter but are not indexed.
 - The `_PUT_YOUR_PKGS_HERE` file is a marker created on container startup.
@@ -162,7 +163,7 @@ Example entry:
   "version": "1.00",
   "apptype": "game",
   "pkg": "http://127.0.0.1:8080/pkg/game/Example%20Game%20%5BCUSA12345%5D.pkg",
-  "icon": "http://127.0.0.1:8080/_media/CUSA12345.png",
+  "icon": "http://127.0.0.1:8080/pkg/_media/CUSA12345.png",
   "category": "gd",
   "region": "EUR"
 }
@@ -189,7 +190,7 @@ Fields:
 | `AUTO_FORMATTER_MODE`         | Title transform mode for `{title}`: `none`, `uppercase`, `lowercase`, `capitalize`.                                      | `none`                           |
 | `AUTO_FORMATTER_TEMPLATE`     | Template using `{title}`, `{title_id}`, `{content_id}`, `{category}`, `{version}`, `{release_date}`, `{region}`, `{app_type}`. | `{title} {title_id} {app_type}` |
 | `AUTO_SORTER_ENABLED`        | Enable auto-sorting PKGs into `game/`, `dlc/`, `update/`, `save/`, `_unknown/` folders.                                  | `true`                           |
-| `PERIODIC_SCAN_SECONDS`     | Interval in seconds for periodic PKG scans (no inotify watcher).                                                        | `30`                             |
+| `PKG_WATCHER_PERIODIC_SCAN_SECONDS`     | Interval in seconds for periodic PKG scans (no inotify watcher).                                                        | `30`                             |
 | `DATA_DIR`                  | Host path mapped to `/data`.                                                                                             | `/data`                          |
 
 Dependencies and behavior:

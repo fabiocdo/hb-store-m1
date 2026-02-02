@@ -24,7 +24,7 @@ class PkgUtils:
         """
         Initialize PkgUtils.
         """
-        self.pkgtool_path = os.getenv("PKGTOOL_PATH")
+        self.pkgtool_path = os.environ["PKGTOOL_PATH"]
         self.env = {
             "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": os.environ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"],
         }

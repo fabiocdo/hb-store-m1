@@ -1,10 +1,7 @@
-from src.modules import AutoFormatter, AutoIndexer
+from src.modules import Watcher
 
 def start():
-    indexer = AutoIndexer()
-
-    # indexer.dry_run()
-    indexer.run()
+    Watcher().run()
 
 if __name__ == "__main__":
     start()
