@@ -6,6 +6,7 @@ from pathlib import Path
 from src.utils.pkg_utils import PkgUtils
 from src.utils.log_utils import log
 from src.utils.index_cache import load_cache, save_cache, DB_SCHEMA_VERSION
+from src.utils.url_utils import build_base_url
 
 
 def scan_pkgs(
@@ -30,8 +31,13 @@ def scan_pkgs(
     results: list[tuple[Path, dict | None]] = []
     files_cache, index_cache, meta = load_cache()
     new_cache: dict[str, dict] = {}
+    inode_cache: dict[int, dict] = {}
+    for entry in files_cache.values():
+        inode = entry.get("inode")
+        if isinstance(inode, int):
+            inode_cache[inode] = entry
     any_changes = False
-    base_url = os.environ["BASE_URL"].rstrip("/")
+    base_url = build_base_url().rstrip("/")
     if meta.get("base_url") != base_url:
         any_changes = True
     if meta.get("db_schema_version") != DB_SCHEMA_VERSION:
@@ -55,6 +61,7 @@ def scan_pkgs(
             return pkg, None, None, True
         key = str(pkg)
         entry = files_cache.get(key)
+        inode_entry = inode_cache.get(stat.st_ino) if entry is None else None
 
         sfo_data = None
         file_hash = None
@@ -62,6 +69,9 @@ def scan_pkgs(
         if not changed:
             sfo_data = entry.get("sfo")
             file_hash = entry.get("hash")
+        elif inode_entry and inode_entry.get("size") == stat.st_size and inode_entry.get("mtime") == stat.st_mtime:
+            sfo_data = inode_entry.get("sfo")
+            file_hash = inode_entry.get("hash")
         else:
             file_hash = entry.get("hash") if entry else None
             sfo_result, sfo_payload = pkg_utils.extract_pkg_data(pkg)
@@ -71,6 +81,7 @@ def scan_pkgs(
         cache_entry = {
             "size": stat.st_size,
             "mtime": stat.st_mtime,
+            "inode": stat.st_ino,
             "hash": file_hash,
             "sfo": sfo_data,
         }

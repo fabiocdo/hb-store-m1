@@ -27,7 +27,7 @@ load_env_file_if_unset() {
 load_env_file_if_unset /app/settings.env
 
 # DEFAULT ENVIRONMENT VARIABLES
-DEFAULT_BASE_URL="http://127.0.0.1:8080"
+DEFAULT_SERVER_IP="localhost:8080"
 DEFAULT_LOG_LEVEL="info"
 DEFAULT_WATCHER_ENABLED="true"
 DEFAULT_WATCHER_PERIODIC_SCAN_SECONDS="30"
@@ -36,6 +36,7 @@ DEFAULT_WATCHER_ACCESS_LOG_INTERVAL="5"
 DEFAULT_WATCHER_SCAN_BATCH_SIZE="50"
 DEFAULT_WATCHER_EXECUTOR_WORKERS="4"
 DEFAULT_WATCHER_SCAN_WORKERS="4"
+DEFAULT_NGINX_ENABLE_HTTPS="false"
 DEFAULT_AUTO_INDEXER_OUTPUT_FORMAT="db,json"
 DEFAULT_AUTO_FORMATTER_TEMPLATE="{title}_[{region}]_[{app_type}]_[{version}]"
 DEFAULT_AUTO_FORMATTER_MODE="snake_uppercase"
@@ -53,7 +54,7 @@ use_default_if_unset() {
   export "$var"
 }
 
-use_default_if_unset BASE_URL "$DEFAULT_BASE_URL"
+use_default_if_unset SERVER_IP "$DEFAULT_SERVER_IP"
 use_default_if_unset LOG_LEVEL "$DEFAULT_LOG_LEVEL"
 use_default_if_unset WATCHER_ENABLED "$DEFAULT_WATCHER_ENABLED"
 use_default_if_unset AUTO_INDEXER_OUTPUT_FORMAT "$DEFAULT_AUTO_INDEXER_OUTPUT_FORMAT"
@@ -63,6 +64,7 @@ use_default_if_unset WATCHER_ACCESS_LOG_INTERVAL "$DEFAULT_WATCHER_ACCESS_LOG_IN
 use_default_if_unset WATCHER_SCAN_BATCH_SIZE "$DEFAULT_WATCHER_SCAN_BATCH_SIZE"
 use_default_if_unset WATCHER_EXECUTOR_WORKERS "$DEFAULT_WATCHER_EXECUTOR_WORKERS"
 use_default_if_unset WATCHER_SCAN_WORKERS "$DEFAULT_WATCHER_SCAN_WORKERS"
+use_default_if_unset NGINX_ENABLE_HTTPS "$DEFAULT_NGINX_ENABLE_HTTPS"
 use_default_if_unset AUTO_FORMATTER_MODE "$DEFAULT_AUTO_FORMATTER_MODE"
 use_default_if_unset AUTO_FORMATTER_TEMPLATE "$DEFAULT_AUTO_FORMATTER_TEMPLATE"
 export DEFAULT_ENV_VARS
@@ -70,6 +72,7 @@ export DEFAULT_ENV_VARS
 # Normalize boolean-like values
 WATCHER_ENABLED=$(printf "%s" "$WATCHER_ENABLED" | tr '[:upper:]' '[:lower:]')
 WATCHER_ACCESS_LOG_TAIL=$(printf "%s" "$WATCHER_ACCESS_LOG_TAIL" | tr '[:upper:]' '[:lower:]')
+NGINX_ENABLE_HTTPS=$(printf "%s" "$NGINX_ENABLE_HTTPS" | tr '[:upper:]' '[:lower:]')
 
 # PATHs
 DATA_DIR="/data"
@@ -89,6 +92,62 @@ STORE_DB_PATH="${DATA_DIR}/store.db"
 
 log() {
   printf "%s %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
+}
+
+ensure_ssl_certs() {
+  cert_dir="/etc/nginx/certs"
+  cert_key="${cert_dir}/localhost.key"
+  cert_crt="${cert_dir}/localhost.crt"
+  mkdir -p "$cert_dir"
+  if [ -f "$cert_key" ] && [ -f "$cert_crt" ]; then
+    return 0
+  fi
+  if ! command -v openssl >/dev/null 2>&1; then
+    log "SSL certificates missing and openssl not found. Mount certs in ${cert_dir}."
+    return 1
+  fi
+  log "Generating self-signed SSL certificate..."
+  openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+    -keyout "$cert_key" \
+    -out "$cert_crt" \
+    -subj "/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:localhost" \
+    >/dev/null 2>&1 || \
+  openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+    -keyout "$cert_key" \
+    -out "$cert_crt" \
+    -subj "/CN=localhost" \
+    >/dev/null 2>&1
+  if [ ! -f "$cert_key" ] || [ ! -f "$cert_crt" ]; then
+    log "Failed to generate SSL certificates."
+    return 1
+  fi
+  log "Self-signed SSL certificate generated at ${cert_dir}"
+  return 0
+}
+
+configure_nginx() {
+  nginx_source="/app/nginx.http.conf"
+  if [ "$NGINX_ENABLE_HTTPS" = "true" ]; then
+    nginx_source="/app/nginx.conf"
+    if ! ensure_ssl_certs; then
+      log "SSL certificates are required when NGINX_ENABLE_HTTPS=true."
+      return 1
+    fi
+  fi
+  if [ ! -f "$nginx_source" ]; then
+    log "Missing Nginx config at $nginx_source."
+    return 1
+  fi
+  if [ -w /etc/nginx/nginx.conf ] || [ ! -e /etc/nginx/nginx.conf ]; then
+    cp "$nginx_source" /etc/nginx/nginx.conf
+    NGINX_CONF_PATH="/etc/nginx/nginx.conf"
+  else
+    NGINX_CONF_PATH="/tmp/nginx.conf"
+    cp "$nginx_source" "$NGINX_CONF_PATH"
+  fi
+  export NGINX_CONF_PATH
+  return 0
 }
 
 create_path() {
@@ -166,18 +225,28 @@ CREATE TABLE IF NOT EXISTS homebrews (
 SQL
 }
 
-hostport="${BASE_URL#*://}"
+hostport="$SERVER_IP"
+hostport="${hostport#http://}"
+hostport="${hostport#https://}"
 hostport="${hostport%%/*}"
 host="${hostport%%:*}"
 port="${hostport##*:}"
 if [ "$host" = "$hostport" ]; then
-  port="80"
+  if [ "$NGINX_ENABLE_HTTPS" = "true" ]; then
+    port="443"
+  else
+    port="80"
+  fi
 fi
 
 initialize_data_dir
 
+if ! configure_nginx; then
+  exit 1
+fi
+
 log "Starting NGINX..."
-nginx
+nginx -c "$NGINX_CONF_PATH"
 log "NGINX is running on ${host}:${port}"
 log ""
 

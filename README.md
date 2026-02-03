@@ -19,15 +19,18 @@ formatting, sorting, icon extraction, and index/database generation.
 docker run -d \
   --name homebrew-store-cdn \
   -p 8080:80 \
-  -e BASE_URL=http://127.0.0.1 \
+  -e SERVER_IP=localhost:8080 \
   -e LOG_LEVEL=info \
+  -e NGINX_ENABLE_HTTPS=false \
   -e WATCHER_ENABLED=true \
   -e AUTO_INDEXER_OUTPUT_FORMAT=db,json \
   -e AUTO_FORMATTER_MODE=snake_uppercase \
   -e AUTO_FORMATTER_TEMPLATE="{title}_[{region}]_[{app_type}]_[{version}]" \
   -e WATCHER_PERIODIC_SCAN_SECONDS=30 \
   -v ./data:/data \
-  -v ./nginx.conf:/etc/nginx/nginx.conf:ro \
+  -v ./nginx.conf:/app/nginx.conf:ro \
+  -v ./nginx.http.conf:/app/nginx.http.conf:ro \
+  -v ./certs:/etc/nginx/certs \
   fabiocdo/homebrew-store-cdn:latest
 ```
 
@@ -44,7 +47,9 @@ services:
       - ./settings.env
     volumes:
       - ./data:/data
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx.conf:/app/nginx.conf:ro
+      - ./nginx.http.conf:/app/nginx.http.conf:ro
+      - ./certs:/etc/nginx/certs
     restart: unless-stopped
 ```
 
@@ -52,8 +57,9 @@ services:
 
 | Variable | Description | Default |
 |---|---|---|
-| `BASE_URL` | Base URL used to build `pkg` and `cover_url` in the index. | `http://127.0.0.1:8080` |
+| `SERVER_IP` | Host (or host:port) used to build URLs in the index. Scheme is derived from `NGINX_ENABLE_HTTPS`. | `localhost:8080` |
 | `LOG_LEVEL` | Log verbosity: `debug`, `info`, `warn`, `error`. | `info` |
+| `NGINX_ENABLE_HTTPS` | Serve Nginx via HTTPS when `true`; otherwise HTTP only. | `false` |
 | `WATCHER_ENABLED` | Master switch for watcher-driven automation. | `true` |
 | `WATCHER_PERIODIC_SCAN_SECONDS` | Periodic scan interval in seconds. | `30` |
 | `WATCHER_SCAN_BATCH_SIZE` | Batch size for PKG scanning (use a large value to effectively disable batching). | `50` |
@@ -69,6 +75,9 @@ Notes:
 
 - `WATCHER_ENABLED=false` stops all automation.
 - `AUTO_INDEXER_OUTPUT_FORMAT` controls output: include `JSON` to write `index.json`, include `DB` to update `store.db`.
+- When `NGINX_ENABLE_HTTPS=true`, mount TLS certs at `/etc/nginx/certs` or allow the entrypoint to generate a self-signed cert.
+- `SERVER_IP` should be just the host (or host:port) without `http://` or `https://`.
+- Ensure `SERVER_IP` matches the host/port used by clients, and toggle `NGINX_ENABLE_HTTPS` to select the scheme.
 - Data paths are fixed to `/data` inside the container.
 - Conflicts are moved to `/data/_error/` with a reason appended to `/data/_logs/errors.log`.
 - Access log tailing writes lines as `WATCHER` debug logs.
@@ -78,7 +87,9 @@ Notes:
 | Volume | Description | Default |
 |---|---|---|
 | `./data:/data` | Host data directory mapped to `/data`. | `./data` |
-| `./nginx.conf:/etc/nginx/nginx.conf:ro` | Custom Nginx config (optional). | `./nginx.conf` |
+| `./nginx.conf:/app/nginx.conf:ro` | HTTPS Nginx config (optional). | `./nginx.conf` |
+| `./nginx.http.conf:/app/nginx.http.conf:ro` | HTTP-only Nginx config (optional). | `./nginx.http.conf` |
+| `./certs:/etc/nginx/certs` | TLS certificates (required for HTTPS). | `./certs` |
 
 ## Data layout
 
@@ -129,14 +140,14 @@ Example payload:
 ```json
 {
   "DATA": {
-    "http://127.0.0.1:8080/pkg/game/Example%20Game%20%5BCUSA12345%5D.pkg": {
+    "http://localhost:8080/pkg/game/Example%20Game%20%5BCUSA12345%5D.pkg": {
       "region": "USA",
       "name": "Example Game",
       "version": "01.00",
       "release": "01-13-2023",
       "size": 123456789,
       "min_fw": null,
-      "cover_url": "http://127.0.0.1:8080/pkg/_media/UP0000-CUSA12345_00-EXAMPLE.png"
+      "cover_url": "http://localhost:8080/pkg/_media/UP0000-CUSA12345_00-EXAMPLE.png"
     }
   }
 }
@@ -167,7 +178,7 @@ Example payload:
 
 - Writes `index.json` and updates `store.db` based on the current plan.
 - Uses `AUTO_INDEXER_OUTPUT_FORMAT` to decide which outputs to write.
-- Builds URLs using `BASE_URL` and percent-encodes path segments.
+- Builds URLs using `SERVER_IP` + `NGINX_ENABLE_HTTPS` and percent-encodes path segments.
 
 ## Helpers
 
@@ -195,7 +206,7 @@ Example payload:
 
 - Scans the PKG tree and detects changes using size/mtime/hash.
 - Reuses cached SFO data when files are unchanged.
-- Marks changes when `BASE_URL` changes (index URLs must update).
+- Marks changes when `SERVER_IP` or `NGINX_ENABLE_HTTPS` changes (index URLs must update).
 
 ### IndexCache (`src/utils/index_cache.py`)
 
@@ -237,7 +248,7 @@ Watcher.start()
 - Duplicate planned names or existing target paths -> PKG moved to `_error/`.
 - Missing or invalid `ICON0_PNG` -> PKG moved to `_error/`.
 - If a PKG is already in the correct folder and name, it is marked `skip`.
-- If `BASE_URL` changes, the index is regenerated even when PKGs are unchanged.
+- If `SERVER_IP` or `NGINX_ENABLE_HTTPS` changes, the index is regenerated even when PKGs are unchanged.
 - Encrypted PKGs may cause `pkgtool` to fail; these are moved to `_error/`.
 - Icons are only extracted when needed (non-existent and not duplicated by another plan item).
 - Extracted icons are optimized with `optipng` when available (lossless).
@@ -260,4 +271,4 @@ Watcher.start()
 
 - If the index is not updating, delete `/data/_cache/index-cache.json` to force a rebuild.
 - If files are stuck in `_error/`, check `/data/_logs/errors.log` for the reason.
-- Ensure `BASE_URL` matches the host and port used by clients.
+- Ensure `SERVER_IP` matches the host and port used by clients.

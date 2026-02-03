@@ -30,7 +30,8 @@ class TestAutoIndexer(unittest.TestCase):
                 {
                     "DATA_DIR": str(data_dir),
                     "PKG_DIR": str(pkg_dir),
-                    "BASE_URL": "http://localhost:8080",
+                    "SERVER_IP": "localhost:8080",
+                    "NGINX_ENABLE_HTTPS": "false",
                     "AUTO_INDEXER_OUTPUT_FORMAT": "json",
                 },
                 clear=False,

@@ -10,6 +10,7 @@ from src.utils.log_utils import log
 from src.modules.models.watcher_models import PlanOutput
 from src.utils.index_cache import load_cache, save_cache, DB_SCHEMA_VERSION
 from src.utils.models.pkg_models import STORE_APP_TYPE_MAP
+from src.utils.url_utils import build_base_url
 
 
 class AutoIndexer:
@@ -105,7 +106,7 @@ class AutoIndexer:
         """
         data_dir = Path(os.environ["DATA_DIR"])
         pkg_dir = Path(os.environ["PKG_DIR"])
-        base_url = os.environ["BASE_URL"].rstrip("/")
+        base_url = build_base_url().rstrip("/")
 
         index_data = {}
         db_rows = {}

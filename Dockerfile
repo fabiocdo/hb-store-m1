@@ -9,6 +9,7 @@ USER root
 # Install system dependencies
 RUN apt update && apt install -y --no-install-recommends \
     ca-certificates \
+    openssl \
     nginx \
     optipng \
     python3 \
@@ -21,7 +22,7 @@ RUN mkdir -p /app/bin \
 
 # NGINX configuration
 RUN rm /etc/nginx/sites-enabled/default
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf nginx.http.conf /app/
 
 # Copy app files
 COPY entrypoint.sh /entrypoint.sh
@@ -35,6 +36,6 @@ WORKDIR /app
 # Data volume
 VOLUME ["/data"]
 
-EXPOSE 80
+EXPOSE 80 443
 
 ENTRYPOINT ["/entrypoint.sh"]
