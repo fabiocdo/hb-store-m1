@@ -48,7 +48,7 @@ build:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: manual
   script:
-    - VERSION="$(grep -E '^version\\s*=' pyproject.toml | head -1 | sed -E 's/version\\s*=\\s*\"([^\"]+)\"/\\1/')"
+    - VERSION="$(awk -F'\"' '/^version[[:space:]]*=/ {print $2; exit}' pyproject.toml)"
     - if [ -z "$VERSION" ]; then echo "Failed to read version from pyproject.toml"; exit 1; fi
     - SUFFIX="${TAG_SUFFIX:-}"
     - if [ -n "$SUFFIX" ] && [ "${SUFFIX#-}" = "$SUFFIX" ]; then SUFFIX="-$SUFFIX"; fi
