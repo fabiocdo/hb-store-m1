@@ -75,9 +75,6 @@ def _print_startup_info() -> None:
         ("", "", None),
         ("AUTO_INDEXER_OUTPUT_FORMAT", os.environ.get("AUTO_INDEXER_OUTPUT_FORMAT", ""), "AUTO_INDEXER"),
         ("", "", None),
-        ("AUTO_FORMATTER_TEMPLATE", os.environ.get("AUTO_FORMATTER_TEMPLATE", ""), "AUTO_FORMATTER"),
-        ("AUTO_FORMATTER_MODE", os.environ.get("AUTO_FORMATTER_MODE", ""), "AUTO_FORMATTER"),
-        ("", "", None),
     ]
 
     key_width = max(len(key) for key, _value, _color in entries if key)

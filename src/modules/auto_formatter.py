@@ -8,42 +8,13 @@ from src.modules.models.formatter_models import FormatterPlanResult
 
 class AutoFormatter:
     """
-    Renames PKG files based on SFO metadata and a template.
-
-    Formatting is driven by AUTO_FORMATTER_MODE and AUTO_FORMATTER_TEMPLATE.
+    Renames PKG files based on the CONTENT_ID field from SFO metadata.
 
     :param: None
     :return: None
     """
 
     PlanResult = FormatterPlanResult
-
-    def __init__(self):
-        """
-        Initialize formatter settings from env.
-
-        :param: None
-        :return: None
-        """
-        self.mode = os.environ["AUTO_FORMATTER_MODE"]
-        self.template = os.environ["AUTO_FORMATTER_TEMPLATE"]
-
-    class _SafeDict(dict):
-        """
-        Dictionary that returns empty string for missing keys.
-
-        :param: None
-        :return: None
-        """
-
-        def __missing__(self, key):
-            """
-            Return empty string when a key is missing.
-
-            :param key: Missing key name
-            :return: Empty string
-            """
-            return ""
 
     def dry_run(self, pkg: Path, sfo_data: dict) -> tuple[PlanResult, str | None]:
         """
@@ -56,17 +27,15 @@ class AutoFormatter:
         if not pkg.exists():
             return self.PlanResult.NOT_FOUND, pkg.name
 
-        safe_data = {
-            key: self._normalize_value(key, value)
-            for key, value in (sfo_data or {}).items()
-        }
-
-        planned_name = self.template.format_map(self._SafeDict(safe_data)).strip()
-        planned_name = self._sanitize_filename(planned_name)
-
-        if not planned_name:
+        content_id = str((sfo_data or {}).get("content_id", "")).strip()
+        if not content_id:
             return self.PlanResult.INVALID, pkg.name
 
+        invalid_chars = '<>:"/\\|?*'
+        if content_id in {".", ".."} or any(ch in content_id for ch in invalid_chars):
+            return self.PlanResult.INVALID, pkg.name
+
+        planned_name = content_id
         if not planned_name.lower().endswith(".pkg"):
             planned_name = f"{planned_name}.pkg"
 
@@ -94,7 +63,12 @@ class AutoFormatter:
             return None
 
         if plan_result == self.PlanResult.INVALID:
-            log("error", "Failed to generate filename from template", message=f"{pkg.name}", module="AUTO_FORMATTER")
+            log(
+                "error",
+                "Invalid or missing content_id in SFO data",
+                message=f"{pkg.name}",
+                module="AUTO_FORMATTER",
+            )
             return None
 
         if plan_result == self.PlanResult.SKIP:
@@ -118,56 +92,3 @@ class AutoFormatter:
         pkg.rename(target_path)
         log("info", "PKG renamed successfully", message=f"{pkg.name} -> {planned_name}", module="AUTO_FORMATTER")
         return planned_name
-
-    def _normalize_value(self, key: str, value):
-        """
-        Normalize SFO values according to the formatter mode.
-
-        :param key: SFO field name
-        :param value: Raw SFO value
-        :return: Normalized string value
-        """
-        if value is None:
-            return ""
-
-        value = str(value)
-
-        if key.lower() == "title":
-            if self.mode == "uppercase":
-                return value.upper()
-            if self.mode == "lowercase":
-                return value.lower()
-            if self.mode == "capitalize":
-                import re
-                roman_numerals = r"^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$"
-                parts = []
-                for part in value.split():
-                    if re.match(roman_numerals, part.upper()):
-                        parts.append(part.upper())
-                    else:
-                        parts.append(part.capitalize())
-                return " ".join(parts)
-            if self.mode == "snake_case":
-                return "_".join(value.split())
-            if self.mode == "snake_uppercase":
-                return "_".join(value.split()).upper()
-            if self.mode == "snake_lowercase":
-                return "_".join(value.split()).lower()
-
-        return value
-
-    @staticmethod
-    def _sanitize_filename(name: str) -> str:
-        """
-        Sanitize a filename by removing path separators and invalid characters.
-
-        :param name: Raw filename
-        :return: Sanitized filename
-        """
-        invalid = '<>:"/\\|?*'
-        table = str.maketrans({ch: "_" for ch in invalid})
-        name = name.translate(table)
-        name = name.replace("_ ", "_").replace(" _", "_")
-        while "__" in name:
-            name = name.replace("__", "_")
-        return name.strip()

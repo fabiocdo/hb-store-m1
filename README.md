@@ -18,13 +18,11 @@
 docker run -d \
   --name homebrew-store-cdn \
   -p 8080:80 \
-  -e SERVER_IP=localhost:8080 \
+  -e SERVER_IP=127.0.0.1:8080 \
   -e LOG_LEVEL=info \
   -e NGINX_ENABLE_HTTPS=false \
   -e WATCHER_ENABLED=true \
   -e AUTO_INDEXER_OUTPUT_FORMAT=db,json \
-  -e AUTO_FORMATTER_MODE=snake_uppercase \
-  -e AUTO_FORMATTER_TEMPLATE="{title}_[{region}]_[{app_type}]_[{version}]" \
   -e WATCHER_PERIODIC_SCAN_SECONDS=30 \
   -v ./data:/data \
   -v ./nginx.conf:/app/nginx.conf:ro \
@@ -56,7 +54,7 @@ services:
 
 | Variable | Description | Default |
 |---|---|---|
-| `SERVER_IP` | Host (or host:port) used to build URLs in the index. Scheme is derived from `NGINX_ENABLE_HTTPS`. | `localhost:8080` |
+| `SERVER_IP` | Host (or host:port) used to build URLs in the index. Scheme is derived from `NGINX_ENABLE_HTTPS`. | `127.0.0.1:8080` |
 | `LOG_LEVEL` | Log verbosity: `debug`, `info`, `warn`, `error`. | `info` |
 | `NGINX_ENABLE_HTTPS` | Serve Nginx via HTTPS when `true`; otherwise HTTP only. | `false` |
 | `WATCHER_ENABLED` | Master switch for watcher-driven automation. | `true` |
@@ -67,8 +65,6 @@ services:
 | `WATCHER_ACCESS_LOG_TAIL` | Enable tailing Nginx access log from watcher. | `true` |
 | `WATCHER_ACCESS_LOG_INTERVAL` | Tail interval in seconds. | `5` |
 | `AUTO_INDEXER_OUTPUT_FORMAT` | Output targets: `DB`, `JSON` (comma-separated). | `db,json` |
-| `AUTO_FORMATTER_MODE` | Title mode: `none`, `uppercase`, `lowercase`, `capitalize`, `snake_uppercase`, `snake_lowercase`. | `snake_uppercase` |
-| `AUTO_FORMATTER_TEMPLATE` | Template using `{title}`, `{title_id}`, `{content_id}`, `{category}`, `{version}`, `{release_date}`, `{region}`, `{app_type}`. | `{title}_[{region}]_[{app_type}]_[{version}]` |
 
 Notes:
 
@@ -164,8 +160,7 @@ Example payload:
 
 ### Auto Formatter (`src/modules/auto_formatter.py`)
 
-- Builds filenames from `AUTO_FORMATTER_TEMPLATE`.
-- Applies title transformations with `AUTO_FORMATTER_MODE`.
+- Renames PKGs to `{CONTENT_ID}.pkg`.
 - Moves conflicts to `_error/` and logs a reason.
 
 ### Auto Sorter (`src/modules/auto_sorter.py`)

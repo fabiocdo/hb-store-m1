@@ -18,15 +18,6 @@ class AutoSorter:
 
     PlanResult = SorterPlanResult
 
-    def __init__(self):
-        """
-        Initialize the sorter.
-
-        :param: None
-        :return: None
-        """
-        pass
-
     def dry_run(self, pkg: Path, app_type: str) -> tuple[PlanResult, Path | None]:
         """
         Plan the PKG destination directory and check for conflicts.
