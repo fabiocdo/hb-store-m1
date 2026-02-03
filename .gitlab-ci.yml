@@ -25,6 +25,8 @@ build:
     - name: docker:24-dind
   stage: build
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_OPEN_MERGE_REQUESTS'
     - if: '$CI_COMMIT_BRANCH == "main"'
   script:
     - docker build -t "$DOCKER_IMAGE:$CI_COMMIT_SHA" .
@@ -63,15 +65,26 @@ publish:release:
   variables:
     TAG_SUFFIX: ""
     PUBLISH_LATEST: "true"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
 
 publish:stable:
   extends: .publish_template
   variables:
     TAG_SUFFIX: "stable"
     PUBLISH_LATEST: "false"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
 
 publish:dev:
   extends: .publish_template
   variables:
     TAG_SUFFIX: "dev"
     PUBLISH_LATEST: "false"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_OPEN_MERGE_REQUESTS'
+      when: manual
