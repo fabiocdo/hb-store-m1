@@ -6,7 +6,7 @@ import re
 
 def build_base_url() -> str:
     """
-    Build a base URL from SERVER_IP and NGINX_ENABLE_HTTPS.
+    Build a base URL from SERVER_IP and ENABLE_SSL.
 
     :return: Base URL like http(s)://host[:port]
     """
@@ -15,5 +15,5 @@ def build_base_url() -> str:
         return ""
     server_ip = re.sub(r"^https?://", "", server_ip, flags=re.IGNORECASE)
     server_ip = server_ip.rstrip("/")
-    scheme = "https" if os.environ.get("NGINX_ENABLE_HTTPS", "").lower() == "true" else "http"
+    scheme = "https" if os.environ.get("ENABLE_SSL", "").lower() == "true" else "http"
     return f"{scheme}://{server_ip}"

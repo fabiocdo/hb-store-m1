@@ -1,50 +1,51 @@
 from __future__ import annotations
 
-import os
-import pathlib
-import sys
+from os import environ
+from pathlib import Path
 
-root = pathlib.Path(__file__).resolve().parents[1]
-argv = sys.argv[1:]
-env = ""
-for i, arg in enumerate(argv):
-    if arg.startswith("--settings-env=") or arg.startswith("-E="):
-        env = arg.split("=", 1)[1].strip()
-        break
-    if arg in {"--settings-env", "-E"} and i + 1 < len(argv):
-        env = argv[i + 1].strip()
-        break
 
-path = root / (f"settings-{env}.env" if env else "settings.env")
-if env:
-    if env.endswith(".env"):
-        config_name = env
-    elif env.startswith("settings-"):
-        config_name = f"{env}.env"
-    else:
-        config_name = f"settings-{env}.env"
-    path = root / config_name
-if path.exists():
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line and not line.startswith("#"):
-            k, v = line.split("=", 1)
-            os.environ.setdefault(k.strip(), v.strip())
+global_paths = {
+    "DATA_DIR_PATH": Path("/data"),
+    "CACHE_DIR_PATH": Path("/data/_cache"),
+    "ERROR_DIR_PATH": Path("/data/_error"),
+    "LOGS_DIR_PATH": Path("/data/_logs"),
+    "PKG_DIR_PATH": Path("/data/pkg"),
+    "MEDIA_DIR_PATH": Path("/data/pkg/_media"),
+    "APP_DIR_PATH": Path("/data/pkg/app"),
+    "GAME_DIR_PATH": Path("/data/pkg/game"),
+    "DLC_DIR_PATH": Path("/data/pkg/dlc"),
+    "UPDATE_DIR_PATH": Path("/data/pkg/update"),
+    "SAVE_DIR_PATH": Path("/data/pkg/save"),
+    "UNKNOWN_DIR_PATH": Path("/data/pkg/_unknown"),
+}
+global_files = {
+    "PKGTOOL_PATH": Path("/app/bin/pkgtool"),
+    "INDEX_JSON_FILE_PATH": Path("/data/index.json"),
+    "STORE_DB_FILE_PATH": Path("/data/store.db"),
+    # metadata & dumps
+    "INDEX_CACHE_JSON_FILE_PATH": Path("/data/_cache/index-cache.json"),
+    "STORE_DB_JSON_FILE_PATH": Path("/data/_cache/store.db.json"),  # TODO: mudar -> é um arquivo de hash do banco
+    "STORE_DB_MD5_FILE_PATH": Path("/data/_cache/store.db.md5"),  # TODO: mudar -> usar um arquivo de cache do banco só
+    "HOMEBREW_ELF_FILE_PATH": Path("/data/_cache/homebrew.elf"),
+    "HOMEBREW_ELF_SIG_FILE_PATH": Path("/data/_cache/homebrew.elf.sig"),
+    "ERRORS_LOG_FILE_PATH": Path("/data/_error/errors.log"),
+}
 
-data_dir = pathlib.Path("/data")
-os.environ["DATA_DIR"] = str(data_dir)
-os.environ.setdefault("STORE_DIR", str(data_dir))
-os.environ.setdefault("STORE_DIR", str(data_dir))
-os.environ.setdefault("INDEX_DIR", str(data_dir))
-os.environ.setdefault("PKG_DIR", str(data_dir / "pkg"))
-os.environ.setdefault("ERROR_DIR", str(data_dir / "_error"))
-os.environ.setdefault("CACHE_DIR", str(data_dir / "_cache"))
-os.environ.setdefault("LOG_DIR", str(data_dir / "_logs"))
-os.environ.setdefault("MEDIA_DIR", str(pathlib.Path(os.environ["PKG_DIR"]) / "_media"))
-os.environ.setdefault("GAME_DIR", str(pathlib.Path(os.environ["PKG_DIR"]) / "game"))
-os.environ.setdefault("DLC_DIR", str(pathlib.Path(os.environ["PKG_DIR"]) / "dlc"))
-os.environ.setdefault("UPDATE_DIR", str(pathlib.Path(os.environ["PKG_DIR"]) / "update"))
-os.environ.setdefault("SAVE_DIR", str(pathlib.Path(os.environ["PKG_DIR"]) / "save"))
-os.environ.setdefault("UNKNOWN_DIR", str(pathlib.Path(os.environ["PKG_DIR"]) / "_unknown"))
-os.environ.setdefault("PKGTOOL_PATH", "/app/bin/pkgtool")
-os.environ.setdefault("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1")
+global_envs = {
+    "SERVER_IP", environ.get("SERVER_IP", ""),
+    "LOG_LEVEL", environ.get("LOG_LEVEL", "").upper(),
+    "ENABLE_SSL", environ.get("ENABLE_SSL", "").upper() == True,
+    "WATCHER_ENABLED", environ.get("WATCHER_ENABLED", "") == True,
+    "WATCHER_PERIODIC_SCAN_SECONDS", int(environ.get("WATCHER_PERIODIC_SCAN_SECONDS", "")),
+    "WATCHER_SCAN_BATCH_SIZE", int(environ.get("WATCHER_SCAN_BATCH_SIZE", "")),
+    "WATCHER_SCAN_WORKERS", int(environ.get("WATCHER_SCAN_WORKERS", "")),
+    "WATCHER_ACCESS_LOG_TAIL", environ.get("WATCHER_ACCESS_LOG_TAIL", "") == True, # TODO: renomeie para _ENABLED
+    "WATCHER_ACCESS_LOG_INTERVAL", int(environ.get("WATCHER_ACCESS_LOG_INTERVAL", "")),
+    "AUTO_INDEXER_OUTPUT_FORMAT", [item.strip().upper() for item in environ.get("AUTO_INDEXER_OUTPUT_FORMAT", "").split(",") if item.strip()],
+}
+
+def init():
+    global global_paths
+    global global_files
+    global global_envs
+

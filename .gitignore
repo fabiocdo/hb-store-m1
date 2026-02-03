@@ -1,12 +1,13 @@
 .idea
 __pycache__/
 **/__pycache__/
-!example/**
 data/
 bin/
 certs/
+configs/
 
 *.env
 *.conf
 docker-compose.yml
-!nginx.http.conf
+
+!example/**

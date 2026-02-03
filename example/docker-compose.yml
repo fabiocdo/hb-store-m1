@@ -1,17 +1,29 @@
 name: homebrew-store-cdn
 
 services:
-  homebrew-store-cdn:
-    image: fabiocdo/homebrew-store-cdn:latest
-    container_name: homebrew-store-cdn
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: homebrew-store-cdn-nginx
+    depends_on:
+      - homebrew-store-cdn
     ports:
       - "80:80"
       - "443:443"
     env_file:
-      - ./settings.env
+      - ./configs/settings.env
     volumes:
       - ./data:/data
-      - ./nginx.conf:/app/nginx.conf:ro
-      - ./nginx.http.conf:/app/nginx.http.conf:ro
-      - ./certs:/etc/nginx/certs
+      - ./configs:/configs:ro
+      - ./nginx/entrypoint.d/99-config.sh:/docker-entrypoint.d/99-config.sh:ro
+      - ./certs:/etc/nginx/certs:ro
+    restart: unless-stopped
+
+  homebrew-store-cdn:
+    image: fabiocdo/homebrew-store-cdn:latest
+    container_name: homebrew-store-cdn
+    env_file:
+      - ./configs/settings.env
+    volumes:
+      - ./data:/data
+      - ./configs:/app/configs:ro
     restart: unless-stopped

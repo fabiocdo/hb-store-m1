@@ -12,23 +12,29 @@
 
 ## Quick start
 
+Ensure you have `configs/` with `settings.env`, `nginx.conf`, and `nginx.http.conf`. The app mounts configs at `/app/configs` and the Nginx service reads them from `/configs`.
+This setup runs as two services: the app (watcher/indexer) and Nginx (static server).
+
 ### Docker run
 
 ```bash
 docker run -d \
   --name homebrew-store-cdn \
-  -p 8080:80 \
-  -e SERVER_IP=127.0.0.1:8080 \
-  -e LOG_LEVEL=info \
-  -e NGINX_ENABLE_HTTPS=false \
-  -e WATCHER_ENABLED=true \
-  -e AUTO_INDEXER_OUTPUT_FORMAT=db,json \
-  -e WATCHER_PERIODIC_SCAN_SECONDS=30 \
+  --env-file ./configs/settings.env \
   -v ./data:/data \
-  -v ./nginx.conf:/app/nginx.conf:ro \
-  -v ./nginx.http.conf:/app/nginx.http.conf:ro \
-  -v ./certs:/etc/nginx/certs \
+  -v ./configs:/app/configs:ro \
   fabiocdo/homebrew-store-cdn:latest
+
+docker run -d \
+  --name homebrew-store-cdn-nginx \
+  --env-file ./configs/settings.env \
+  -p 80:80 \
+  -p 443:443 \
+  -v ./data:/data \
+  -v ./configs:/configs:ro \
+  -v ./nginx/entrypoint.d/99-config.sh:/docker-entrypoint.d/99-config.sh:ro \
+  -v ./certs:/etc/nginx/certs:ro \
+  nginx:1.27-alpine
 ```
 
 ### Docker Compose
@@ -36,17 +42,31 @@ docker run -d \
 ```yaml
 services:
   homebrew-store-cdn:
+    build: .
     image: fabiocdo/homebrew-store-cdn:latest
     container_name: homebrew-store-cdn
-    ports:
-      - "80:80"
     env_file:
-      - ./settings.env
+      - ./configs/settings.env
     volumes:
       - ./data:/data
-      - ./nginx.conf:/app/nginx.conf:ro
-      - ./nginx.http.conf:/app/nginx.http.conf:ro
-      - ./certs:/etc/nginx/certs
+      - ./configs:/app/configs:ro
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: homebrew-store-cdn-nginx
+    depends_on:
+      - homebrew-store-cdn
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - ./configs/settings.env
+    volumes:
+      - ./data:/data
+      - ./configs:/configs:ro
+      - ./nginx/entrypoint.d/99-config.sh:/docker-entrypoint.d/99-config.sh:ro
+      - ./certs:/etc/nginx/certs:ro
     restart: unless-stopped
 ```
 
@@ -54,9 +74,9 @@ services:
 
 | Variable | Description | Default |
 |---|---|---|
-| `SERVER_IP` | Host (or host:port) used to build URLs in the index. Scheme is derived from `NGINX_ENABLE_HTTPS`. | `127.0.0.1:8080` |
+| `SERVER_IP` | Host (or host:port) used to build URLs in the index. Scheme is derived from `ENABLE_SSL`. | `127.0.0.1:8080` |
 | `LOG_LEVEL` | Log verbosity: `debug`, `info`, `warn`, `error`. | `info` |
-| `NGINX_ENABLE_HTTPS` | Serve Nginx via HTTPS when `true`; otherwise HTTP only. | `false` |
+| `ENABLE_SSL` | Serve Nginx via HTTPS when `true`; otherwise HTTP only. | `false` |
 | `WATCHER_ENABLED` | Master switch for watcher-driven automation. | `true` |
 | `WATCHER_PERIODIC_SCAN_SECONDS` | Periodic scan interval in seconds. | `30` |
 | `WATCHER_SCAN_BATCH_SIZE` | Batch size for PKG scanning (use a large value to effectively disable batching). | `50` |
@@ -70,21 +90,30 @@ Notes:
 
 - `WATCHER_ENABLED=false` stops all automation.
 - `AUTO_INDEXER_OUTPUT_FORMAT` controls output: include `JSON` to write `index.json`, include `DB` to update `store.db`.
-- When `NGINX_ENABLE_HTTPS=true`, mount TLS certs at `/etc/nginx/certs` or allow the entrypoint to generate a self-signed cert.
+- When `ENABLE_SSL=true`, mount TLS certs at `/etc/nginx/certs` for the Nginx service.
 - `SERVER_IP` should be just the host (or host:port) without `http://` or `https://`.
-- Ensure `SERVER_IP` matches the host/port used by clients, and toggle `NGINX_ENABLE_HTTPS` to select the scheme.
+- Ensure `SERVER_IP` matches the host/port used by clients, and toggle `ENABLE_SSL` to select the scheme.
 - Data paths are fixed to `/data` inside the container.
 - Conflicts are moved to `/data/_error/` with a reason appended to `/data/_logs/errors.log`.
 - Access log tailing writes lines as `WATCHER` debug logs.
 
 ## Volumes
 
+### App service
+
 | Volume | Description | Default |
 |---|---|---|
 | `./data:/data` | Host data directory mapped to `/data`. | `./data` |
-| `./nginx.conf:/app/nginx.conf:ro` | HTTPS Nginx config (optional). | `./nginx.conf` |
-| `./nginx.http.conf:/app/nginx.http.conf:ro` | HTTP-only Nginx config (optional). | `./nginx.http.conf` |
-| `./certs:/etc/nginx/certs` | TLS certificates (required for HTTPS). | `./certs` |
+| `./configs:/app/configs:ro` | Config directory (required): `settings.env`, `nginx.conf`, `nginx.http.conf`. | `./configs` |
+
+### Nginx service
+
+| Volume | Description | Default |
+|---|---|---|
+| `./data:/data` | Data directory served by Nginx (logs are written here). | `./data` |
+| `./configs:/configs:ro` | Config directory used by the Nginx entrypoint script. | `./configs` |
+| `./nginx/entrypoint.d/99-config.sh:/docker-entrypoint.d/99-config.sh:ro` | Selects the HTTP/HTTPS config based on `ENABLE_SSL`. | `./nginx/entrypoint.d/99-config.sh` |
+| `./certs:/etc/nginx/certs:ro` | TLS certificates (required for HTTPS). | `./certs` |
 
 ## Data layout
 
@@ -172,7 +201,7 @@ Example payload:
 
 - Writes `index.json` and updates `store.db` based on the current plan.
 - Uses `AUTO_INDEXER_OUTPUT_FORMAT` to decide which outputs to write.
-- Builds URLs using `SERVER_IP` + `NGINX_ENABLE_HTTPS` and percent-encodes path segments.
+- Builds URLs using `SERVER_IP` + `ENABLE_SSL` and percent-encodes path segments.
 
 ## Helpers
 
@@ -200,7 +229,7 @@ Example payload:
 
 - Scans the PKG tree and detects changes using size/mtime/hash.
 - Reuses cached SFO data when files are unchanged.
-- Marks changes when `SERVER_IP` or `NGINX_ENABLE_HTTPS` changes (index URLs must update).
+- Marks changes when `SERVER_IP` or `ENABLE_SSL` changes (index URLs must update).
 
 ### IndexCache (`src/utils/index_cache.py`)
 
@@ -242,7 +271,7 @@ Watcher.start()
 - Duplicate planned names or existing target paths -> PKG moved to `_error/`.
 - Missing or invalid `ICON0_PNG` -> PKG moved to `_error/`.
 - If a PKG is already in the correct folder and name, it is marked `skip`.
-- If `SERVER_IP` or `NGINX_ENABLE_HTTPS` changes, the index is regenerated even when PKGs are unchanged.
+- If `SERVER_IP` or `ENABLE_SSL` changes, the index is regenerated even when PKGs are unchanged.
 - Encrypted PKGs may cause `pkgtool` to fail; these are moved to `_error/`.
 - Icons are only extracted when needed (non-existent and not duplicated by another plan item).
 - Extracted icons are optimized with `optipng` when available (lossless).

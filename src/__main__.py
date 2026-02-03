@@ -63,7 +63,7 @@ def _print_startup_info() -> None:
         ("", "", None),
         ("SERVER_IP", os.environ.get("SERVER_IP", ""), None),
         ("LOG_LEVEL", os.environ.get("LOG_LEVEL", ""), None),
-        ("NGINX_ENABLE_HTTPS", os.environ.get("NGINX_ENABLE_HTTPS", ""), None),
+        ("ENABLE_SSL", os.environ.get("ENABLE_SSL", ""), None),
         ("", "", None),
         ("WATCHER_ENABLED", os.environ.get("WATCHER_ENABLED", ""), "WATCHER"),
         ("WATCHER_PERIODIC_SCAN_SECONDS", os.environ.get("WATCHER_PERIODIC_SCAN_SECONDS", ""), "WATCHER"),

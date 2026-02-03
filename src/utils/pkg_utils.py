@@ -29,9 +29,7 @@ class PkgUtils:
         :return: None
         """
         self.pkgtool_path = os.environ["PKGTOOL_PATH"]
-        self.env = {
-            "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": os.environ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"],
-        }
+        self.env = {"DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1" }
         self.timeout_seconds = 120
 
     @staticmethod
