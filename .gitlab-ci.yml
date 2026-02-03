@@ -39,6 +39,9 @@ publish:
   services:
     - name: docker:24-dind
   stage: publish
+  variables:
+    TAG_SUFFIX: "-stable | -dev | -beta | ..."
+    PUBLISH_LATEST: "true | false"
   needs:
     - job: build
       artifacts: true
