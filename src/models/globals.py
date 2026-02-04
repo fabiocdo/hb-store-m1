@@ -38,16 +38,14 @@ def _env(name: str, default, type_):
 
     raise TypeError(f"Unsupported type {type_}")
 
-APP_ROOT = Path.cwd()
-DATA_ROOT = APP_ROOT / "data"
-
 @dataclass(frozen=True)
 class GlobalPaths:
-    DATA_DIR_PATH: Path = DATA_ROOT
-    CACHE_DIR_PATH: Path = DATA_ROOT / "_cache"
-    ERROR_DIR_PATH: Path = DATA_ROOT / "_error"
-    LOGS_DIR_PATH: Path = DATA_ROOT / "_logs"
-    PKG_DIR_PATH: Path = DATA_ROOT / "pkg"
+    APP_ROOT_PATH: Path = Path.cwd()
+    DATA_DIR_PATH: Path = APP_ROOT_PATH / "data"
+    CACHE_DIR_PATH: Path = DATA_DIR_PATH / "_cache"
+    ERRORS_DIR_PATH: Path = DATA_DIR_PATH / "_errors"
+    LOGS_DIR_PATH: Path = DATA_DIR_PATH / "_logs"
+    PKG_DIR_PATH: Path = DATA_DIR_PATH / "pkg"
     MEDIA_DIR_PATH: Path = PKG_DIR_PATH / "_media"
     APP_DIR_PATH: Path = PKG_DIR_PATH / "app"
     GAME_DIR_PATH: Path = PKG_DIR_PATH / "game"
@@ -56,25 +54,25 @@ class GlobalPaths:
     SAVE_DIR_PATH: Path = PKG_DIR_PATH / "save"
     UNKNOWN_DIR_PATH: Path = PKG_DIR_PATH / "_unknown"
 
-
 @dataclass(frozen=True)
 class GlobalFiles:
-    PYPROJECT_PATH: Path = APP_ROOT / "pyproject.toml"
-    PKGTOOL_PATH: Path = APP_ROOT / "bin" / "pkgtool"
-    INDEX_JSON_FILE_PATH: Path = DATA_ROOT / "index.json"
-    STORE_DB_FILE_PATH: Path = DATA_ROOT / "store.db"
-    INDEX_CACHE_JSON_FILE_PATH: Path = DATA_ROOT / "_cache" / "index-cache.json"
-    STORE_DB_JSON_FILE_PATH: Path = DATA_ROOT / "_cache" / "store.db.json"
-    STORE_DB_MD5_FILE_PATH: Path = DATA_ROOT / "_cache" / "store.db.md5"
-    HOMEBREW_ELF_FILE_PATH: Path = DATA_ROOT / "_cache" / "homebrew.elf"
-    HOMEBREW_ELF_SIG_FILE_PATH: Path = DATA_ROOT / "_cache" / "homebrew.elf.sig"
-    ERRORS_LOG_FILE_PATH: Path = DATA_ROOT / "_error" / "errors.log"
+    _paths: GlobalPaths = GlobalPaths()
+    PYPROJECT_PATH: Path = _paths.APP_ROOT_PATH / "pyproject.toml"
+    PKGTOOL_PATH: Path = _paths.APP_ROOT_PATH / "bin" / "pkgtool"
+    INDEX_JSON_FILE_PATH: Path = _paths.DATA_DIR_PATH / "index.json"
+    STORE_DB_FILE_PATH: Path = _paths.DATA_DIR_PATH / "store.db"
+    INDEX_CACHE_JSON_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "index-cache.json"
+    STORE_DB_JSON_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "store.db.json"
+    STORE_DB_MD5_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "store.db.md5"
+    HOMEBREW_ELF_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "homebrew.elf"
+    HOMEBREW_ELF_SIG_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "homebrew.elf.sig"
+    ERRORS_LOG_FILE_PATH: Path = _paths.ERRORS_DIR_PATH / "errors.log"
 
 class GlobalEnvs:
     APP_NAME: str = _pyproject_value(GlobalFiles.PYPROJECT_PATH,"name","homebrew-store-cdn")
     APP_VERSION: str = _pyproject_value(GlobalFiles.PYPROJECT_PATH,"version","0.0.1")
     SERVER_IP: str = _env("SERVER_IP", "127.0.0.1", str)
-    SERVER_PORT: str = _env("SERVER_PORT", "80", str)
+    SERVER_PORT: int = _env("SERVER_PORT", "80", int)
     LOG_LEVEL: str = _env("LOG_LEVEL", "info", str)
     ENABLE_SSL: bool = _env("ENABLE_SSL", False, bool)
     WATCHER_ENABLED: bool = _env("WATCHER_ENABLED", True, bool)
