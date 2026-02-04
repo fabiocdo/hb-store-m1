@@ -1,14 +1,15 @@
 import os
 import tomllib
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path as _Path
 
-def _pyproject_value(path: Path, key: str, default: str = "") -> str:
+
+def _pyproject_value(path: _Path, key: str, default: str = "") -> str:
     if not path.exists():
         return default
-
     data = tomllib.loads(path.read_text("utf-8"))
     return data.get("project", {}).get(key, default)
+
 
 def _env(name: str, default, type_):
     v = os.getenv(name)
@@ -36,51 +37,96 @@ def _env(name: str, default, type_):
 
     raise TypeError(f"Unsupported type {type_}")
 
+
 @dataclass(frozen=True)
 class GlobalPaths:
-    APP_ROOT_PATH: Path = Path.cwd()
-    DATA_DIR_PATH: Path = APP_ROOT_PATH / "data"
-    CACHE_DIR_PATH: Path = DATA_DIR_PATH / "_cache"
-    ERRORS_DIR_PATH: Path = DATA_DIR_PATH / "_errors"
-    LOGS_DIR_PATH: Path = DATA_DIR_PATH / "_logs"
-    PKG_DIR_PATH: Path = DATA_DIR_PATH / "pkg"
-    MEDIA_DIR_PATH: Path = PKG_DIR_PATH / "_media"
-    APP_DIR_PATH: Path = PKG_DIR_PATH / "app"
-    GAME_DIR_PATH: Path = PKG_DIR_PATH / "game"
-    DLC_DIR_PATH: Path = PKG_DIR_PATH / "dlc"
-    UPDATE_DIR_PATH: Path = PKG_DIR_PATH / "update"
-    SAVE_DIR_PATH: Path = PKG_DIR_PATH / "save"
-    UNKNOWN_DIR_PATH: Path = PKG_DIR_PATH / "_unknown"
+    APP_ROOT_PATH: _Path = _Path.cwd()
+    DATA_DIR_PATH: _Path = APP_ROOT_PATH / "data"
+    CACHE_DIR_PATH: _Path = DATA_DIR_PATH / "_cache"
+    ERRORS_DIR_PATH: _Path = DATA_DIR_PATH / "_errors"
+    LOGS_DIR_PATH: _Path = DATA_DIR_PATH / "_logs"
+    PKG_DIR_PATH: _Path = DATA_DIR_PATH / "pkg"
+    MEDIA_DIR_PATH: _Path = PKG_DIR_PATH / "_media"
+    APP_DIR_PATH: _Path = PKG_DIR_PATH / "app"
+    GAME_DIR_PATH: _Path = PKG_DIR_PATH / "game"
+    DLC_DIR_PATH: _Path = PKG_DIR_PATH / "dlc"
+    UPDATE_DIR_PATH: _Path = PKG_DIR_PATH / "update"
+    SAVE_DIR_PATH: _Path = PKG_DIR_PATH / "save"
+    UNKNOWN_DIR_PATH: _Path = PKG_DIR_PATH / "_unknown"
+
 
 @dataclass(frozen=True)
 class GlobalFiles:
-    _paths: GlobalPaths = GlobalPaths()
-    PYPROJECT_PATH: Path = _paths.APP_ROOT_PATH / "pyproject.toml"
-    PKGTOOL_PATH: Path = _paths.APP_ROOT_PATH / "bin" / "pkgtool"
-    INDEX_JSON_FILE_PATH: Path = _paths.DATA_DIR_PATH / "index.json"
-    STORE_DB_FILE_PATH: Path = _paths.DATA_DIR_PATH / "store.db"
-    INDEX_CACHE_JSON_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "index-cache.json"
-    STORE_DB_JSON_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "store.db.json"
-    STORE_DB_MD5_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "store.db.md5"
-    HOMEBREW_ELF_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "homebrew.elf"
-    HOMEBREW_ELF_SIG_FILE_PATH: Path = _paths.CACHE_DIR_PATH / "homebrew.elf.sig"
-    ERRORS_LOG_FILE_PATH: Path = _paths.ERRORS_DIR_PATH / "errors.log"
+    paths: GlobalPaths
+
+    @property
+    def PYPROJECT_PATH(self) -> _Path:
+        return self.paths.APP_ROOT_PATH / "pyproject.toml"
+
+    @property
+    def PKGTOOL_PATH(self) -> _Path:
+        return self.paths.APP_ROOT_PATH / "bin" / "pkgtool"
+
+    @property
+    def INDEX_JSON_FILE_PATH(self) -> _Path:
+        return self.paths.DATA_DIR_PATH / "index.json"
+
+    @property
+    def STORE_DB_FILE_PATH(self) -> _Path:
+        return self.paths.DATA_DIR_PATH / "store.db"
+
+    @property
+    def INDEX_CACHE_JSON_FILE_PATH(self) -> _Path:
+        return self.paths.CACHE_DIR_PATH / "index-cache.json"
+
+    @property
+    def STORE_DB_JSON_FILE_PATH(self) -> _Path:
+        return self.paths.CACHE_DIR_PATH / "store.db.json"
+
+    @property
+    def STORE_DB_MD5_FILE_PATH(self) -> _Path:
+        return self.paths.CACHE_DIR_PATH / "store.db.md5"
+
+    @property
+    def HOMEBREW_ELF_FILE_PATH(self) -> _Path:
+        return self.paths.CACHE_DIR_PATH / "homebrew.elf"
+
+    @property
+    def HOMEBREW_ELF_SIG_FILE_PATH(self) -> _Path:
+        return self.paths.CACHE_DIR_PATH / "homebrew.elf.sig"
+
+    @property
+    def ERRORS_LOG_FILE_PATH(self) -> _Path:
+        return self.paths.ERRORS_DIR_PATH / "errors.log"
+
 
 class GlobalEnvs:
-    APP_NAME: str = _pyproject_value(GlobalFiles.PYPROJECT_PATH,"name","homebrew-store-cdn")
-    APP_VERSION: str = _pyproject_value(GlobalFiles.PYPROJECT_PATH,"version","0.0.1")
-    SERVER_IP: str = _env("SERVER_IP", "127.0.0.1", str)
-    SERVER_PORT: int = _env("SERVER_PORT", "80", int)
-    LOG_LEVEL: str = _env("LOG_LEVEL", "DEBUG", str)
-    ENABLE_SSL: bool = _env("ENABLE_SSL", False, bool)
-    WATCHER_ENABLED: bool = _env("WATCHER_ENABLED", True, bool)
-    WATCHER_PERIODIC_SCAN_SECONDS: int = _env("WATCHER_PERIODIC_SCAN_SECONDS", 30, int)
-    WATCHER_SCAN_BATCH_SIZE: int = _env("WATCHER_SCAN_BATCH_SIZE", 50, int)
-    WATCHER_EXECUTOR_WORKERS: int = _env("WATCHER_EXECUTOR_WORKERS", 4, int)
-    WATCHER_SCAN_WORKERS: int = _env("WATCHER_SCAN_WORKERS", 4, int)
-    WATCHER_ACCESS_LOG_TAIL: bool = _env("WATCHER_ACCESS_LOG_TAIL", True, bool)
-    WATCHER_ACCESS_LOG_INTERVAL: int = _env("WATCHER_ACCESS_LOG_INTERVAL", 5, int)
-    AUTO_INDEXER_OUTPUT_FORMAT: list[str] = _env("AUTO_INDEXER_OUTPUT_FORMAT", ['db','json'], list)
+    def __init__(self, files: GlobalFiles):
+        self.files = files
+
+        self.SERVER_IP: str = _env("SERVER_IP", "127.0.0.1", str)
+        self.SERVER_PORT: int = _env("SERVER_PORT", 80, int)
+        self.LOG_LEVEL: str = _env("LOG_LEVEL", "DEBUG", str)
+        self.ENABLE_SSL: bool = _env("ENABLE_SSL", False, bool)
+
+        self.WATCHER_ENABLED: bool = _env("WATCHER_ENABLED", True, bool)
+        self.WATCHER_PERIODIC_SCAN_SECONDS: int = _env("WATCHER_PERIODIC_SCAN_SECONDS", 30, int)
+        self.WATCHER_SCAN_BATCH_SIZE: int = _env("WATCHER_SCAN_BATCH_SIZE", 50, int)
+        self.WATCHER_EXECUTOR_WORKERS: int = _env("WATCHER_EXECUTOR_WORKERS", 4, int)
+        self.WATCHER_SCAN_WORKERS: int = _env("WATCHER_SCAN_WORKERS", 4, int)
+        self.WATCHER_ACCESS_LOG_TAIL: bool = _env("WATCHER_ACCESS_LOG_TAIL", True, bool)
+        self.WATCHER_ACCESS_LOG_INTERVAL: int = _env("WATCHER_ACCESS_LOG_INTERVAL", 5, int)
+        self.AUTO_INDEXER_OUTPUT_FORMAT: list[str] = _env(
+            "AUTO_INDEXER_OUTPUT_FORMAT", ["db", "json"], list
+        )
+
+    @property
+    def APP_NAME(self) -> str:
+        return _pyproject_value(self.files.PYPROJECT_PATH, "name", "homebrew-store-cdn")
+
+    @property
+    def APP_VERSION(self) -> str:
+        return _pyproject_value(self.files.PYPROJECT_PATH, "version", "0.0.1")
 
     @property
     def SERVER_URL(self) -> str:
@@ -92,3 +138,7 @@ class GlobalEnvs:
             else f"{scheme}://{self.SERVER_IP}:{self.SERVER_PORT}"
         )
 
+class Global:
+    PATHS = GlobalPaths()
+    FILES = GlobalFiles(PATHS)
+    ENVS = GlobalEnvs(FILES)
