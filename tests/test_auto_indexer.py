@@ -5,7 +5,7 @@ from unittest import mock
 from pathlib import Path
 
 from src.modules.auto_indexer import AutoIndexer
-from src.modules.models.watcher_models import PlanOutput
+from src.models.watcher_models import PlanOutput
 
 
 class TestAutoIndexer(unittest.TestCase):

@@ -7,7 +7,7 @@ import datetime
 from src.utils import PkgUtils, log
 from src.modules.auto_formatter import AutoFormatter
 from src.modules.auto_sorter import AutoSorter
-from src.modules.models.watcher_models import PlanOutput
+from src.models.watcher_models import PlanOutput
 
 
 class WatcherExecutor:

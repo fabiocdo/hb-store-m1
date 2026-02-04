@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 from src.utils import log
-from src.modules.models.formatter_models import FormatterPlanResult
+from src.models.formatter_models import FormatterPlanResult
 
 
 class AutoFormatter:

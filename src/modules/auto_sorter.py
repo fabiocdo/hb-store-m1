@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 from src.utils import log
-from src.modules.models.sorter_models import SorterPlanResult
+from src.models.sorter_models import SorterPlanResult
 
 
 class AutoSorter:
