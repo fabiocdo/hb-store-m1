@@ -15,6 +15,7 @@ from src.modules.auto_indexer import AutoIndexer
 from src.modules.helpers.watcher_planner import WatcherPlanner
 from src.modules.helpers.watcher_executor import WatcherExecutor
 
+from src import global_files, global_envs, global_paths
 
 class Watcher:
     """
@@ -34,12 +35,6 @@ class Watcher:
         :param: None
         :return: None
         """
-        self.watcher_enabled = os.environ["WATCHER_ENABLED"].lower() == "true"
-        self.periodic_scan_seconds = int(os.environ["WATCHER_PERIODIC_SCAN_SECONDS"])
-        self.executor_workers = int(os.environ.get("WATCHER_EXECUTOR_WORKERS", "4"))
-        self.access_log_enabled = os.environ.get("WATCHER_ACCESS_LOG_TAIL").lower() == "true"
-        self.access_log_path = "/data/_logs/access.log"
-        self.access_log_interval = int(os.environ.get("WATCHER_ACCESS_LOG_INTERVAL"))
         self._access_log_offset = 0
         self._access_log_since = None
         self._access_log_time_re = re.compile(r"\[(?P<ts>[^\]]+)\]")
@@ -74,17 +69,17 @@ class Watcher:
         :param: None
         :return: None
         """
-        if not self.access_log_enabled:
+        LOG_TAIL_ENABLED = global_envs.WATCHER_ACCESS_LOG_ENABLED
+        LOGS_PATH = global_paths.LOGS_DIR_PATH
+
+        if not LOG_TAIL_ENABLED:
             return
 
         try:
-            log_path = Path(self.access_log_path)
-            if not log_path.exists():
-                return
-            size = log_path.stat().st_size
+            size = LOGS_PATH.stat().st_size
             if size < self._access_log_offset:
                 self._access_log_offset = 0
-            with log_path.open("r", encoding="utf-8", errors="ignore") as handle:
+            with LOGS_PATH.open("r", encoding="utf-8", errors="ignore") as handle:
                 handle.seek(self._access_log_offset)
                 lines = handle.read().splitlines()
                 self._access_log_offset = handle.tell()
@@ -111,7 +106,9 @@ class Watcher:
         :param: None
         :return: None
         """
-        interval = max(1, self.access_log_interval)
+        LOG_INTERVAL = global_envs.WATCHER_ACCESS_LOG_INTERVAL
+
+        interval = max(1, LOG_INTERVAL)
         while not self._access_log_stop.is_set():
             self._read_access_log()
             self._access_log_stop.wait(interval)

@@ -20,9 +20,8 @@ def env_bool(name: str, default: bool) -> bool:
 def env_list(name: str, default: list[str]) -> list[str]:
     v = os.getenv(name)
     if not v:
-        return list(default)
+        return default
     return [p.strip() for p in v.split(",") if p.strip()]
-
 
 @dataclass(frozen=True)
 class GlobalPaths:
@@ -39,7 +38,6 @@ class GlobalPaths:
     SAVE_DIR_PATH: Path = Path("/data/pkg/save")
     UNKNOWN_DIR_PATH: Path = Path("/data/pkg/_unknown")
 
-
 @dataclass(frozen=True)
 class GlobalFiles:
     PYPROJECT_TOML_FILE_PATH: Path = Path("/app/pyproject.toml")
@@ -53,11 +51,10 @@ class GlobalFiles:
     HOMEBREW_ELF_SIG_FILE_PATH: Path = Path("/data/_cache/homebrew.elf.sig")
     ERRORS_LOG_FILE_PATH: Path = Path("/data/_error/errors.log")
 
-
 class GlobalEnvs:
-    SERVER_IP = os.getenv("SERVER_IP", "127.0.0.1").strip()
+    SERVER_IP = os.getenv("SERVER_IP", "127.0.0.1")
     SERVER_PORT = int(os.getenv("SERVER_PORT", "80"))
-    LOG_LEVEL = os.getenv("LOG_LEVEL", "info").strip()
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "info")
     ENABLE_SSL = env_bool("ENABLE_SSL", False)
 
     WATCHER_ENABLED = env_bool("WATCHER_ENABLED", True)
