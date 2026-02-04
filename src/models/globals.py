@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+import tomllib
+from dataclasses import dataclass
 from pathlib import Path
 
-def env(name: str, default, type_):
+def _pyproject_value(path: Path, key: str, default: str = "") -> str:
+    if not path.exists():
+        return default
+
+    data = tomllib.loads(path.read_text("utf-8"))
+    return data.get("project", {}).get(key, default)
+
+def _env(name: str, default, type_):
     v = os.getenv(name)
     if v is None:
         return default
@@ -30,47 +38,61 @@ def env(name: str, default, type_):
 
     raise TypeError(f"Unsupported type {type_}")
 
+APP_ROOT = Path.cwd()
+DATA_ROOT = APP_ROOT / "data"
+
 @dataclass(frozen=True)
 class GlobalPaths:
-    DATA_DIR_PATH: Path = Path("/data")
-    CACHE_DIR_PATH: Path = Path("/data/_cache")
-    ERROR_DIR_PATH: Path = Path("/data/_error")
-    LOGS_DIR_PATH: Path = Path("/data/_logs")
-    PKG_DIR_PATH: Path = Path("/data/pkg")
-    MEDIA_DIR_PATH: Path = Path("/data/pkg/_media")
-    APP_DIR_PATH: Path = Path("/data/pkg/app")
-    GAME_DIR_PATH: Path = Path("/data/pkg/game")
-    DLC_DIR_PATH: Path = Path("/data/pkg/dlc")
-    UPDATE_DIR_PATH: Path = Path("/data/pkg/update")
-    SAVE_DIR_PATH: Path = Path("/data/pkg/save")
-    UNKNOWN_DIR_PATH: Path = Path("/data/pkg/_unknown")
+    DATA_DIR_PATH: Path = DATA_ROOT
+    CACHE_DIR_PATH: Path = DATA_ROOT / "_cache"
+    ERROR_DIR_PATH: Path = DATA_ROOT / "_error"
+    LOGS_DIR_PATH: Path = DATA_ROOT / "_logs"
+    PKG_DIR_PATH: Path = DATA_ROOT / "pkg"
+    MEDIA_DIR_PATH: Path = PKG_DIR_PATH / "_media"
+    APP_DIR_PATH: Path = PKG_DIR_PATH / "app"
+    GAME_DIR_PATH: Path = PKG_DIR_PATH / "game"
+    DLC_DIR_PATH: Path = PKG_DIR_PATH / "dlc"
+    UPDATE_DIR_PATH: Path = PKG_DIR_PATH / "update"
+    SAVE_DIR_PATH: Path = PKG_DIR_PATH / "save"
+    UNKNOWN_DIR_PATH: Path = PKG_DIR_PATH / "_unknown"
 
 
 @dataclass(frozen=True)
 class GlobalFiles:
-    PKGTOOL_PATH: Path = Path("/app/bin/pkgtool")
-    INDEX_JSON_FILE_PATH: Path = Path("/data/index.json")
-    STORE_DB_FILE_PATH: Path = Path("/data/store.db")
-    INDEX_CACHE_JSON_FILE_PATH: Path = Path("/data/_cache/index-cache.json")
-    STORE_DB_JSON_FILE_PATH: Path = Path("/data/_cache/store.db.json")
-    STORE_DB_MD5_FILE_PATH: Path = Path("/data/_cache/store.db.md5")
-    HOMEBREW_ELF_FILE_PATH: Path = Path("/data/_cache/homebrew.elf")
-    HOMEBREW_ELF_SIG_FILE_PATH: Path = Path("/data/_cache/homebrew.elf.sig")
-    ERRORS_LOG_FILE_PATH: Path = Path("/data/_error/errors.log")
-
+    PYPROJECT_PATH: Path = APP_ROOT / "pyproject.toml"
+    PKGTOOL_PATH: Path = APP_ROOT / "bin" / "pkgtool"
+    INDEX_JSON_FILE_PATH: Path = DATA_ROOT / "index.json"
+    STORE_DB_FILE_PATH: Path = DATA_ROOT / "store.db"
+    INDEX_CACHE_JSON_FILE_PATH: Path = DATA_ROOT / "_cache" / "index-cache.json"
+    STORE_DB_JSON_FILE_PATH: Path = DATA_ROOT / "_cache" / "store.db.json"
+    STORE_DB_MD5_FILE_PATH: Path = DATA_ROOT / "_cache" / "store.db.md5"
+    HOMEBREW_ELF_FILE_PATH: Path = DATA_ROOT / "_cache" / "homebrew.elf"
+    HOMEBREW_ELF_SIG_FILE_PATH: Path = DATA_ROOT / "_cache" / "homebrew.elf.sig"
+    ERRORS_LOG_FILE_PATH: Path = DATA_ROOT / "_error" / "errors.log"
 
 class GlobalEnvs:
-    # APP_NAME: str = env(pyproject_value("name"), "", str)
-    # APP_VERSION: str = env(pyproject_value("version"), "", str)
-    SERVER_IP: str = env("SERVER_IP", "127.0.0.1", str)
-    LOG_LEVEL: str = env("LOG_LEVEL", "info", str)
-    ENABLE_SSL: bool = env("ENABLE_SSL", False, bool)
-    WATCHER_ENABLED: bool = env("WATCHER_ENABLED", True, bool)
-    WATCHER_PERIODIC_SCAN_SECONDS: int = env("WATCHER_PERIODIC_SCAN_SECONDS", 30, int)
-    WATCHER_SCAN_BATCH_SIZE: int = env("WATCHER_SCAN_BATCH_SIZE", 50, int)
-    WATCHER_EXECUTOR_WORKERS: int = env("WATCHER_EXECUTOR_WORKERS", 4, int)
-    WATCHER_SCAN_WORKERS: int = env("WATCHER_SCAN_WORKERS", 4, int)
-    WATCHER_ACCESS_LOG_TAIL: int = env("WATCHER_ACCESS_LOG_TAIL", True, bool)
-    WATCHER_ACCESS_LOG_INTERVAL: int = env("WATCHER_ACCESS_LOG_INTERVAL", 5, int)
-    AUTO_INDEXER_OUTPUT_FORMAT: list[str] = env("AUTO_INDEXER_OUTPUT_FORMAT", ['db','json'], list)
+    APP_NAME: str = _pyproject_value(GlobalFiles.PYPROJECT_PATH,"name","homebrew-store-cdn")
+    APP_VERSION: str = _pyproject_value(GlobalFiles.PYPROJECT_PATH,"version","0.0.1")
+    SERVER_IP: str = _env("SERVER_IP", "127.0.0.1", str)
+    SERVER_PORT: str = _env("SERVER_PORT", "80", str)
+    LOG_LEVEL: str = _env("LOG_LEVEL", "info", str)
+    ENABLE_SSL: bool = _env("ENABLE_SSL", False, bool)
+    WATCHER_ENABLED: bool = _env("WATCHER_ENABLED", True, bool)
+    WATCHER_PERIODIC_SCAN_SECONDS: int = _env("WATCHER_PERIODIC_SCAN_SECONDS", 30, int)
+    WATCHER_SCAN_BATCH_SIZE: int = _env("WATCHER_SCAN_BATCH_SIZE", 50, int)
+    WATCHER_EXECUTOR_WORKERS: int = _env("WATCHER_EXECUTOR_WORKERS", 4, int)
+    WATCHER_SCAN_WORKERS: int = _env("WATCHER_SCAN_WORKERS", 4, int)
+    WATCHER_ACCESS_LOG_TAIL: bool = _env("WATCHER_ACCESS_LOG_TAIL", True, bool)
+    WATCHER_ACCESS_LOG_INTERVAL: int = _env("WATCHER_ACCESS_LOG_INTERVAL", 5, int)
+    AUTO_INDEXER_OUTPUT_FORMAT: list[str] = _env("AUTO_INDEXER_OUTPUT_FORMAT", ['db','json'], list)
+
+    @property
+    def SERVER_URL(self) -> str:
+        scheme = "https" if self.ENABLE_SSL else "http"
+        default_port = 443 if self.ENABLE_SSL else 80
+        return (
+            f"{scheme}://{self.SERVER_IP}"
+            if self.SERVER_PORT == default_port
+            else f"{scheme}://{self.SERVER_IP}:{self.SERVER_PORT}"
+        )
 

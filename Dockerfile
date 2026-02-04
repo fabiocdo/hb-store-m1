@@ -1,34 +1,27 @@
-FROM openorbisofficial/toolchain:latest
+# Stage 1: pega o PkgTool da imagem OpenOrbis
+FROM openorbisofficial/toolchain:latest AS toolchain
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+# Stage 2: runtime rápido com Python 3.11
+FROM python:3.11-slim
 
-# OpenOrbis image runs as non-root user
-USER root
-
-# Install system dependencies
-RUN apt update && apt install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
-    optipng \
-    python3 \
     sqlite3 \
  && rm -rf /var/lib/apt/lists/*
 
-# Use the PkgTool bundled in the official OpenOrbis image
-RUN mkdir -p /app/bin \
- && if command -v PkgTool.Core >/dev/null 2>&1; then ln -s "$(command -v PkgTool.Core)" /app/bin/pkgtool; fi
-
-
-# Copy app files
-COPY entrypoint.sh /entrypoint.sh
-COPY pyproject.toml /app/
-COPY src/ /app/src/
-RUN chmod +x /entrypoint.sh
-
-# Default workdir
 WORKDIR /app
+RUN mkdir -p /app/bin /app/data
 
-# Data volume
-VOLUME ["/data"]
+# Copia o PkgTool.Core do stage toolchain para o runtime
+COPY --from=toolchain /lib/OpenOrbisSDK/bin/linux/PkgTool.Core /app/bin/pkgtool
+RUN chmod +x /app/bin/pkgtool
 
-ENTRYPOINT ["/entrypoint.sh"]
+# deps python
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# app
+COPY pyproject.toml /app/pyproject.toml
+COPY src/ /app/src/
+
+CMD ["python", "-u", "-m", "src"]
