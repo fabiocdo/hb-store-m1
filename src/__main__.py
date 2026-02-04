@@ -1,9 +1,10 @@
-from __future__ import annotations
-
 from src.models.globals import GlobalEnvs, GlobalFiles, GlobalPaths
+from src.models.log_constants import LogLevel, LoggingModule
+from src.utils import log_info, log_debug, log_warn, log_error
+
 
 def welcome():
-    print("Welcome!")
+    print("Welcome! TODO: ADD box")
 
 def init_directories():
     paths = GlobalPaths()
@@ -12,8 +13,11 @@ def init_directories():
 
 def start():
     welcome()
+    log_debug("debug", LoggingModule.AUTO_FORMATTER)
+    log_info("info", LoggingModule.AUTO_FORMATTER)
+    log_warn("warn", LoggingModule.AUTO_FORMATTER)
+    log_error("error", LoggingModule.AUTO_FORMATTER)
     init_directories()
-
 
 if __name__ == "__main__":
     start()

@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 import subprocess
 import shutil
@@ -6,7 +6,7 @@ import tempfile
 import struct
 from pathlib import Path
 import os
-from src.utils.models.pkg_models import ExtractResult, REGION_MAP, APP_TYPE_MAP, SELECTED_FIELDS
+from src.models.extraction_result import ExtractResult, REGION_MAP, APP_TYPE_MAP, SELECTED_FIELDS
 
 
 class PkgUtils:
@@ -28,7 +28,6 @@ class PkgUtils:
         :param: None
         :return: None
         """
-        self.pkgtool_path = os.environ["PKGTOOL_PATH"]
         self.env = {"DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1" }
         self.timeout_seconds = 120
 

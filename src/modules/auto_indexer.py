@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 import json
 import os
@@ -9,7 +9,7 @@ from urllib.parse import quote
 from src.utils.log_utils import log
 from src.modules.models.watcher_models import PlanOutput
 from src.utils.index_cache import load_cache, save_cache, DB_SCHEMA_VERSION
-from src.utils.models.pkg_models import STORE_APP_TYPE_MAP
+from src.models.extraction_result import STORE_APP_TYPE_MAP
 from src.utils.url_utils import build_base_url
 
 

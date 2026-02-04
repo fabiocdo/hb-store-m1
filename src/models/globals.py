@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 import tomllib
 from dataclasses import dataclass
@@ -31,7 +29,7 @@ def _env(name: str, default, type_):
         return default if v == "" else int(v)
 
     if type_ is str:
-        return v
+        return v.upper()
 
     if type_ is list:
         return default if v == "" else [p.strip() for p in v.split(",") if p.strip()]
@@ -73,7 +71,7 @@ class GlobalEnvs:
     APP_VERSION: str = _pyproject_value(GlobalFiles.PYPROJECT_PATH,"version","0.0.1")
     SERVER_IP: str = _env("SERVER_IP", "127.0.0.1", str)
     SERVER_PORT: int = _env("SERVER_PORT", "80", int)
-    LOG_LEVEL: str = _env("LOG_LEVEL", "info", str)
+    LOG_LEVEL: str = _env("LOG_LEVEL", "DEBUG", str)
     ENABLE_SSL: bool = _env("ENABLE_SSL", False, bool)
     WATCHER_ENABLED: bool = _env("WATCHER_ENABLED", True, bool)
     WATCHER_PERIODIC_SCAN_SECONDS: int = _env("WATCHER_PERIODIC_SCAN_SECONDS", 30, int)
