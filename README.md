@@ -72,19 +72,20 @@ services:
 
 ## Environment variables
 
-| Variable | Description | Default |
-|---|---|---|
-| `SERVER_IP` | Host (or host:port) used to build URLs in the index. Scheme is derived from `ENABLE_SSL`. | `127.0.0.1:8080` |
-| `LOG_LEVEL` | Log verbosity: `debug`, `info`, `warn`, `error`. | `info` |
-| `ENABLE_SSL` | Serve Nginx via HTTPS when `true`; otherwise HTTP only. | `false` |
-| `WATCHER_ENABLED` | Master switch for watcher-driven automation. | `true` |
-| `WATCHER_PERIODIC_SCAN_SECONDS` | Periodic scan interval in seconds. | `30` |
-| `WATCHER_SCAN_BATCH_SIZE` | Batch size for PKG scanning (use a large value to effectively disable batching). | `50` |
-| `WATCHER_EXECUTOR_WORKERS` | Number of parallel executor workers for planned batches. | `4` |
-| `WATCHER_SCAN_WORKERS` | Number of parallel scan workers for PKG scanning. | `4` |
-| `WATCHER_ACCESS_LOG_TAIL` | Enable tailing Nginx access log from watcher. | `true` |
-| `WATCHER_ACCESS_LOG_INTERVAL` | Tail interval in seconds. | `5` |
-| `AUTO_INDEXER_OUTPUT_FORMAT` | Output targets: `DB`, `JSON` (comma-separated). | `db,json` |
+| Variable                        | Description                                                                               | Default |
+|---------------------------------|-------------------------------------------------------------------------------------------|---|
+| `SERVER_IP`                     | Host used to build URLs in the index. Scheme is derived from `ENABLE_SSL`.                | `127.0.0.1` |
+| `SERVER_PORT`                   | Port used to build URLs in the index. Scheme is derived from `ENABLE_SSL`. | `80` |
+| `LOG_LEVEL`                     | Log verbosity: `debug`, `info`, `warn`, `error`.                                          | `info` |
+| `ENABLE_SSL`                    | Serve Nginx via HTTPS when `true`; otherwise HTTP only.                                   | `false` |
+| `WATCHER_ENABLED`               | Master switch for watcher-driven automation.                                              | `true` |
+| `WATCHER_PERIODIC_SCAN_SECONDS` | Periodic scan interval in seconds.                                                        | `30` |
+| `WATCHER_SCAN_BATCH_SIZE`       | Batch size for PKG scanning (use a large value to effectively disable batching).          | `50` |
+| `WATCHER_EXECUTOR_WORKERS`      | Number of parallel executor workers for planned batches.                                  | `4` |
+| `WATCHER_SCAN_WORKERS`          | Number of parallel scan workers for PKG scanning.                                         | `4` |
+| `WATCHER_ACCESS_LOG_TAIL`       | Enable tailing Nginx access log from watcher.                                             | `true` |
+| `WATCHER_ACCESS_LOG_INTERVAL`   | Tail interval in seconds.                                                                 | `5` |
+| `AUTO_INDEXER_OUTPUT_FORMAT`    | Output targets: `DB`, `JSON` (comma-separated).                                           | `db,json` |
 
 Notes:
 
