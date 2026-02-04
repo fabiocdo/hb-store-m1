@@ -18,23 +18,23 @@ from src.modules.helpers.watcher_executor import WatcherExecutor
 from src.models import global_files, global_envs, global_paths
 
 class Watcher:
-    """
-    Orchestrates periodic planning, execution, and indexing.
+    
 
-    The watcher runs continuously with a fixed interval and skips work
-    when no changes are detected.
 
-    :param: None
-    :return: None
-    """
+
+
+
+
+
+
 
     def __init__(self):
-        """
-        Initialize watcher dependencies from env.
+        
 
-        :param: None
-        :return: None
-        """
+
+
+
+
         self._access_log_offset = 0
         self._access_log_since = None
         self._access_log_time_re = re.compile(r"\[(?P<ts>[^\]]+)\]")
@@ -62,13 +62,13 @@ class Watcher:
         self.executor = WatcherExecutor(self.pkg_utils, self.formatter, self.sorter)
 
     def _read_access_log(self) -> None:
-        """
-        Read new lines from the access log and emit them as debug logs.
-        Filters out lines that predate watcher initialization.
+        
 
-        :param: None
-        :return: None
-        """
+
+
+
+
+
         LOG_TAIL_ENABLED = global_envs.WATCHER_ACCESS_LOG_ENABLED
         LOGS_PATH = global_paths.LOGS_DIR_PATH
 
@@ -100,12 +100,12 @@ class Watcher:
             log("warn", "Access log tail failed", message=str(exc), module="WATCHER")
 
     def _access_log_worker(self) -> None:
-        """
-        Background worker that tails the access log on an interval.
+        
 
-        :param: None
-        :return: None
-        """
+
+
+
+
         LOG_INTERVAL = global_envs.WATCHER_ACCESS_LOG_INTERVAL
 
         interval = max(1, LOG_INTERVAL)
@@ -114,12 +114,12 @@ class Watcher:
             self._access_log_stop.wait(interval)
 
     def _start_access_log_thread(self) -> None:
-        """
-        Start the access log tail thread if enabled.
+        
 
-        :param: None
-        :return: None
-        """
+
+
+
+
         if not self.access_log_enabled:
             return
         if self._access_log_thread and self._access_log_thread.is_alive():
@@ -135,12 +135,12 @@ class Watcher:
         self._access_log_thread.start()
 
     def _ensure_update_assets(self) -> None:
-        """
-        Ensure HB-Store update assets exist for connectivity.
+        
 
-        :param: None
-        :return: None
-        """
+
+
+
+
         try:
             if self._update_assets_checked:
                 return
@@ -172,12 +172,12 @@ class Watcher:
             log("warn", "Update asset check failed", message=str(exc), module="WATCHER")
 
     def _ensure_store_db_md5(self) -> None:
-        """
-        Ensure store.db.md5 exists for DB hash checks.
+        
 
-        :param: None
-        :return: None
-        """
+
+
+
+
         try:
             cache_dir = Path(os.environ["CACHE_DIR"])
             md5_path = cache_dir / "store.db.md5"
@@ -190,12 +190,12 @@ class Watcher:
             log("warn", "store.db.md5 check failed", message=str(exc), module="WATCHER")
 
     def start(self):
-        """
-        Start the periodic watcher loop.
+        
 
-        :param: None
-        :return: None
-        """
+
+
+
+
         if not self.watcher_enabled:
             log("info", "Watcher is disabled. Skipping...", module="WATCHER")
             return

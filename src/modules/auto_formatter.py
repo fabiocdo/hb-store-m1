@@ -7,23 +7,23 @@ from src.models.formatter_models import FormatterPlanResult
 
 
 class AutoFormatter:
-    """
-    Renames PKG files based on the CONTENT_ID field from SFO metadata.
+    
 
-    :param: None
-    :return: None
-    """
+
+
+
+
 
     PlanResult = FormatterPlanResult
 
     def dry_run(self, pkg: Path, sfo_data: dict) -> tuple[PlanResult, str | None]:
-        """
-        Plan the final PKG filename and check for conflicts.
+        
 
-        :param pkg: Path object representing the source PKG file
-        :param sfo_data: Parsed PARAM.SFO data
-        :return: Tuple of (PlanResult, planned filename or current name)
-        """
+
+
+
+
+
         if not pkg.exists():
             return self.PlanResult.NOT_FOUND, pkg.name
 
@@ -49,13 +49,13 @@ class AutoFormatter:
         return self.PlanResult.OK, planned_name
 
     def run(self, pkg: Path, sfo_data: dict) -> str | None:
-        """
-        Rename the PKG file based on SFO metadata.
+        
 
-        :param pkg: Path object representing the PKG file
-        :param sfo_data: Parsed PARAM.SFO data
-        :return: New filename if renamed, otherwise None
-        """
+
+
+
+
+
         plan_result, planned_name = self.dry_run(pkg, sfo_data)
 
         if plan_result == self.PlanResult.NOT_FOUND:
