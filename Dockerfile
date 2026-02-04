@@ -1,22 +1,39 @@
 # Stage 1: Orbis Toolchain
 FROM openorbisofficial/toolchain:latest AS toolchain
 
-# Stage 2: Python 3.12 Runtime
+# Stage 2: Runtime
 FROM python:3.12-slim
 
-RUN python -m pip install --no-cache-dir requests
-
-# Stage 3: Application dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     sqlite3 \
+    nginx \
  && rm -rf /var/lib/apt/lists/*
 
-# Stage 4: Application
+RUN python -m pip install --no-cache-dir requests
+
 WORKDIR /app
 COPY src/ /app
+
+RUN mkdir -p /app/bin
 COPY --from=toolchain /lib/OpenOrbisSDK/bin/linux/PkgTool.Core /app/bin/pkgtool
 RUN chmod +x /app/bin/pkgtool
 
+# Default configs (settings, certs, helpers)
+COPY configs/ /app/configs/
+
+# Bake nginx base config + locations
+COPY configs/nginx/nginx.template.conf /etc/nginx/nginx.conf
+COPY configs/nginx/common.locations.conf /etc/nginx/templates/common.locations.conf
+
+# Entrypoint
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh \
+ && mkdir -p /app/data /var/log/nginx /tmp/nginx \
+ && mkdir -p /tmp/nginx/client_body /tmp/nginx/proxy /tmp/nginx/fastcgi /tmp/nginx/uwsgi /tmp/nginx/scgi \
+ && mkdir -p /etc/nginx/conf.d
+
 ENV PYTHONPATH=/app
-CMD ["python", "main.py"]
+ENV CONFIG_DIR=/app/configs
+EXPOSE 80 443
+ENTRYPOINT ["/entrypoint.sh"]

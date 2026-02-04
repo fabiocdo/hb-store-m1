@@ -12,61 +12,37 @@
 
 ## Quick start
 
-Ensure you have `configs/` with `settings.env`, `nginx.conf`, and `nginx.http.conf`. The app mounts configs at `/app/configs` and the Nginx service reads them from `/configs`.
-This setup runs as two services: the app (watcher/indexer) and Nginx (static server).
+The image bundles the watcher/indexer and nginx inside a single container. Update `./configs/settings.env` with the host, port, and `ENABLE_SSL` switch you want (the repository ships with a minimal example under `configs/settings.env`), and drop TLS files into `./configs/certs/` when HTTPS should be enabled. At startup the entrypoint sources that file, so changing the scheme, logging level, or any of the optional `WATCHER_*` / `AUTO_INDEXER_*` overrides only requires editing `configs/settings.env` (you can still layer additional `-e` flags or `--env-file` overrides when you run the container). `SERVER_IP`, `SERVER_PORT`, and `ENABLE_SSL` also control the `SERVER_URL` the indexer embeds in each entry, so make sure they match how clients reach the service.
+
+Mount your PKG directory and caches at `./data` so the watcher and nginx can share `/app/data`.
 
 ### Docker run
 
 ```bash
 docker run -d \
   --name homebrew-store-cdn \
-  --env-file ./configs/settings.env \
-  -v ./data:/data \
-  -v ./configs:/app/configs:ro \
-  fabiocdo/homebrew-store-cdn:latest
-
-docker run -d \
-  --name homebrew-store-cdn-nginx \
-  --env-file ./configs/settings.env \
   -p 80:80 \
   -p 443:443 \
-  -v ./data:/data \
-  -v ./configs:/configs:ro \
-  -v ./nginx/entrypoint.d/99-config.sh:/docker-entrypoint.d/99-config.sh:ro \
-  -v ./certs:/etc/nginx/certs:ro \
-  nginx:1.27-alpine
+  -v ./data:/app/data \
+  -v ./configs:/app/configs:ro \
+  fabiocdo/homebrew-store-cdn:latest
 ```
 
 ### Docker Compose
 
 ```yaml
+version: "3.9"
 services:
   homebrew-store-cdn:
     build: .
     image: fabiocdo/homebrew-store-cdn:latest
     container_name: homebrew-store-cdn
-    env_file:
-      - ./configs/settings.env
-    volumes:
-      - ./data:/data
-      - ./configs:/app/configs:ro
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: homebrew-store-cdn-nginx
-    depends_on:
-      - homebrew-store-cdn
     ports:
       - "80:80"
       - "443:443"
-    env_file:
-      - ./configs/settings.env
     volumes:
-      - ./data:/data
-      - ./configs:/configs:ro
-      - ./nginx/entrypoint.d/99-config.sh:/docker-entrypoint.d/99-config.sh:ro
-      - ./certs:/etc/nginx/certs:ro
+      - ./data:/app/data
+      - ./configs:/app/configs:ro
     restart: unless-stopped
 ```
 
@@ -75,9 +51,11 @@ services:
 | Variable                        | Description                                                                               | Default |
 |---------------------------------|-------------------------------------------------------------------------------------------|---|
 | `SERVER_IP`                     | Host used to build URLs in the index. Scheme is derived from `ENABLE_SSL`.                | `127.0.0.1` |
-| `SERVER_PORT`                   | Port used to build URLs in the index. Scheme is derived from `ENABLE_SSL`. | `80` |
+| `SERVER_PORT`                   | Port used to build URLs in the index. Scheme is derived from `ENABLE_SSL`.                | `80` |
 | `LOG_LEVEL`                     | Log verbosity: `debug`, `info`, `warn`, `error`.                                          | `info` |
-| `ENABLE_SSL`                    | Serve Nginx via HTTPS when `true`; otherwise HTTP only.                                   | `false` |
+| `ENABLE_SSL`                    | Serve Nginx via HTTPS when `true`; otherwise HTTP only. Controls the `SERVER_URL` scheme. | `false` |
+| `TLS_CRT`                      | Path to the certificate used when HTTPS is enabled (defaults to the files in `configs/certs/`). | `/app/configs/certs/tls.crt` |
+| `TLS_KEY`                      | Path to the private key used when HTTPS is enabled (defaults to the files in `configs/certs/`). | `/app/configs/certs/tls.key` |
 | `WATCHER_ENABLED`               | Master switch for watcher-driven automation.                                              | `true` |
 | `WATCHER_PERIODIC_SCAN_SECONDS` | Periodic scan interval in seconds.                                                        | `30` |
 | `WATCHER_SCAN_BATCH_SIZE`       | Batch size for PKG scanning (use a large value to effectively disable batching).          | `50` |
@@ -89,39 +67,29 @@ services:
 
 Notes:
 
+- The runtime sources `configs/settings.env` before starting the watcher, so updating that file is all you need to tweak `SERVER_*`, `ENABLE_SSL`, `LOG_LEVEL`, or any optional watcher/index overrides; you can still layer extra `-e` / `--env-file` overrides when you run the container.
 - `WATCHER_ENABLED=false` stops all automation.
 - `AUTO_INDEXER_OUTPUT_FORMAT` controls output: include `JSON` to write `index.json`, include `DB` to update `store.db`.
-- When `ENABLE_SSL=true`, mount TLS certs at `/etc/nginx/certs` for the Nginx service.
+- When `ENABLE_SSL=true`, drop TLS certificates under `configs/certs/` (or point `TLS_CRT`/`TLS_KEY` somewhere else) so the entrypoint can configure HTTPS.
 - `SERVER_IP` should be just the host (or host:port) without `http://` or `https://`.
 - Ensure `SERVER_IP` matches the host/port used by clients, and toggle `ENABLE_SSL` to select the scheme.
-- Data paths are fixed to `/data` inside the container.
-- Conflicts are moved to `/data/_error/` with a reason appended to `/data/_logs/errors.log`.
-- Access log tailing writes lines as `WATCHER` debug logs.
+- Data paths are fixed to `/app/data` inside the container.
+- Conflicts are moved to `/app/data/_error/` with a reason appended to `/app/data/_logs/errors.log`.
+- Access log tailing writes lines as `WATCHER` debug logs (`/app/data/_logs/access.log`).
 
 ## Volumes
 
-### App service
-
 | Volume | Description | Default |
 |---|---|---|
-| `./data:/data` | Host data directory mapped to `/data`. | `./data` |
-| `./configs:/app/configs:ro` | Config directory (required): `settings.env`, `nginx.conf`, `nginx.http.conf`. | `./configs` |
-
-### Nginx service
-
-| Volume | Description | Default |
-|---|---|---|
-| `./data:/data` | Data directory served by Nginx (logs are written here). | `./data` |
-| `./configs:/configs:ro` | Config directory used by the Nginx entrypoint script. | `./configs` |
-| `./nginx/entrypoint.d/99-config.sh:/docker-entrypoint.d/99-config.sh:ro` | Selects the HTTP/HTTPS config based on `ENABLE_SSL`. | `./nginx/entrypoint.d/99-config.sh` |
-| `./certs:/etc/nginx/certs:ro` | TLS certificates (required for HTTPS). | `./certs` |
+| `./data:/app/data` | PKG tree, caches, logs, and generated indexes served by both the watcher and nginx. | `./data` |
+| `./configs:/app/configs:ro` | Configuration directory containing `settings.env` and (when HTTPS is enabled) TLS material under `configs/certs/`. | `./configs` |
 
 ## Data layout
 
-The `/data` volume follows this layout:
+The `/app/data` volume follows this layout:
 
 ```
-/data
+/app/data
 |-- pkg/
 |   |-- game/
 |   |-- update/
@@ -185,8 +153,8 @@ Example payload:
 - Periodically scans `pkg/` and orchestrates the pipeline.
 - Uses `WATCHER_PERIODIC_SCAN_SECONDS` for the scan interval.
 - Skips execution when cache detects no changes.
-- When `WATCHER_ACCESS_LOG_TAIL=true`, tails `/data/_logs/access.log` in a background thread.
-- Downloads missing HB-Store update assets into `/data/_cache/`.
+- When `WATCHER_ACCESS_LOG_TAIL=true`, tails `/app/data/_logs/access.log` in a background thread.
+- Downloads missing HB-Store update assets into `/app/data/_cache/`.
 
 ### Auto Formatter (`src/modules/auto_formatter.py`)
 
@@ -215,7 +183,7 @@ Example payload:
 ### WatcherExecutor (`src/modules/helpers/watcher_executor.py`)
 
 - Executes the plan in order: move errors, extract icons, rename/sort PKGs.
-- Appends reasons to `/data/_logs/errors.log` when rejecting.
+- Appends reasons to `/app/data/_logs/errors.log` when rejecting.
 - Returns execution stats (moves, renames, extractions, errors, skipped).
 
 ## Utils
@@ -279,20 +247,20 @@ Watcher.start()
 
 ## Nginx behavior
 
-- Serves `/data` directly and supports HTTP range requests for `.pkg`.
+- Serves `/app/data` directly and supports HTTP range requests for `.pkg`.
 - `index.json` and `store.db` are served with `no-store` to avoid stale caches.
 - Images and PKGs use long-lived cache headers.
-- Access logs are written to `/data/_logs/access.log` (tail with `tail -f`).
-- Update endpoints are served from `/data/_cache/`:
+- Access logs are written to `/app/data/_logs/access.log` (tail with `tail -f`).
+- Update endpoints are served from `/app/data/_cache/`:
   - `/update/remote.md5`
   - `/update/homebrew.elf`
   - `/update/homebrew.elf.sig`
   - `/update/store.prx`
   - `/update/store.prx.sig`
-- `/api.php?db_check_hash=true` returns `/data/_cache/store.db.json`.
+- `/api.php?db_check_hash=true` returns `/app/data/_cache/store.db.json`.
 
 ## Troubleshooting
 
-- If the index is not updating, delete `/data/_cache/index-cache.json` to force a rebuild.
-- If files are stuck in `_error/`, check `/data/_logs/errors.log` for the reason.
+- If the index is not updating, delete `/app/data/_cache/index-cache.json` to force a rebuild.
+- If files are stuck in `_error/`, check `/app/data/_logs/errors.log` for the reason.
 - Ensure `SERVER_IP` matches the host and port used by clients.

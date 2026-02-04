@@ -8,7 +8,6 @@
       <excludeFolder url="file://$MODULE_DIR$/src/utils/bin" />
       <excludeFolder url="file://$MODULE_DIR$/example/certs" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
-      <excludeFolder url="file://$MODULE_DIR$/configs" />
       <excludeFolder url="file://$MODULE_DIR$/configs/nginx/certs" />
       <excludeFolder url="file://$MODULE_DIR$/logs" />
     </content>

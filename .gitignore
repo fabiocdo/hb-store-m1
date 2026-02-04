@@ -3,12 +3,5 @@ __pycache__/
 **/__pycache__/
 data/
 bin/
-certs/
-configs/
-logs/
-
-*.env
-*.conf
-docker-compose.yml
-
-!example/**
+certs/*
+logs/*
