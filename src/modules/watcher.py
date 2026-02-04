@@ -15,7 +15,7 @@ from src.modules.auto_indexer import AutoIndexer
 from src.modules.helpers.watcher_planner import WatcherPlanner
 from src.modules.helpers.watcher_executor import WatcherExecutor
 
-from src import global_files, global_envs, global_paths
+from src.models import global_files, global_envs, global_paths
 
 class Watcher:
     """

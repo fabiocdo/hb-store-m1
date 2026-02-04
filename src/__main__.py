@@ -1,23 +1,30 @@
 from __future__ import annotations
 
-from src import global_files, global_envs, global_paths
+from src.models.globals import GlobalEnvs, GlobalFiles, GlobalPaths
 
 
 def start() -> None:
+    gp = GlobalPaths()
+    gf = GlobalFiles()
+    ge = GlobalEnvs()
+
     print("GLOBAL_PATHS")
-    for k in vars(global_paths):
-        print(f"{k}={getattr(global_paths, k)}")
+    for k, v in vars(gp).items():
+        print(f"{k}={v}")
 
     print("\nGLOBAL_FILES")
-    for k in vars(global_files):
-        print(f"{k}={getattr(global_files, k)}")
+    for k, v in vars(gf).items():
+        print(f"{k}={v}")
 
     print("\nGLOBAL_ENVS")
-    for k in vars(global_envs):
-        print(f"{k}={getattr(global_envs, k)}")
+    for k in dir(ge):
+        if k.startswith("_"):
+            continue
+        v = getattr(ge, k)
+        if callable(v):
+            continue
+        print(f"{k}={v}")
 
-    print("\nSERVER_URL")
-    print(global_envs.SERVER_URL)
 
 if __name__ == "__main__":
     start()
