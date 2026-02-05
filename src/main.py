@@ -3,13 +3,34 @@ from src.utils import log_debug
 from tabulate import tabulate
 
 def welcome():
-    app_title = f"""
-█ █ █▀▄     █▀▀ ▀█▀ █▀█ █▀▄ █▀▀     █▄█ ▀█ 
-█▀█ █▀▄ ▄▄▄ ▀▀█  █  █ █ █▀▄ █▀▀ ▄▄▄ █ █  █ 
-▀ ▀ ▀▀      ▀▀▀  ▀  ▀▀▀ ▀ ▀ ▀▀▀     ▀ ▀ ▀▀▀
-v{Global.ENVS.APP_VERSION}
+    app_banner = f"""
+    █ █ █▀▄     █▀▀ ▀█▀ █▀█ █▀▄ █▀▀     █▄█ ▀█ 
+    █▀█ █▀▄ ▄▄▄ ▀▀█  █  █ █ █▀▄ █▀▀ ▄▄▄ █ █  █ 
+    ▀ ▀ ▀▀      ▀▀▀  ▀  ▀▀▀ ▀ ▀ ▀▀▀     ▀ ▀ ▀▀▀
+                                         v{Global.ENVS.APP_VERSION}
     """
-    print(tabulate([[app_title]], tablefmt="rounded_grid"))
+    print(app_banner)
+    rows = []
+    items = [
+        ("SERVER_URL", Global.ENVS.SERVER_URL),
+        ("ENABLE_TLS", Global.ENVS.ENABLE_TLS),
+        ("LOG_LEVEL", Global.ENVS.LOG_LEVEL),
+        ("WATCHER_ENABLED", Global.ENVS.WATCHER_ENABLED),
+        ("WATCHER_PERIODIC_SCAN_SECONDS", Global.ENVS.WATCHER_PERIODIC_SCAN_SECONDS),
+        ("WATCHER_SCAN_BATCH_SIZE", Global.ENVS.WATCHER_SCAN_BATCH_SIZE),
+        ("WATCHER_EXECUTOR_WORKERS", Global.ENVS.WATCHER_EXECUTOR_WORKERS),
+        ("WATCHER_SCAN_WORKERS", Global.ENVS.WATCHER_SCAN_WORKERS),
+        ("WATCHER_ACCESS_LOG_TAIL", Global.ENVS.WATCHER_ACCESS_LOG_TAIL),
+        ("WATCHER_ACCESS_LOG_INTERVAL", Global.ENVS.WATCHER_ACCESS_LOG_INTERVAL),
+        ("AUTO_INDEXER_OUTPUT_FORMAT", Global.ENVS.AUTO_INDEXER_OUTPUT_FORMAT),
+    ]
+    for key, value in items:
+        if isinstance(value, list):
+            value = ", ".join(str(v) for v in value)
+        rows.append([key, value])
+
+    print(tabulate(rows, tablefmt="fancy_outline"))
+
 
 def init_directories():
     log_debug("Initializing directories...")
