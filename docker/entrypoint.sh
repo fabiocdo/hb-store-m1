@@ -11,7 +11,7 @@ if [ ! -f "$SETTINGS_FILE" ]; then
   cat <<'EOF' > "$SETTINGS_FILE"
 # Server Configuration
 # Host clients use to reach the service. Value type: string.
-SERVER_IP=0.0.0.0
+SERVER_IP=127.0.0.1
 # Port that nginx listens on inside the container. Value type: integer.
 SERVER_PORT=80
 # Set true to serve TLS/HTTPS; If enabled, "tls.crt" and "tls.key" are required and must live under configs/certs/. Value type: boolean.
@@ -103,5 +103,5 @@ fi
 nginx -t
 
 # Start the watcher (background) and run nginx in the foreground
-python -m main &
+python -m src.main &
 exec nginx -g 'daemon off;'

@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m pip install --no-cache-dir requests
 
 WORKDIR /app
-COPY src/ /app
+COPY src/ /app/src
 
 RUN mkdir -p /app/bin
 COPY --from=toolchain /lib/OpenOrbisSDK/bin/linux/PkgTool.Core /app/bin/pkgtool
