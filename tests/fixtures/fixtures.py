@@ -45,7 +45,7 @@ SFO_SAVE = {
 SFO_UNKNOWN = {
     "title": "Unknown Title",
     "title_id": "XXXX00000",
-    "app_type": "_unknown",
+    "app_type": "unknown",
     "region": "XX",
     "version": "00.00",
     "category": "xx",

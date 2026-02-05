@@ -33,7 +33,7 @@ def _env(name: str, default, type_):
         return v.upper()
 
     if type_ is list:
-        return default if v == "" else [p.strip() for p in v.split(",") if p.strip()]
+        return default.upper() if v == "" else [p.strip().upper() for p in v.split(",") if p.strip()]
 
     raise TypeError(f"Unsupported type {type_}")
 
@@ -52,7 +52,7 @@ class GlobalPaths:
     DLC_DIR_PATH: _Path = PKG_DIR_PATH / "dlc"
     UPDATE_DIR_PATH: _Path = PKG_DIR_PATH / "update"
     SAVE_DIR_PATH: _Path = PKG_DIR_PATH / "save"
-    UNKNOWN_DIR_PATH: _Path = PKG_DIR_PATH / "_unknown"
+    UNKNOWN_DIR_PATH: _Path = PKG_DIR_PATH / "unknown"
 
 
 @dataclass(frozen=True)
@@ -118,7 +118,7 @@ class GlobalEnvs:
         self.WATCHER_ACCESS_LOG_TAIL: bool = _env("WATCHER_ACCESS_LOG_TAIL", True, bool)
         self.WATCHER_ACCESS_LOG_INTERVAL: int = _env("WATCHER_ACCESS_LOG_INTERVAL", 5, int)
         self.AUTO_INDEXER_OUTPUT_FORMAT: list[str] = _env(
-            "AUTO_INDEXER_OUTPUT_FORMAT", ["db", "json"], list
+            "AUTO_INDEXER_OUTPUT_FORMAT", ["DB", "JSON"], list
         )
 
     @property

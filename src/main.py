@@ -1,14 +1,14 @@
-from src.models.globals import Global
-from src.utils import log_debug
+from models import Global
+from utils import log_debug, scan_pkgs
 from tabulate import tabulate
+
 
 def welcome():
     app_banner = f"""
     █ █ █▀▄     █▀▀ ▀█▀ █▀█ █▀▄ █▀▀     █▄█ ▀█ 
     █▀█ █▀▄ ▄▄▄ ▀▀█  █  █ █ █▀▄ █▀▀ ▄▄▄ █ █  █ 
     ▀ ▀ ▀▀      ▀▀▀  ▀  ▀▀▀ ▀ ▀ ▀▀▀     ▀ ▀ ▀▀▀
-                                         v{Global.ENVS.APP_VERSION}
-    """
+    v{Global.ENVS.APP_VERSION}"""
     print(app_banner)
     rows = []
     items = [
@@ -41,9 +41,13 @@ def init_directories():
 
     log_debug("Directories OK.")
 
+
 def start():
-    welcome()
+    # welcome()
     init_directories()
+    # Start watcher
+    scan_pkgs()
+
 
 if __name__ == "__main__":
     start()

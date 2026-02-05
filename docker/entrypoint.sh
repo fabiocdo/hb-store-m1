@@ -34,8 +34,8 @@ WATCHER_SCAN_WORKERS=4
 WATCHER_ACCESS_LOG_TAIL=true
 # Seconds between access-log tail outputs. Value type: integer.
 WATCHER_ACCESS_LOG_INTERVAL=5
-# Comma-separated list (db | json); include `json` to write index.json and `db` to update store.db. Value type: string list.
-AUTO_INDEXER_OUTPUT_FORMAT=db,json
+# Comma-separated list (DB | JSON); include `JSON` to write index.json and `DB` to update store.db. Value type: string list.
+AUTO_INDEXER_OUTPUT_FORMAT=DB,JSON
 EOF
   echo "[info] Generated default settings.env at $SETTINGS_FILE"
 fi

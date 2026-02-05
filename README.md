@@ -95,7 +95,7 @@ The `/app/data` volume follows this layout:
 |   |-- update/
 |   |-- dlc/
 |   |-- save/
-|   |-- _unknown/
+|   |-- unknown/
 |   |-- _media/          # extracted icons
 |   |-- _PUT_YOUR_PKGS_HERE
 |   |-- *.pkg
@@ -163,7 +163,7 @@ Example payload:
 
 ### Auto Sorter (`src/modules/auto_sorter.py`)
 
-- Moves PKGs into `game/`, `dlc/`, `update/`, `save/`, or `_unknown/` based on `app_type`.
+- Moves PKGs into `game/`, `dlc/`, `update/`, `save/`, or `unknown/` based on `app_type`.
 - Moves conflicts to `_error/`.
 
 ### Auto Indexer (`src/modules/auto_indexer.py`)
