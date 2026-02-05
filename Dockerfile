@@ -10,12 +10,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
  && rm -rf /var/lib/apt/lists/*
 
-RUN python -m pip install --no-cache-dir requests
-
 WORKDIR /app
 COPY src/ /app/src
+COPY pyproject.toml /app/
 
+RUN pip install --no-cache-dir -U pip setuptools wheel \
+ && pip install --no-cache-dir .
 RUN mkdir -p /app/bin
+
 COPY --from=toolchain /lib/OpenOrbisSDK/bin/linux/PkgTool.Core /app/bin/pkgtool
 RUN chmod +x /app/bin/pkgtool
 

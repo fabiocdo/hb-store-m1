@@ -1,3 +1,7 @@
 [project]
 name = "HB-STORE-M1"
-version = "1.2.2"
+version = "0.2.2"
+
+dependencies = [
+    "tabulate"
+]

@@ -1,10 +1,15 @@
 from src.models.globals import Global
-from src.models.log import LoggingModule
-from src.utils import log_debug, log_info, log_warn, log_error
-
+from src.utils import log_debug
+from tabulate import tabulate
 
 def welcome():
-    print("Welcome! TODO: ADD box")
+    app_title = f"""
+█ █ █▀▄     █▀▀ ▀█▀ █▀█ █▀▄ █▀▀     █▄█ ▀█ 
+█▀█ █▀▄ ▄▄▄ ▀▀█  █  █ █ █▀▄ █▀▀ ▄▄▄ █ █  █ 
+▀ ▀ ▀▀      ▀▀▀  ▀  ▀▀▀ ▀ ▀ ▀▀▀     ▀ ▀ ▀▀▀
+v{Global.ENVS.APP_VERSION}
+    """
+    print(tabulate([[app_title]], tablefmt="rounded_grid"))
 
 def init_directories():
     log_debug("Initializing directories...")
