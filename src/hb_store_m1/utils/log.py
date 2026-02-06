@@ -1,18 +1,23 @@
 import datetime
 
-from src.models import Global
-from src.models.log import LogLevel, LoggingModule, LogColor
+from hb_store_m1.models.globals import Global
+from hb_store_m1.models.log import LogLevel, LoggingModule, LogColor
 
 LOG_PRIORITY: LogLevel = LogLevel[Global.ENVS.LOG_LEVEL.upper()].priority()
+
 
 class LogUtils:
 
     @staticmethod
     def _log(log_level: LogLevel, message=None, module: LoggingModule | None = None):
-        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        )
         log_color = log_level.color()
 
-        module_log_tag = "" if not module else f"{module.color()}[{module.name}] {LogColor.RESET}"
+        module_log_tag = (
+            "" if not module else f"{module.color()}[{module.name}] {LogColor.RESET}"
+        )
 
         print(f"{timestamp} | {module_log_tag}{log_color}{message}{LogColor.RESET}")
 
@@ -35,6 +40,7 @@ class LogUtils:
     def log_error(message=None, module: LoggingModule | None = None):
         if LOG_PRIORITY <= LogLevel.ERROR.priority():
             LogUtils._log(LogLevel.ERROR, message, module)
+
 
 log_debug = LogUtils.log_debug
 log_info = LogUtils.log_info

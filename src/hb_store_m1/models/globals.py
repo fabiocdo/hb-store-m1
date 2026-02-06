@@ -33,7 +33,11 @@ def _env(name: str, default, type_):
         return v.upper()
 
     if type_ is list:
-        return default.upper() if v == "" else [p.strip().upper() for p in v.split(",") if p.strip()]
+        return (
+            default.upper()
+            if v == ""
+            else [p.strip().upper() for p in v.split(",") if p.strip()]
+        )
 
     raise TypeError(f"Unsupported type {type_}")
 
@@ -111,12 +115,16 @@ class GlobalEnvs:
         self.ENABLE_TLS: bool = _env("ENABLE_TLS", False, bool)
 
         self.WATCHER_ENABLED: bool = _env("WATCHER_ENABLED", True, bool)
-        self.WATCHER_PERIODIC_SCAN_SECONDS: int = _env("WATCHER_PERIODIC_SCAN_SECONDS", 30, int)
+        self.WATCHER_PERIODIC_SCAN_SECONDS: int = _env(
+            "WATCHER_PERIODIC_SCAN_SECONDS", 30, int
+        )
         self.WATCHER_SCAN_BATCH_SIZE: int = _env("WATCHER_SCAN_BATCH_SIZE", 50, int)
         self.WATCHER_EXECUTOR_WORKERS: int = _env("WATCHER_EXECUTOR_WORKERS", 4, int)
         self.WATCHER_SCAN_WORKERS: int = _env("WATCHER_SCAN_WORKERS", 4, int)
         self.WATCHER_ACCESS_LOG_TAIL: bool = _env("WATCHER_ACCESS_LOG_TAIL", True, bool)
-        self.WATCHER_ACCESS_LOG_INTERVAL: int = _env("WATCHER_ACCESS_LOG_INTERVAL", 5, int)
+        self.WATCHER_ACCESS_LOG_INTERVAL: int = _env(
+            "WATCHER_ACCESS_LOG_INTERVAL", 5, int
+        )
         self.AUTO_INDEXER_OUTPUT_FORMAT: list[str] = _env(
             "AUTO_INDEXER_OUTPUT_FORMAT", ["DB", "JSON"], list
         )
@@ -138,6 +146,7 @@ class GlobalEnvs:
             if self.SERVER_PORT == default_port
             else f"{scheme}://{self.SERVER_IP}:{self.SERVER_PORT}"
         )
+
 
 class Global:
     PATHS = GlobalPaths()

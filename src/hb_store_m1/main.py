@@ -1,6 +1,7 @@
-from models import Global
-from utils import log_debug, scan_pkgs
 from tabulate import tabulate
+
+from hb_store_m1.models import Global
+from hb_store_m1.utils import log_debug, scan_pkgs
 
 
 def welcome():
@@ -42,12 +43,8 @@ def init_directories():
     log_debug("Directories OK.")
 
 
-def start():
+def main():
     # welcome()
     init_directories()
     # Start watcher
     scan_pkgs()
-
-
-if __name__ == "__main__":
-    start()

@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class LogColor(Enum):
     def __str__(self):
         return self.value
@@ -30,6 +31,7 @@ class LoggingModule(Enum):
     def color(self):
         return self.value
 
+
 class LogLevel(Enum):
     DEBUG = [0, LogColor.GRAY]
     INFO = [1, LogColor.WHITE]
@@ -39,5 +41,6 @@ class LogLevel(Enum):
 
     def priority(self):
         return self.value[0]
+
     def color(self):
         return self.value[1]

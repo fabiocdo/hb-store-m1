@@ -103,5 +103,5 @@ fi
 nginx -t
 
 # Start the watcher (background) and run nginx in the foreground
-python -m src.main &
+python -m hb_store_m1 &
 exec nginx -g 'daemon off;'

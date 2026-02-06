@@ -1,7 +1,18 @@
 [project]
-name = "HB-STORE-M1"
+name = "hb-store-m1"
 version = "0.2.2"
-
+requires-python = ">=3.12"
 dependencies = [
-    "tabulate"
+    "tabulate",
 ]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["hb_store_m1*"]

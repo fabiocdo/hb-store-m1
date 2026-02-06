@@ -1,6 +1,15 @@
 from enum import Enum
 
+
 class PKG:
+
+    class PKGToolCommands(Enum):
+        def __str__(self):
+            return self.value
+
+        LIST_ENTRIES = "pkg_listentries"
+        EXTRACT_ENTRIES = "pkg_extractentry"
+
     class Region(Enum):
         UP = "USA"
         EP = "EUR"
