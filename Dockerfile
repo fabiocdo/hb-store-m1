@@ -30,6 +30,7 @@ RUN python -m pip install --no-cache-dir -U pip \
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 COPY --from=toolchain /lib/OpenOrbisSDK/bin/linux/PkgTool.Core /usr/local/bin/pkgtool
 RUN chmod +x /usr/local/bin/pkgtool
+RUN mkdir -p /app/bin && ln -sf /usr/local/bin/pkgtool /app/bin/pkgtool
 
 COPY docker/nginx/nginx.template.conf /etc/nginx/nginx.conf
 COPY docker/nginx/common.locations.conf /etc/nginx/templates/common.locations.conf

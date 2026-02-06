@@ -1,43 +1,75 @@
-# import subprocess
 # import shutil
 # import tempfile
 # import struct
+import subprocess
 from pathlib import Path
+from subprocess import CompletedProcess
 
-from hb_store_m1.models import Global
+from hb_store_m1.models import Global, PKG
 from hb_store_m1.utils.log import log_info
 
 # import os
 # from src.models.extraction_result import ExtractResult, REGION_MAP, APP_TYPE_MAP, SELECTED_FIELDS
 
 
+def _run_pkgtool(pkg: Path, command: PKG.ToolCommand):
+
+    # args = [Global.FILES.PKGTOOL, command, command, pkg] # TODO remove
+    args = [
+        "/home/fabio/dev/hb-store-m1/src/hb_store_m1/utils/bin/pkgtool",
+        command,
+        pkg,
+    ]
+    return subprocess.run(
+        args,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        timeout=120,
+    )
+
+
 class PkgUtils:
-    # ExtractResult = ExtractResult
-    #
-    # def __init__(self):
-    #
-    #     self.env = {"DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1"}
-    #     self.timeout_seconds = 120
 
     @staticmethod
-    def _run_pkgtool(pkg: Path):
-
-        args = [
-            Global.FILES.PKGTOOL_PATH,
-        ]
-
-        # return subprocess.run()
-
-    @staticmethod
-    def scan_pkgs():
+    def scan():
 
         log_info("Scanning PKGs...")
         scanned_pkgs = list(
             Path(Global.PATHS.PKG_DIR_PATH).rglob("*.pkg", case_sensitive=False)
         )
-        log_info("Scanned {} packages".format(len(scanned_pkgs)))
+        log_info(f"Scanned {len(scanned_pkgs)} packages")
 
         return scanned_pkgs
+
+    @staticmethod
+    def validate(pkg: Path):
+        result: CompletedProcess
+        try:
+            # TODO Capturar saude do pkg, param, icon0, pic0, pic1,
+            # PKG = {
+            #     "Content Digest",
+            #     "PKG Header Digest",
+            #     "PKG Header Signature",
+            #     "Body Digest",
+            #     "PFS Signed Digest",
+            #     "PFS Image Digest",
+            # }
+            # MEDIA = {
+            #     "ICON0_PNG digest",
+            #     "PIC0_PNG digest",
+            #     "PIC1_PNG digest",
+            # }
+            result = _run_pkgtool(pkg, PKG.ToolCommand.VALIDATE_PKG)
+            print(result.stdout)
+        except subprocess.CalledProcessError as e:
+            print(e.output)
+            # TODO jogar pro error_dir com mensagem custom
+
+    @staticmethod
+    def extract_data(pkg: Path):
+        pass  # TODO implement
 
     # @staticmethod
     # def extract_pkg_data(
@@ -278,5 +310,6 @@ class PkgUtils:
     #     return final_path
 
 
-def scan_pkgs():
-    return PkgUtils.scan_pkgs()
+scan = PkgUtils.scan
+extract_data = PkgUtils.extract_data
+validate = PkgUtils.validate

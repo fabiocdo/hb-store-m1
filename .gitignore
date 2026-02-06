@@ -8,3 +8,5 @@ bin/
 configs/
 */certs/
 logs/*
+
+TODO.txt

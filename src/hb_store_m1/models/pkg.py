@@ -1,14 +1,17 @@
-from enum import Enum
+from enum import Enum, StrEnum
 
 
 class PKG:
 
-    class PKGToolCommands(Enum):
-        def __str__(self):
-            return self.value
-
-        LIST_ENTRIES = "pkg_listentries"
-        EXTRACT_ENTRIES = "pkg_extractentry"
+    # Usage: LIST_PKG_ENTRIES <input.pkg>
+    # Usage: LIST_SFO_ENTRIES <param.sfo>
+    # Usage: EXTRACT_PKG_ENTRY <input.pkg> <entry_id> <output.bin>
+    # Usage: VALIDATE_PKG [--verbose] <input.pkg>
+    class ToolCommand(StrEnum):
+        LIST_PKG_ENTRIES = "pkg_listentries"
+        LIST_SFO_ENTRIES = "sfo_listentries"
+        EXTRACT_PKG_ENTRY = "pkg_extractentry"
+        VALIDATE_PKG = "pkg_validate"
 
     class Region(Enum):
         UP = "USA"
