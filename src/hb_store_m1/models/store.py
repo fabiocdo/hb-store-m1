@@ -1,13 +1,12 @@
-from enum import Enum
+from enum import StrEnum
 
 
 class Store:
-    class AppType(Enum):
-
+    class AppType(StrEnum):
         GAME = "game"
         UPDATE = "patch"
         DLC = "dlc"
         THEME = "theme"
         APP = "app"
         SAVE = "other"
-        OTHER = "Other"
+        OTHER = "other"

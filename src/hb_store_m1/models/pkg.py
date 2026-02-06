@@ -1,49 +1,66 @@
-from enum import Enum, StrEnum
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import StrEnum
 
 
+class EntryKey(StrEnum):
+    PARAM_SFO = "PARAM_SFO"
+    ICON0_PNG = "ICON0_PNG"
+    PIC0_PNG = "PIC0_PNG"
+    PIC1_PNG = "PIC1_PNG"
+
+
+class ParamSFOKey(StrEnum):
+    APP_VER = "APP_VER"
+    CATEGORY = "CATEGORY"
+    CONTENT_ID = "CONTENT_ID"
+    PUBTOOLINFO = "PUBTOOLINFO"
+    SYSTEM_VER = "SYSTEM_VER"
+    TITLE = "TITLE"
+    TITLE_ID = "TITLE_ID"
+    VERSION = "VERSION"
+
+
+class Region(StrEnum):
+    UP = "USA"
+    EP = "EUR"
+    JP = "JAP"
+    HP = "ASIA"
+    AP = "ASIA"
+    KP = "ASIA"
+    UNKNOWN = "UNKNOWN"
+
+
+class AppType(StrEnum):
+    AC = "dlc"
+    GC = "game"
+    GD = "game"
+    GP = "update"
+    SD = "save"
+    UNKNOWN = "unknown"
+
+
+@dataclass(slots=True)
 class PKG:
+    title: str = ""
+    title_id: str = ""
+    content_id: str = ""
+    category: str = ""
+    version: str = ""
+    release_date: str = ""
+    region: Region | None = None
+    app_type: AppType | None = None
+    Entries: dict[EntryKey, int] = field(default_factory=dict)
+    ParamSFO: dict[ParamSFOKey, str | int] = field(default_factory=dict)
 
-    # Usage: EXTRACT_PKG_ENTRY <input.pkg> <entry_id> <output.*>
-    # Usage: LIST_PKG_ENTRIES <input.pkg>
-    # Usage: LIST_SFO_ENTRIES <param.sfo>
-    # Usage: VALIDATE_PKG <input.pkg>
-    class ToolCommand(StrEnum):
-        EXTRACT_PKG_ENTRY = "pkg_extractentry"
-        LIST_PKG_ENTRIES = "pkg_listentries"
-        LIST_SFO_ENTRIES = "sfo_listentries"
-        VALIDATE_PKG = "pkg_validate"
+    def __post_init__(self) -> None:
 
-    class Region(Enum):
-        UP = "USA"
-        EP = "EUR"
-        JP = "JAP"
-        HP = "ASIA"
-        AP = "ASIA"
-        KP = "ASIA"
+        # app_type value
+        cat = self.category.strip().upper()
+        self.app_type = AppType.__members__.get(cat, AppType.UNKNOWN)
 
-    class AppType(Enum):
-        AC = "dlc"
-        GC = "game"
-        GD = "game"
-        GP = "update"
-        SD = "save"
-
-    def __init__(
-        self,
-        title: str,
-        title_id: str,
-        content_id: str,
-        category: str,
-        version: str,
-        release_date: str,
-        region: Region,
-        app_type: AppType,
-    ):
-        self.title = title
-        self.title_id = title_id
-        self.content_id = content_id
-        self.category = category
-        self.version = version
-        self.release_date = release_date
-        self.region = region
-        self.app_type = app_type
+        # region value
+        if len(self.content_id) >= 2:
+            prefix = self.content_id[:2].upper()
+            self.region = Region.__members__.get(prefix, AppType.UNKNOWN)

@@ -2,6 +2,7 @@
 # import tempfile
 # import struct
 import subprocess
+from enum import StrEnum
 from pathlib import Path
 from subprocess import CompletedProcess
 
@@ -12,7 +13,14 @@ from hb_store_m1.utils.log import log_debug, log_info, log_warn
 # from src.models.extraction_result import ExtractResult, REGION_MAP, APP_TYPE_MAP, SELECTED_FIELDS
 
 
-def _run_pkgtool(pkg: Path, command: PKG.ToolCommand):
+class _PKGToolCommand(StrEnum):
+    EXTRACT_PKG_ENTRY = "pkg_extractentry"  # args <input.pkg> <entry_index> <output.*>
+    LIST_PKG_ENTRIES = "pkg_listentries"  # args <input.pkg>
+    LIST_SFO_ENTRIES = "sfo_listentries"  # args <param.sfo>
+    VALIDATE_PKG = "pkg_validate"  # args <input.pkg>
+
+
+def _run_pkgtool(pkg: Path, command: _PKGToolCommand):
     return subprocess.run(
         [Global.FILES.PKGTOOL_FILE_PATH, command, pkg],
         check=True,
@@ -58,7 +66,7 @@ class PkgUtils:
             log_warn(f"PKG not found: {pkg}")
             return False
         try:
-            result = _run_pkgtool(pkg, PKG.ToolCommand.VALIDATE_PKG)
+            result = _run_pkgtool(pkg, _PKGToolCommand.VALIDATE_PKG)
         except subprocess.CalledProcessError as exc:
             log_warn(f"pkgtool validate failed for {pkg} (code={exc.returncode})")
             if exc.stdout:
