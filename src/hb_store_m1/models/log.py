@@ -17,7 +17,7 @@ class LogColor(StrEnum):
     BRIGHT_GRAY = "\033[1;90m"
 
 
-class LoggingModule(StrEnum):
+class LogModule(StrEnum):
     AUTO_INDEXER = LogColor.BRIGHT_GREEN
     AUTO_SORTER = LogColor.BRIGHT_YELLOW
     AUTO_FORMATTER = LogColor.BRIGHT_BLUE

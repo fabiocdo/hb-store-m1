@@ -5,8 +5,9 @@ from pathlib import Path
 
 from tabulate import tabulate
 
-from hb_store_m1.models import Global
-from hb_store_m1.utils import log_debug, scan, validate, log_info, log_warn, log_error
+from hb_store_m1.models.globals import Global
+from hb_store_m1.utils.log import LogUtils
+from hb_store_m1.utils.pkg import PkgUtils
 
 
 def welcome():
@@ -39,13 +40,13 @@ def welcome():
 
 
 def init_directories():
-    log_debug("Initializing directories...")
+    LogUtils.log_debug("Initializing directories...")
 
     paths = Global.PATHS
     for p in vars(paths).values():
         p.mkdir(parents=True, exist_ok=True)
 
-    log_debug("Directories OK.")
+    LogUtils.log_debug("Directories OK.")
 
 
 # TODO improve
@@ -54,18 +55,18 @@ def init_db():
     store_db_init_script = Global.FILES.STORE_DB_INIT_SCRIPT_FILE_PATH
 
     if store_db.exists():
-        log_debug("store.db already exists. Skipping init.")
+        LogUtils.log_debug("store.db already exists. Skipping init.")
         return
 
     if not store_db_init_script.is_file():
-        log_warn(
+        LogUtils.log_warn(
             f"store_db.sql not found at {store_db_init_script}. Skipping store.db init."
         )
         return
 
     sql = store_db_init_script.read_text("utf-8").strip()
     if not sql:
-        log_warn(
+        LogUtils.log_warn(
             f"store_db.sql at {store_db_init_script} is empty. Skipping store.db init."
         )
         return
@@ -78,9 +79,9 @@ def init_db():
             conn.commit()
         finally:
             conn.close()
-        log_info(f"Initialized store.db at {store_db}")
+        LogUtils.log_info(f"Initialized store.db at {store_db}")
     except sqlite3.Error as exc:
-        log_error(f"Failed to initialize store.db: {exc}")
+        LogUtils.log_error(f"Failed to initialize store.db: {exc}")
 
 
 # TODO improve
@@ -90,18 +91,18 @@ def init_template_json():
     template_path = Path(os.getenv("INIT_TEMPLATE_JSON", str(default_template)))
 
     if index_path.exists():
-        log_debug("index.json already exists. Skipping template init.")
+        LogUtils.log_debug("index.json already exists. Skipping template init.")
         return
 
     if not template_path.is_file():
-        log_warn(
+        LogUtils.log_warn(
             f"json_template.json not found at {template_path}. Skipping index.json init."
         )
         return
 
     template_raw = template_path.read_text("utf-8").strip()
     if not template_raw:
-        log_warn(
+        LogUtils.log_warn(
             f"json_template.json at {template_path} is empty. Skipping index.json init."
         )
         return
@@ -109,12 +110,14 @@ def init_template_json():
     try:
         json.loads(template_raw)
     except json.JSONDecodeError as exc:
-        log_warn(f"json_template.json at {template_path} is invalid JSON: {exc}")
+        LogUtils.log_warn(
+            f"json_template.json at {template_path} is invalid JSON: {exc}"
+        )
         return
 
     index_path.parent.mkdir(parents=True, exist_ok=True)
     index_path.write_text(template_raw + "\n", encoding="utf-8")
-    log_info(f"Initialized index.json at {index_path}")
+    LogUtils.log_info(f"Initialized index.json at {index_path}")
 
 
 def main():
@@ -122,7 +125,6 @@ def main():
     init_directories()
     init_db()
     init_template_json()
-    scan()
-    print(validate(Path("/home/fabio/dev/hb-store-m1/data/pkg/game/stardew_game.pkg")))
+    PkgUtils.scan()
 
     # Start watcher

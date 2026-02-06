@@ -1,7 +1,9 @@
 from pathlib import Path
 
-from hb_store_m1.models import Output, LoggingModule, Global, Status
-from hb_store_m1.utils import log_error, log_debug, log_warn, log_info
+from hb_store_m1.models.globals import Global
+from hb_store_m1.models.log import LogModule
+from hb_store_m1.models.output import Output, Status
+from hb_store_m1.utils.log import LogUtils
 
 
 class AutoFormatter:
@@ -38,27 +40,27 @@ class AutoFormatter:
         plan_result, planned_name = AutoFormatter.dry_run(pkg, sfo_data)
 
         if plan_result == Status.NOT_FOUND:
-            log_error(f"PKG file [{pkg}] not found", LoggingModule.AUTO_FORMATTER)
+            LogUtils.log_error(f"PKG file [{pkg}] not found", LogModule.AUTO_FORMATTER)
             return None
 
         if plan_result == Status.INVALID:
-            log_error(
+            LogUtils.log_error(
                 f"Invalid or missing content_id in [{pkg.name}] SFO data",
-                LoggingModule.AUTO_FORMATTER,
+                LogModule.AUTO_FORMATTER,
             )
             return None
 
         if plan_result == Status.SKIP:
-            log_debug(
+            LogUtils.log_debug(
                 f"Skipping rename. PKG [{planned_name}] is already renamed",
-                LoggingModule.AUTO_FORMATTER,
+                LogModule.AUTO_FORMATTER,
             )
             return None
 
         if plan_result == Status.CONFLICT:
-            log_error(
+            LogUtils.log_error(
                 f"Failed to rename PKG [{pkg.name}]. Target name [{planned_name}] already exists",
-                LoggingModule.AUTO_FORMATTER,
+                LogModule.AUTO_FORMATTER,
             )
 
             conflict_path = errors_dir / pkg.name
@@ -69,17 +71,17 @@ class AutoFormatter:
                 counter += 1
 
             pkg.rename(conflict_path)
-            log_warn(
+            LogUtils.log_warn(
                 f"PKG {pkg.name} moved to errors folder: {conflict_path.name}",
-                LoggingModule.AUTO_FORMATTER,
+                LogModule.AUTO_FORMATTER,
             )
             return None
 
         target_path = pkg.with_name(planned_name)
         pkg.rename(target_path)
 
-        log_info(
+        LogUtils.log_info(
             f"PKG {pkg.name} renamed successfully to {planned_name}",
-            LoggingModule.AUTO_FORMATTER,
+            LogModule.AUTO_FORMATTER,
         )
         return planned_name

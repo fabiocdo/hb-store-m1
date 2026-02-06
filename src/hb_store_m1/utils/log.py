@@ -1,15 +1,15 @@
 import datetime
 
 from hb_store_m1.models.globals import Global
-from hb_store_m1.models.log import LogLevel, LoggingModule, LogColor
+from hb_store_m1.models.log import LogLevel, LogModule, LogColor
 
-LOG_PRIORITY: LogLevel = LogLevel[Global.ENVS.LOG_LEVEL.upper()].priority()
+CURRENT_LOG_PRIORITY: LogLevel = LogLevel[Global.ENVS.LOG_LEVEL.upper()].priority()
 
 
 class LogUtils:
 
     @staticmethod
-    def _log(log_level: LogLevel, message=None, module: LoggingModule | None = None):
+    def _log(log_level: LogLevel, message=None, module: LogModule | None = None):
         timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y-%m-%d %H:%M:%S UTC"
         )
@@ -22,27 +22,24 @@ class LogUtils:
         print(f"{timestamp} | {module_log_tag}{log_color}{message}{LogColor.RESET}")
 
     @staticmethod
-    def log_debug(message=None, module: LoggingModule | None = None):
-        if LOG_PRIORITY <= LogLevel.DEBUG.priority():
+    def log_debug(message=None, module: LogModule | None = None):
+        if CURRENT_LOG_PRIORITY <= LogLevel.DEBUG.priority():
             LogUtils._log(LogLevel.DEBUG, message, module)
 
     @staticmethod
-    def log_info(message=None, module: LoggingModule | None = None):
-        if LOG_PRIORITY <= LogLevel.INFO.priority():
+    def log_info(message=None, module: LogModule | None = None):
+        if CURRENT_LOG_PRIORITY <= LogLevel.INFO.priority():
             LogUtils._log(LogLevel.INFO, message, module)
 
     @staticmethod
-    def log_warn(message=None, module: LoggingModule | None = None):
-        if LOG_PRIORITY <= LogLevel.WARN.priority():
+    def log_warn(message=None, module: LogModule | None = None):
+        if CURRENT_LOG_PRIORITY <= LogLevel.WARN.priority():
             LogUtils._log(LogLevel.WARN, message, module)
 
     @staticmethod
-    def log_error(message=None, module: LoggingModule | None = None):
-        if LOG_PRIORITY <= LogLevel.ERROR.priority():
+    def log_error(message=None, module: LogModule | None = None):
+        if CURRENT_LOG_PRIORITY <= LogLevel.ERROR.priority():
             LogUtils._log(LogLevel.ERROR, message, module)
 
 
-log_debug = LogUtils.log_debug
-log_info = LogUtils.log_info
-log_warn = LogUtils.log_warn
-log_error = LogUtils.log_error
+LogUtils = LogUtils()
