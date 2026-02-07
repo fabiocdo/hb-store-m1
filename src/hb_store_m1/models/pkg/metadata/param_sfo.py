@@ -17,5 +17,5 @@ class ParamSFOKey(StrEnum):
 class ParamSFO:
     data: dict[ParamSFOKey, str]
 
-    # def __init__(self, data: dict[ParamSFOKey, str]):
-    #     self.data = data
+    def __init__(self, data: dict[ParamSFOKey, str]):
+        self.data = data

@@ -1,3 +1,4 @@
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -19,10 +20,8 @@ class PkgUtils:
     _SFO_LINE_RE = re.compile(r"^(?P<name>[^:]+?)\s*:\s*[^=]*=\s*(?P<value>.*)$")
 
     @staticmethod
-    def parse_param_sfo_entries(
-        lines: list[str],
-    ) -> dict[ParamSFOKey, ParamSFO]:
-        mapped: dict[ParamSFOKey, ParamSFO] = {}
+    def parse_param_sfo_entries(lines: list[str]) -> ParamSFO:
+        data: dict[ParamSFOKey, str] = {key: "" for key in ParamSFOKey}
 
         for line in lines:
             match = PkgUtils._SFO_LINE_RE.match(line.strip())
@@ -38,9 +37,9 @@ class PkgUtils:
                 continue
 
             value = match.group("value").strip()
-            mapped[enum_key] = ParamSFO(enum_key, value)
+            data[enum_key] = value
 
-        return mapped
+        return ParamSFO(data)
 
     @staticmethod
     def scan():
@@ -96,56 +95,25 @@ class PkgUtils:
 
             pkg_entries[entry_key] = index
 
-        # Step 2: Extract entries
+        # Step 2: Extract PARAM_SFO
+        param_sfo = None
         if extract_sfo:
             with tempfile.TemporaryDirectory() as tmp:
-
-                extracted_sfo = Path(tmp) / "param.sfo"
+                LogUtils.log_debug(f"Extracting PARAM.SFO from PKG {pkg}...")
+                extracted_sfo_file = Path(tmp) / "param.sfo"
                 PKGTool.extract_pkg_entry(
-                    pkg, pkg_entries[PKGEntryKey.PARAM_SFO], str(extracted_sfo)
+                    pkg, pkg_entries[PKGEntryKey.PARAM_SFO], str(extracted_sfo_file)
                 )
 
-                response = PKGTool.list_sfo_entries(extracted_sfo).stdout.splitlines()
+                entries_list = PKGTool.list_sfo_entries(
+                    extracted_sfo_file
+                ).stdout.splitlines()
 
-                import json
+                param_sfo = PkgUtils.parse_param_sfo_entries(entries_list)
+                LogUtils.log_debug(f"PARAM.SFO extracted successfully {param_sfo}")
 
-                sfo_entries = PkgUtils.parse_param_sfo_entries(response).items()
+        # Step 3: Extract ICON0_PNG, PIC0_PNG, PIC1_PNG
 
-                param_sfo = ParamSFO()
-                print(
-                    json.dumps(
-                        {k.value: v.value for k, v in sfo_entries},
-                        indent=2,
-                        ensure_ascii=True,
-                    )
-                )
-
-        # files_to_extract = {}
-        # if extract_medias:
-        #     files_to_extract = {
-        #             EntryKey.ICON0_PNG: "icon0.png",
-        #             EntryKey.PIC0_PNG: "pic0.png",
-        #             EntryKey.PIC1_PNG: "pic1.png",
-        #     }
-
-        # extracted = {}
-        # with tempfile.TemporaryDirectory() as tmp:
-        #     tmp_dir = Path(tmp)
-        #
-        #     for key, filename in files_to_extract.items():
-        #         entry_index = pkg_entries.get(key)
-        #         if entry_index is None:
-        #             continue
-        #
-        #         out_path = tmp_dir / filename
-        #         _run_pkgtool(
-        #             pkg_path,
-        #             _PKGToolCommand.EXTRACT_PKG_ENTRY,
-        #             str(entry_index),
-        #             str(out_path),
-        #         )
-        #
-        #         extracted[key] = out_path
         #
         # # Step 4: Build PKG
         # print(extracted[EntryKey.PARAM_SFO])
