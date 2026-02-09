@@ -33,12 +33,13 @@ class PKG:
     category: str = ""
     version: str = ""
     pubtoolinfo: str = ""
-    icon0_png: Path = None
-    pic0_png: Path = None
-    pic1_png: Path = None
+    icon0_png_path: Path = None
+    pic0_png_path: Path = None
+    pic1_png_path: Path = None
     release_date: str = ""
     region: Region | None = None
     app_type: AppType | None = None
+    pkg_path: Path = None
 
     def __post_init__(self) -> None:
         # app_type

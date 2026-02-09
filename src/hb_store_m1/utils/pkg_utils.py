@@ -179,13 +179,13 @@ class PkgUtils:
             category=param_sfo.data[ParamSFOKey.CATEGORY],
             version=param_sfo.data[ParamSFOKey.VERSION],
             pubtoolinfo=param_sfo.data[ParamSFOKey.PUBTOOLINFO],
-            icon0_png=extracted_medias[PKGEntryKey.ICON0_PNG],
-            pic0_png=(
+            icon0_png_path=extracted_medias[PKGEntryKey.ICON0_PNG],
+            pic0_png_path=(
                 extracted_medias[PKGEntryKey.PIC0_PNG]
                 if extracted_medias[PKGEntryKey.PIC0_PNG]
                 else None
             ),
-            pic1_png=(
+            pic1_png_path=(
                 extracted_medias[PKGEntryKey.PIC1_PNG]
                 if extracted_medias[PKGEntryKey.PIC1_PNG]
                 else None
