@@ -24,6 +24,7 @@ class LogColor(StrEnum):
 
 
 class LogModule(StrEnum):
+    DB_UTIL = LogColor.CYAN
     PKG_UTIL = LogColor.BRIGHT_MAGENTA
     AUTO_INDEXER = LogColor.BRIGHT_GREEN
     AUTO_SORTER = LogColor.BRIGHT_YELLOW

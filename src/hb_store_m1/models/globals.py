@@ -43,7 +43,7 @@ def _env(name: str, default, type_):
 
 
 @dataclass(frozen=True)
-class GlobalPaths:
+class _GlobalPaths:
     APP_ROOT_PATH: _Path = _Path.cwd()
     INIT_DIR_PATH: _Path = _Path.cwd() / "init"
     DATA_DIR_PATH: _Path = APP_ROOT_PATH / "data"
@@ -61,8 +61,8 @@ class GlobalPaths:
 
 
 @dataclass(frozen=True)
-class GlobalFiles:
-    paths: GlobalPaths
+class _GlobalFiles:
+    paths: _GlobalPaths
 
     @property
     def PYPROJECT_PATH(self) -> _Path:
@@ -113,8 +113,8 @@ class GlobalFiles:
         return self.paths.ERRORS_DIR_PATH / "app_errors.log"
 
 
-class GlobalEnvs:
-    def __init__(self, files: GlobalFiles):
+class _GlobalEnvs:
+    def __init__(self, files: _GlobalFiles):
         self.files = files
 
         self.SERVER_IP: str = _env("SERVER_IP", "127.0.0.1", str)
@@ -162,6 +162,6 @@ class GlobalEnvs:
 
 
 class Globals:
-    PATHS = GlobalPaths()
-    FILES = GlobalFiles(PATHS)
-    ENVS = GlobalEnvs(FILES)
+    PATHS = _GlobalPaths()
+    FILES = _GlobalFiles(PATHS)
+    ENVS = _GlobalEnvs(FILES)

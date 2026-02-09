@@ -190,6 +190,7 @@ class PkgUtils:
                 if extracted_medias[PKGEntryKey.PIC1_PNG]
                 else None
             ),
+            pkg_path=pkg,
         )
         LogUtils.log_debug(
             f"Extracted data successfully from PKG {pkg.name}", LogModule.PKG_UTIL
