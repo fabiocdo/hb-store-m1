@@ -100,10 +100,9 @@ class DBUtils:
         except Exception as e:
             conn.rollback()
             LogUtils.log_error(
-                f"Failed to upsert {len(pkgs)} PKGs in STORE.DB. Cause {e.__cause__}",
+                f"Failed to upsert {len(pkgs)} PKGs in STORE.DB: {e}",
                 LogModule.DB_UTIL,
             )
-            raise
         finally:
             conn.close()
 
