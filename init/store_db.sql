@@ -3,6 +3,7 @@ create table homebrews
     pid                 INTEGER           not null
         constraint homebrews_pk
             primary key autoincrement,
+    content_id          TEXT              not null,
     id                  TEXT              not null,
     name                TEXT              not null,
     desc                TEXT,
@@ -25,7 +26,6 @@ create table homebrews
     video               TEXT,
     twitter             TEXT,
     md5                 TEXT,
-    constraint homebrews_unique_key
-        unique (version, id)
+    constraint homebrews_content_id_unique
+        unique (content_id)
 );
-

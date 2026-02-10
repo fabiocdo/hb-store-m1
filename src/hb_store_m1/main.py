@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from tabulate import tabulate
 
 from hb_store_m1.models.globals import Globals
+from hb_store_m1.utils.db_utils import DBUtils
 from hb_store_m1.utils.init_utils import InitUtils
 from hb_store_m1.utils.pkg_utils import PkgUtils
 
@@ -41,13 +44,13 @@ def main():
     InitUtils.init_template_json()
     InitUtils.init_assets()
     PkgUtils.scan()
-    # pkg0 = PkgUtils.extract_pkg_data(
-    #     Path("/home/fabio/dev/hb-store-m1/data/pkg/dlc/twinsen-dlc.pkg")
-    # ).content
-    # pkg1 = PkgUtils.extract_pkg_data(
-    #     Path("/home/fabio/dev/hb-store-m1/data/pkg/game/stardew_game.pkg")
-    # ).content
+    pkg0 = PkgUtils.extract_pkg_data(
+        Path("/home/fabio/dev/hb-store-m1/data/pkg/dlc/twinsen-dlc.pkg")
+    ).content
+    pkg1 = PkgUtils.extract_pkg_data(
+        Path("/home/fabio/dev/hb-store-m1/data/pkg/game/stardew_game.pkg")
+    ).content
 
-    # print(DBUtils.upsert([pkg0, pkg1]))
+    DBUtils.upsert([pkg0, pkg1])
 
     # Start watcher

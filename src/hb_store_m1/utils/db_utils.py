@@ -29,12 +29,14 @@ class DBUtils:
         try:
             conn.execute("BEGIN")
 
+            DBUtils._ensure_content_id_schema(conn)
+
             insert_sql = """
-                         INSERT INTO homebrews (id, name, "desc", image, package, version, picpath, desc_1, desc_2,
+                         INSERT INTO homebrews (id, content_id, name, "desc", image, package, version, picpath, desc_1, desc_2,
                                                 ReviewStars, Size, Author, apptype, pv, main_icon_path, main_menu_pic,
                                                 releaseddate, number_of_downloads, github, video, twitter, md5)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                         ON CONFLICT(version, id) DO UPDATE SET
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         ON CONFLICT(content_id) DO UPDATE SET
                             name=excluded.name,
                             "desc"=excluded."desc",
                             image=excluded.image,
@@ -62,6 +64,7 @@ class DBUtils:
                 rows_to_insert.append(
                     (
                         pkg.title_id,
+                        pkg.content_id,
                         pkg.title,
                         None,  # description
                         str(pkg.icon0_png_path),
@@ -75,8 +78,12 @@ class DBUtils:
                         None,  # author
                         pkg.app_type,
                         None,  # pv ?
-                        str(pkg.pic0_png_path),  # main_icon_path
-                        str(pkg.pic0_png_path),  # main_menu_pic
+                        (
+                            str(pkg.pic0_png_path) if pkg.pic0_png_path else None
+                        ),  # main_icon_path
+                        (
+                            str(pkg.pic1_png_path) if pkg.pic1_png_path else None
+                        ),  # main_menu_pic
                         pkg.release_date,
                         0,  # number of downloads
                         None,  # github
@@ -105,6 +112,24 @@ class DBUtils:
             )
         finally:
             conn.close()
+
+    @staticmethod
+    def _ensure_content_id_schema(conn: sqlite3.Connection) -> None:
+        cursor = conn.execute("PRAGMA table_info(homebrews)")
+        existing_cols = {row[1] for row in cursor.fetchall()}
+
+        if "content_id" not in existing_cols:
+            conn.execute("ALTER TABLE homebrews ADD COLUMN content_id TEXT")
+
+        try:
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS homebrews_content_id_uq ON homebrews(content_id)"
+            )
+        except sqlite3.Error as exc:
+            LogUtils.log_warn(
+                f"Failed to create unique index on content_id: {exc}",
+                LogModule.DB_UTIL,
+            )
 
 
 DBUtils = DBUtils()
