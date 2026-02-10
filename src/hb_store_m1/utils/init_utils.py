@@ -119,24 +119,27 @@ class InitUtils:
     @staticmethod
     def init_assets():
         LogUtils.log_debug("Downloading store assets...", LogModule.INIT_UTIL)
-        StoreAssetClient.download_store_assets()
 
-        assets_file_path = (
+        assets = [
             Globals.FILES.HOMEBREW_ELF_FILE_PATH,
             Globals.FILES.HOMEBREW_ELF_SIG_FILE_PATH,
             Globals.FILES.REMOTE_MD5_FILE_PATH,
-            # Globals.FILES.STORE_PRX_FILE_PATH,
-            # Globals.FILES.STORE_PRX_SIG_FILE_PATH,
-        )
+        ]
 
-        missing = [p.name for p in assets_file_path if not p.exists()]
-        if missing:
+        try:
+            StoreAssetClient.download_store_assets(assets)
+            missing = [p.name for p in assets if not p.exists()]
+            if missing:
+                LogUtils.log_error(
+                    f"Store assets missing: {', '.join(missing)}",
+                    LogModule.INIT_UTIL,
+                )
+            else:
+                LogUtils.log_info("Store assets OK...", LogModule.INIT_UTIL)
+        except Exception as e:
             LogUtils.log_error(
-                f"Store assets missing: {', '.join(missing)}",
-                LogModule.INIT_UTIL,
+                f"Failed to download store assets: {e.__cause__}", LogModule.INIT_UTIL
             )
-        else:
-            LogUtils.log_info("Store assets OK...", LogModule.INIT_UTIL)
 
 
 InitUtils = InitUtils()

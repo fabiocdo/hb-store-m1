@@ -113,14 +113,6 @@ class _GlobalFiles:
         return self.paths.CACHE_DIR_PATH / "remote.md5"
 
     @property
-    def STORE_PRX_FILE_PATH(self) -> _Path:
-        return self.paths.CACHE_DIR_PATH / "store.prx"
-
-    @property
-    def STORE_PRX_SIG_FILE_PATH(self) -> _Path:
-        return self.paths.CACHE_DIR_PATH / "store.prx.sig"
-
-    @property
     def ERRORS_LOG_FILE_PATH(self) -> _Path:
         return self.paths.ERRORS_DIR_PATH / "app_errors.log"
 

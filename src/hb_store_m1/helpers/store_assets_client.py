@@ -6,16 +6,15 @@ from github import Github
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.utils.log_utils import LogUtils
 
-UPDATE_REPO = "LightningMods/PS4-Store"
-
 
 class StoreAssetClient:
 
     @staticmethod
-    def download_store_assets() -> list[str]:
-
+    def download_store_assets(assets: list[Path]) -> list[str]:
+        assets_repo = "LightningMods/PS4-Store"
         client = Github()
-        repo = client.get_repo(UPDATE_REPO)
+
+        repo = client.get_repo(assets_repo)
         release = repo.get_releases()[0]
 
         release_assets = {
@@ -23,14 +22,6 @@ class StoreAssetClient:
             for asset in release.get_assets()
             if asset.name and asset.browser_download_url
         }
-
-        assets = (
-            Globals.FILES.HOMEBREW_ELF_FILE_PATH,
-            Globals.FILES.HOMEBREW_ELF_SIG_FILE_PATH,
-            Globals.FILES.REMOTE_MD5_FILE_PATH,
-            # Globals.FILES.STORE_PRX_FILE_PATH,
-            # Globals.FILES.STORE_PRX_SIG_FILE_PATH,
-        )
 
         downloaded = []
 
@@ -52,9 +43,7 @@ class StoreAssetClient:
 
     @staticmethod
     def _download(url: str, destination: Path) -> None:
-        user_agent = Globals.ENVS.APP_NAME
-        headers = {"User-Agent": user_agent}
-        req = urllib.request.Request(url, headers=headers)
+        req = urllib.request.Request(url)
 
         destination.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = destination.with_suffix(destination.suffix + ".part")
