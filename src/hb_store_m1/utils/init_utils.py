@@ -1,6 +1,8 @@
 import json
 import sqlite3
 
+from github import GithubException
+
 from hb_store_m1.helpers.store_assets_client import StoreAssetClient
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogModule
@@ -138,9 +140,14 @@ class InitUtils:
                     )
             else:
                 LogUtils.log_info("Store assets OK...", LogModule.INIT_UTIL)
+        except GithubException as e:
+            LogUtils.log_error(
+                f"Failed to download store assets: {e.data['message']}",
+                LogModule.INIT_UTIL,
+            )
         except Exception as e:
             LogUtils.log_error(
-                f"Failed to download store assets: {e}", LogModule.INIT_UTIL
+                f"Failed to download store assets: {e.__cause__}", LogModule.INIT_UTIL
             )
 
 

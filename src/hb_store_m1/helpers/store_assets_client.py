@@ -11,7 +11,7 @@ class StoreAssetClient:
     @staticmethod
     def download_store_assets(assets: list[Path]) -> tuple[list[Path], list[Path]]:
         assets_repo = "LightningMods/PS4-Store"
-        client = Github()
+        client = Github(timeout=10, retry=0)
 
         repo = client.get_repo(assets_repo)
         release = repo.get_releases()[0]
