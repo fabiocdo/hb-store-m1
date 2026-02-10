@@ -1,6 +1,5 @@
 import hashlib
 import json
-from typing import Iterable, Mapping, Any
 
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.output import Output, Status
@@ -9,7 +8,6 @@ from hb_store_m1.utils.log_utils import LogUtils
 
 
 class CacheUtils:
-
     @staticmethod
     def read_store_db_cache() -> Output:
 
@@ -30,29 +28,14 @@ class CacheUtils:
         return data
 
     @staticmethod
-    def write_store_db_cache(rows: Iterable[Any] | Mapping[str, Any]) -> dict[str, str]:
+    def write_store_db_cache(rows) -> dict[str, str]:
 
-        def get_value(row: Any, field: str) -> Any:
-            if isinstance(row, Mapping):
-                return row.get(field)
-
-            return getattr(row, field, None)
-
-        def normalize(value: Any) -> Any:
-            if value is None:
-                return None
-            if isinstance(value, (str, int, float, bool)):
-                return value
-            return str(value)
-
-        iterable = rows.values() if isinstance(rows, Mapping) else rows
         cache: dict[str, str] = {}
-        fields = [col.value for col in StoreDB.Columns]
-        for row in iterable or []:
-            key = normalize(get_value(row, "content_id"))
-            if not key:
-                continue
-            values = [normalize(get_value(row, field)) for field in fields]
+
+        for row in rows:
+            data = row.row
+            key = data[StoreDB.Column.CONTENT_ID]
+            values = [data[field] for field in StoreDB.Column]
             payload = json.dumps(
                 values, ensure_ascii=True, separators=(",", ":")
             ).encode("utf-8")

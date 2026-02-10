@@ -1,8 +1,10 @@
+from dataclasses import dataclass
 from enum import StrEnum
 
 
+@dataclass(slots=True)
 class StoreDB:
-    class Columns(StrEnum):
+    class Column(StrEnum):
         ID = "id"
         NAME = "name"
         CONTENT_ID = "content_id"
@@ -26,3 +28,5 @@ class StoreDB:
         VIDEO = "video"
         TWITTER = "twitter"
         MD5 = "md5"
+
+    row: dict[Column, str | float | int | None]
