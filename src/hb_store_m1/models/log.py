@@ -29,12 +29,8 @@ class LogModule(StrEnum):
     INIT_UTIL = LogColor.CYAN
     CACHE_UTIL = LogColor.MAGENTA
 
-    AUTO_INDEXER = LogColor.BRIGHT_GREEN
-    AUTO_SORTER = LogColor.BRIGHT_YELLOW
-    AUTO_FORMATTER = LogColor.BRIGHT_CYAN
+    AUTO_ORGANIZER = LogColor.BRIGHT_RED
     WATCHER = LogColor.BRIGHT_PURPLE
-    WATCHER_PLANNER = LogColor.BRIGHT_RED
-    WATCHER_EXECUTOR = LogColor.BRIGHT_GRAY
 
     def color(self):
         return self.value

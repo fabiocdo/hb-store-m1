@@ -1,12 +1,10 @@
-from pathlib import Path
-
 from tabulate import tabulate
 
 from hb_store_m1.models.globals import Globals
-from hb_store_m1.utils.cache_utils import CacheUtils
-from hb_store_m1.utils.db_utils import DBUtils
+from hb_store_m1.models.log import LogModule
 from hb_store_m1.utils.init_utils import InitUtils
-from hb_store_m1.utils.pkg_utils import PkgUtils
+from hb_store_m1.utils.log_utils import LogUtils
+from hb_store_m1.modules.watcher import Watcher
 
 
 def welcome():
@@ -44,17 +42,7 @@ def main():
     InitUtils.init_db()
     InitUtils.init_template_json()
     # InitUtils.init_assets()
-    PkgUtils.scan()
-    # pkg0 = PkgUtils.extract_pkg_data(
-    #     Path("/home/fabio/dev/hb-store-m1/data/pkg/dlc/twinsen-dlc.pkg")
-    # ).content
-    # pkg1 = PkgUtils.extract_pkg_data(
-    #     Path("/home/fabio/dev/hb-store-m1/data/pkg/game/stardew_game.pkg")
-    # ).content
-
-    # DBUtils.upsert([pkg0, pkg1])
-
-    CacheUtils.compare_pkg_cache()
-    # print(CacheUtils.write_pkg_cache())
-
-    # Start watcher
+    if Globals.ENVS.WATCHER_ENABLED:
+        Watcher().start()
+    else:
+        LogUtils.log_info("Watcher is disabled. Skipping...", LogModule.WATCHER)
