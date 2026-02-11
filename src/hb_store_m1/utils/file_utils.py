@@ -12,17 +12,13 @@ class FileUtils:
         module: LogModule | None = None,
     ) -> Path | None:
         if not path.exists():
-            LogUtils.log_warn(
-                f"Skipping move. File not found: {path}", module
-            )
+            LogUtils.log_warn(f"Skipping move. File not found: {path}", module)
             return None
         target_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             path.rename(target_path)
         except OSError as exc:
-            LogUtils.log_error(
-                f"Failed to move file: {exc}", module
-            )
+            LogUtils.log_error(f"Failed to move file: {exc}", module)
             return None
         return target_path
 
@@ -54,9 +50,7 @@ class FileUtils:
         if not moved_path:
             return None
 
-        LogUtils.log_warn(
-            f"Moved to errors ({reason}): {target_path.name}", module
-        )
+        LogUtils.log_warn(f"Moved to errors ({reason}): {target_path.name}", module)
         return target_path
 
 
