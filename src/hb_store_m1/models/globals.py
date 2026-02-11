@@ -134,9 +134,7 @@ class _GlobalEnvs:
         self.WATCHER_ACCESS_LOG_INTERVAL: int = _env(
             "WATCHER_ACCESS_LOG_INTERVAL", 5, int
         )
-        self.AUTO_INDEXER_OUTPUT_FORMAT: list[str] = _env(
-            "AUTO_INDEXER_OUTPUT_FORMAT", ["DB", "JSON"], list
-        )
+        self.AUTO_ORGANIZER_ENABLED: bool = _env("AUTO_ORGANIZER_ENABLED", True, bool)
 
     @property
     def APP_NAME(self) -> str:

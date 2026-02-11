@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sqlite3
+from pathlib import Path
 
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogModule
@@ -12,6 +13,17 @@ from hb_store_m1.utils.log_utils import LogUtils
 
 
 class DBUtils:
+
+    @staticmethod
+    def _cdn_url(path: Path | str | None) -> str | None:
+        if not path:
+            return None
+        base_url = Globals.ENVS.SERVER_URL.rstrip("/")
+        try:
+            relative = Path(path).resolve().relative_to(Globals.PATHS.DATA_DIR_PATH)
+        except (OSError, ValueError):
+            return str(path)
+        return f"{base_url}/{relative.as_posix()}"
 
     @staticmethod
     def upsert(pkgs: list[PKG]) -> Output:
@@ -64,29 +76,32 @@ class DBUtils:
 
             rows_to_insert = []
             for pkg in pkgs:
+                pkg_url = DBUtils._cdn_url(pkg.pkg_path)
+                icon_url = DBUtils._cdn_url(pkg.icon0_png_path)
+                pic0_url = DBUtils._cdn_url(pkg.pic0_png_path)
+                pic1_url = DBUtils._cdn_url(pkg.pic1_png_path)
+                size = 0
+                if pkg.pkg_path and Path(pkg.pkg_path).exists():
+                    size = Path(pkg.pkg_path).stat().st_size
                 rows_to_insert.append(
                     (
                         pkg.content_id,
                         pkg.title_id,
                         pkg.title,
                         None,  # description
-                        str(pkg.icon0_png_path),
-                        str(pkg.pkg_path),
+                        icon_url,
+                        pkg_url,
                         pkg.version,
                         None,  # picpath
                         None,  # desc1
                         None,  # desc2
                         None,  # review stars
-                        pkg.pkg_path.stat().st_size,
+                        size,
                         None,  # author
                         pkg.app_type,
                         None,  # pv ?
-                        (
-                            str(pkg.pic0_png_path) if pkg.pic0_png_path else None
-                        ),  # main_icon_path
-                        (
-                            str(pkg.pic1_png_path) if pkg.pic1_png_path else None
-                        ),  # main_menu_pic
+                        pic0_url,  # main_icon_path
+                        pic1_url,  # main_menu_pic
                         pkg.release_date,
                         0,  # number of downloads
                         None,  # github

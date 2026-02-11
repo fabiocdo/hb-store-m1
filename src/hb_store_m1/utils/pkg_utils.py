@@ -1,4 +1,5 @@
 import re
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -69,10 +70,20 @@ class PkgUtils:
 
     @staticmethod
     def validate(pkg: Path) -> Output:
-        validation_result = PKGTool.validate_pkg(pkg).stdout.splitlines()
+        try:
+            validation_result = PKGTool.validate_pkg(pkg).stdout.splitlines()
+        except (
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            OSError,
+        ):
+            LogUtils.log_error(
+                f"PKG {pkg.name} validation failed",
+                LogModule.PKG_UTIL,
+            )
+            return Output(Status.ERROR, pkg)
 
         for line in validation_result:
-            print(line)
             if "[ERROR]" not in line:
                 continue
 

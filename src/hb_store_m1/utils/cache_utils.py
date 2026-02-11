@@ -159,7 +159,7 @@ class CacheUtils:
 
         if summary_lines:
             LogUtils.log_info(
-                "Cache changes summary: " + ", ".join(summary_lines),
+                "Changes summary: " + ", ".join(summary_lines),
                 LogModule.CACHE_UTIL,
             )
 

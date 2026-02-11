@@ -26,7 +26,7 @@ def welcome():
         ("WATCHER_SCAN_WORKERS", Globals.ENVS.WATCHER_SCAN_WORKERS),
         ("WATCHER_ACCESS_LOG_TAIL", Globals.ENVS.WATCHER_ACCESS_LOG_TAIL),
         ("WATCHER_ACCESS_LOG_INTERVAL", Globals.ENVS.WATCHER_ACCESS_LOG_INTERVAL),
-        ("AUTO_INDEXER_OUTPUT_FORMAT", Globals.ENVS.AUTO_INDEXER_OUTPUT_FORMAT),
+        ("AUTO_ORGANIZER_ENABLED", Globals.ENVS.AUTO_ORGANIZER_ENABLED),
     ]
     for key, value in items:
         if isinstance(value, list):
