@@ -1,10 +1,6 @@
-import hashlib
-import json
-from dataclasses import dataclass
 from enum import StrEnum
 
 
-@dataclass(slots=True, frozen=True)
 class StoreDB:
     class Column(StrEnum):
         ID = "id"
@@ -31,20 +27,5 @@ class StoreDB:
         TWITTER = "twitter"
         MD5 = "md5"
 
-    rows: tuple[dict[Column, str | float | int | None], ...]
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "rows", tuple(self.rows))
-
-    def generate_rows_md5_hash(self) -> dict[str, str]:
-        rows_md5_hash: dict[str, str] = {}
-
-        for row in self.rows:
-            key = row[self.Column.CONTENT_ID]
-            values = [row[col] for col in self.Column]
-            payload = json.dumps(
-                values, ensure_ascii=True, separators=(",", ":")
-            ).encode("utf-8")
-            rows_md5_hash[str(key)] = hashlib.md5(payload).hexdigest()
-
-        return rows_md5_hash
+StoreDB = StoreDB()

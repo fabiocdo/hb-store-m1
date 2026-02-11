@@ -43,17 +43,18 @@ def main():
     InitUtils.init_directories()
     InitUtils.init_db()
     InitUtils.init_template_json()
-    InitUtils.init_assets()
+    # InitUtils.init_assets()
     PkgUtils.scan()
-    pkg0 = PkgUtils.extract_pkg_data(
-        Path("/home/fabio/dev/hb-store-m1/data/pkg/dlc/twinsen-dlc.pkg")
-    ).content
-    pkg1 = PkgUtils.extract_pkg_data(
-        Path("/home/fabio/dev/hb-store-m1/data/pkg/game/stardew_game.pkg")
-    ).content
+    # pkg0 = PkgUtils.extract_pkg_data(
+    #     Path("/home/fabio/dev/hb-store-m1/data/pkg/dlc/twinsen-dlc.pkg")
+    # ).content
+    # pkg1 = PkgUtils.extract_pkg_data(
+    #     Path("/home/fabio/dev/hb-store-m1/data/pkg/game/stardew_game.pkg")
+    # ).content
 
-    DBUtils.upsert([pkg0, pkg1])
+    # DBUtils.upsert([pkg0, pkg1])
 
-    print(CacheUtils.read_store_db_cache())
+    CacheUtils.compare_pkg_cache()
+    # print(CacheUtils.write_pkg_cache())
 
     # Start watcher

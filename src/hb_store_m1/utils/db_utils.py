@@ -1,9 +1,12 @@
+import hashlib
+import json
 import sqlite3
 
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogModule
 from hb_store_m1.models.output import Output, Status
 from hb_store_m1.models.pkg.pkg import PKG
+from hb_store_m1.models.storedb import StoreDB
 from hb_store_m1.utils.init_utils import InitUtils
 from hb_store_m1.utils.log_utils import LogUtils
 
@@ -113,6 +116,41 @@ class DBUtils:
             return Output(Status.ERROR, len(pkgs))
         finally:
             conn.close()
+
+    @staticmethod
+    def generate_rows_md5() -> dict[str, str]:
+        rows_md5_hash: dict[str, str] = {}
+        store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
+
+        if not store_db_file_path.exists():
+            LogUtils.log_debug(
+                f"Skipping {store_db_file_path.name.upper()} read. File not found",
+                LogModule.DB_UTIL,
+            )
+            return rows_md5_hash
+
+        columns = [col for col in StoreDB.Column]
+        select_columns = ", ".join(f'"{name}"' for name in columns)
+        query = f"SELECT {select_columns} FROM homebrews"
+
+        conn = sqlite3.connect(str(store_db_file_path))
+        conn.row_factory = sqlite3.Row
+        try:
+            for row in conn.execute(query).fetchall():
+                key = row[StoreDB.Column.CONTENT_ID]
+                values = [row[name] for name in columns]
+                payload = json.dumps(
+                    values, ensure_ascii=True, separators=(",", ":")
+                ).encode("utf-8")
+                rows_md5_hash[str(key)] = hashlib.md5(payload).hexdigest()
+        except Exception as exc:
+            LogUtils.log_error(
+                f"Failed to generate STORE.DB md5: {exc}", LogModule.DB_UTIL
+            )
+        finally:
+            conn.close()
+
+        return rows_md5_hash
 
 
 DBUtils = DBUtils()
