@@ -11,6 +11,8 @@ from hb_store_m1.models.storedb import StoreDB
 from hb_store_m1.utils.init_utils import InitUtils
 from hb_store_m1.utils.log_utils import LogUtils
 
+log = LogUtils(LogModule.DB_UTIL)
+
 
 class DBUtils:
 
@@ -38,8 +40,8 @@ class DBUtils:
 
         conn = sqlite3.connect(str(store_db_file_path))
 
-        LogUtils.log_info(
-            f"Attempting to upsert {len(pkgs)} PKGs in STORE.DB...", LogModule.DB_UTIL
+        log.log_info(
+            f"Attempting to upsert {len(pkgs)} PKGs in STORE.DB..."
         )
         try:
             conn.execute("BEGIN")
@@ -117,16 +119,15 @@ class DBUtils:
             conn.commit()
 
             upserted_pkgs = len(rows_to_insert)
-            LogUtils.log_info(
-                f"{upserted_pkgs} PKGs upserted successfully", LogModule.DB_UTIL
+            log.log_info(
+                f"{upserted_pkgs} PKGs upserted successfully"
             )
 
             return Output(Status.OK, len(rows_to_insert))
         except Exception as e:
             conn.rollback()
-            LogUtils.log_error(
-                f"Failed to upsert {len(pkgs)} PKGs in STORE.DB: {e}",
-                LogModule.DB_UTIL,
+            log.log_error(
+                f"Failed to upsert {len(pkgs)} PKGs in STORE.DB: {e}"
             )
             return Output(Status.ERROR, len(pkgs))
         finally:
@@ -138,9 +139,8 @@ class DBUtils:
         store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
 
         if not store_db_file_path.exists():
-            LogUtils.log_debug(
-                f"Skipping {store_db_file_path.name.upper()} read. File not found",
-                LogModule.DB_UTIL,
+            log.log_debug(
+                f"Skipping {store_db_file_path.name.upper()} read. File not found"
             )
             return rows_md5_hash
 
@@ -159,8 +159,8 @@ class DBUtils:
                 ).encode("utf-8")
                 rows_md5_hash[str(key)] = hashlib.md5(payload).hexdigest()
         except Exception as exc:
-            LogUtils.log_error(
-                f"Failed to generate STORE.DB md5: {exc}", LogModule.DB_UTIL
+            log.log_error(
+                f"Failed to generate STORE.DB md5: {exc}"
             )
         finally:
             conn.close()

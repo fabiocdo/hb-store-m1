@@ -9,6 +9,7 @@ from hb_store_m1.utils.log_utils import LogUtils
 
 class AutoOrganizer:
     _SECTIONS = {section.name: section for section in Section.ALL}
+    _LOG = LogUtils(LogModule.AUTO_ORGANIZER)
 
     @staticmethod
     def _target_dir(app_type: str) -> Path:
@@ -52,42 +53,37 @@ class AutoOrganizer:
         target_path = output.content if output.content else None
 
         if plan_result == Status.NOT_FOUND:
-            LogUtils.log_error(f"PKG file [{pkg}] not found", LogModule.AUTO_ORGANIZER)
+            AutoOrganizer._LOG.log_error(f"PKG file [{pkg}] not found")
             return None
 
         if plan_result == Status.INVALID:
-            LogUtils.log_error(
-                f"Invalid or missing content_id in [{pkg.name}] SFO data",
-                LogModule.AUTO_ORGANIZER,
+            AutoOrganizer._LOG.log_error(
+                f"Invalid or missing content_id in [{pkg.name}] SFO data"
             )
             return None
 
         if plan_result == Status.SKIP:
-            LogUtils.log_debug(
-                f"Skipping rename. PKG [{pkg.name}] is already in place",
-                LogModule.AUTO_ORGANIZER,
+            AutoOrganizer._LOG.log_debug(
+                f"Skipping rename. PKG [{pkg.name}] is already in place"
             )
             return target_path
 
         if plan_result == Status.CONFLICT:
-            LogUtils.log_error(
-                f"Failed to rename PKG [{pkg.name}]. Target already exists",
-                LogModule.AUTO_ORGANIZER,
+            AutoOrganizer._LOG.log_error(
+                f"Failed to rename PKG [{pkg.name}]. Target already exists"
             )
             return None
 
         if not target_path:
-            LogUtils.log_error(
-                f"Failed to resolve target path for {pkg.name}",
-                LogModule.AUTO_ORGANIZER,
+            AutoOrganizer._LOG.log_error(
+                f"Failed to resolve target path for {pkg.name}"
             )
             return None
 
-        if not FileUtils.move(pkg, target_path, LogModule.AUTO_ORGANIZER):
+        if not FileUtils.move(pkg, target_path):
             return None
 
-        LogUtils.log_info(
-            f"PKG {pkg.name} moved successfully to {target_path}",
-            LogModule.AUTO_ORGANIZER,
+        AutoOrganizer._LOG.log_info(
+            f"PKG {pkg.name} moved successfully to {target_path}"
         )
         return target_path

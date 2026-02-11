@@ -8,49 +8,48 @@ from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogModule
 from hb_store_m1.utils.log_utils import LogUtils
 
+log = LogUtils(LogModule.INIT_UTIL)
+
 
 class InitUtils:
 
     @staticmethod
     def init_directories():
-        LogUtils.log_debug("Initializing directories...", LogModule.INIT_UTIL)
+        log.log_debug("Initializing directories...")
 
         paths = Globals.PATHS
         for p in vars(paths).values():
             p.mkdir(parents=True, exist_ok=True)
 
-        LogUtils.log_info("Directories OK", LogModule.INIT_UTIL)
+        log.log_info("Directories OK")
 
     @staticmethod
     def init_db():
         store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
         store_db_init_script = Globals.FILES.STORE_DB_INIT_SCRIPT_FILE_PATH
 
-        LogUtils.log_debug(
-            f"Initializing {store_db_file_path.name} ...", LogModule.INIT_UTIL
+        log.log_debug(
+            f"Initializing {store_db_file_path.name} ..."
         )
 
         if store_db_file_path.exists():
-            LogUtils.log_info(
-                f"{store_db_file_path.name.upper()} OK",
-                LogModule.INIT_UTIL,
+            log.log_info(
+                f"{store_db_file_path.name.upper()} OK"
             )
             return
 
         if not store_db_init_script.is_file():
-            LogUtils.log_error(
+            log.log_error(
                 f"Failed to initialize {store_db_file_path.name}. "
-                f"Initialization script {store_db_init_script.name} not found at {store_db_init_script.parent}",
-                LogModule.INIT_UTIL,
+                f"Initialization script {store_db_init_script.name} not found at {store_db_init_script.parent}"
             )
             return
 
         sql = store_db_init_script.read_text("utf-8").strip()
         if not sql:
-            LogUtils.log_error(
+            log.log_error(
                 f"Failed to initialize {store_db_file_path.name}. "
-                f"Initialization script {store_db_init_script.name} is empty",
-                LogModule.INIT_UTIL,
+                f"Initialization script {store_db_init_script.name} is empty"
             )
             return
 
@@ -62,13 +61,12 @@ class InitUtils:
                 conn.commit()
             finally:
                 conn.close()
-            LogUtils.log_info(
-                f"{store_db_file_path.name.upper()} OK", LogModule.INIT_UTIL
+            log.log_info(
+                f"{store_db_file_path.name.upper()} OK"
             )
         except sqlite3.Error as exc:
-            LogUtils.log_error(
-                f"Failed to initialize {store_db_file_path.name}: {exc}",
-                LogModule.INIT_UTIL,
+            log.log_error(
+                f"Failed to initialize {store_db_file_path.name}: {exc}"
             )
 
     @staticmethod
@@ -76,53 +74,49 @@ class InitUtils:
         index_json_file_path = Globals.FILES.INDEX_JSON_FILE_PATH
         index_json_template = Globals.PATHS.INIT_DIR_PATH / "json_template.json"
 
-        LogUtils.log_debug(
-            f"Initializing {index_json_file_path.name} ...", LogModule.INIT_UTIL
+        log.log_debug(
+            f"Initializing {index_json_file_path.name} ..."
         )
 
         if index_json_file_path.exists():
-            LogUtils.log_info(
-                f"{index_json_file_path.name.upper()} OK",
-                LogModule.INIT_UTIL,
+            log.log_info(
+                f"{index_json_file_path.name.upper()} OK"
             )
             return
 
         if not index_json_template.is_file():
-            LogUtils.log_error(
+            log.log_error(
                 f"Failed to initialize {index_json_file_path.name}. "
-                f"Initialization script {index_json_template.name} not found at {index_json_template.parent}",
-                LogModule.INIT_UTIL,
+                f"Initialization script {index_json_template.name} not found at {index_json_template.parent}"
             )
             return
 
         template_raw = index_json_template.read_text("utf-8").strip()
         if not template_raw:
-            LogUtils.log_error(
+            log.log_error(
                 f"Failed to initialize {index_json_file_path.name}. "
-                f"Initialization script {index_json_template.name} is empty",
-                LogModule.INIT_UTIL,
+                f"Initialization script {index_json_template.name} is empty"
             )
             return
 
         try:
             json.loads(template_raw)
-            LogUtils.log_info(f"{index_json_file_path.name} OK", LogModule.INIT_UTIL)
+            log.log_info(f"{index_json_file_path.name} OK")
         except json.JSONDecodeError as exc:
-            LogUtils.log_error(
-                f"Failed to initialize {index_json_file_path.name}: {exc}",
-                LogModule.INIT_UTIL,
+            log.log_error(
+                f"Failed to initialize {index_json_file_path.name}: {exc}"
             )
             return
 
         index_json_file_path.parent.mkdir(parents=True, exist_ok=True)
         index_json_file_path.write_text(template_raw + "\n", encoding="utf-8")
-        LogUtils.log_info(
-            f"Initialized index.json at {index_json_file_path}", LogModule.INIT_UTIL
+        log.log_info(
+            f"Initialized index.json at {index_json_file_path}"
         )
 
     @staticmethod
     def init_assets():
-        LogUtils.log_debug("Initializing store assets...", LogModule.INIT_UTIL)
+        log.log_debug("Initializing store assets...")
 
         assets = [
             Globals.FILES.HOMEBREW_ELF_FILE_PATH,
@@ -134,20 +128,18 @@ class InitUtils:
             downloaded, missing = StoreAssetClient.download_store_assets(assets)
             if missing:
                 for asset in missing:
-                    LogUtils.log_warn(
-                        f"Failed to download asset. Assets {asset.name} not found in repository",
-                        LogModule.INIT_UTIL,
+                    log.log_warn(
+                        f"Failed to download asset. Assets {asset.name} not found in repository"
                     )
             else:
-                LogUtils.log_info("Store assets OK...", LogModule.INIT_UTIL)
+                log.log_info("Store assets OK...")
         except GithubException as e:
-            LogUtils.log_error(
-                f"Failed to download store assets: {e.data['message']}",
-                LogModule.INIT_UTIL,
+            log.log_error(
+                f"Failed to download store assets: {e.data['message']}"
             )
         except Exception as e:
-            LogUtils.log_error(
-                f"Failed to download store assets: {e.__cause__}", LogModule.INIT_UTIL
+            log.log_error(
+                f"Failed to download store assets: {e.__cause__}"
             )
 
 

@@ -41,8 +41,8 @@ def main():
     InitUtils.init_directories()
     InitUtils.init_db()
     InitUtils.init_template_json()
-    # InitUtils.init_assets()
+    InitUtils.init_assets()
     if Globals.ENVS.WATCHER_ENABLED:
         Watcher().start()
     else:
-        LogUtils.log_info("Watcher is disabled. Skipping...", LogModule.WATCHER)
+        LogUtils(LogModule.WATCHER).log_info("Watcher is disabled. Skipping...")

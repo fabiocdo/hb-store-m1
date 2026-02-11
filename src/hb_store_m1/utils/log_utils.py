@@ -7,39 +7,34 @@ CURRENT_LOG_PRIORITY: LogLevel = LogLevel[Globals.ENVS.LOG_LEVEL.upper()].priori
 
 
 class LogUtils:
+    def __init__(self, module: LogModule | None = None):
+        self._module = module
 
-    @staticmethod
-    def _log(log_level: LogLevel, message=None, module: LogModule | None = None):
+    def _log(self, log_level: LogLevel, message=None):
         timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y-%m-%d %H:%M:%S UTC"
         )
         log_color = log_level.color()
-
         module_log_tag = (
-            "" if not module else f"{module.color()}[{module.name}] {LogColor.RESET}"
+            ""
+            if not self._module
+            else f"{self._module.color()}[{self._module.name}] {LogColor.RESET}"
         )
 
         print(f"{timestamp} | {module_log_tag}{log_color}{message}{LogColor.RESET}")
 
-    @staticmethod
-    def log_debug(message=None, module: LogModule | None = None):
+    def log_debug(self, message=None):
         if CURRENT_LOG_PRIORITY <= LogLevel.DEBUG.priority():
-            LogUtils._log(LogLevel.DEBUG, message, module)
+            self._log(LogLevel.DEBUG, message)
 
-    @staticmethod
-    def log_info(message=None, module: LogModule | None = None):
+    def log_info(self, message=None):
         if CURRENT_LOG_PRIORITY <= LogLevel.INFO.priority():
-            LogUtils._log(LogLevel.INFO, message, module)
+            self._log(LogLevel.INFO, message)
 
-    @staticmethod
-    def log_warn(message=None, module: LogModule | None = None):
+    def log_warn(self, message=None):
         if CURRENT_LOG_PRIORITY <= LogLevel.WARN.priority():
-            LogUtils._log(LogLevel.WARN, message, module)
+            self._log(LogLevel.WARN, message)
 
-    @staticmethod
-    def log_error(message=None, module: LogModule | None = None):
+    def log_error(self, message=None):
         if CURRENT_LOG_PRIORITY <= LogLevel.ERROR.priority():
-            LogUtils._log(LogLevel.ERROR, message, module)
-
-
-LogUtils = LogUtils()
+            self._log(LogLevel.ERROR, message)

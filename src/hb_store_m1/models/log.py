@@ -28,6 +28,7 @@ class LogModule(StrEnum):
     PKG_UTIL = LogColor.GREEN
     INIT_UTIL = LogColor.CYAN
     CACHE_UTIL = LogColor.MAGENTA
+    FILE_UTIL = LogColor.BRIGHT_BLUE
 
     AUTO_ORGANIZER = LogColor.BRIGHT_RED
     WATCHER = LogColor.BRIGHT_PURPLE

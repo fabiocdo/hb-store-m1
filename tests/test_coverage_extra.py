@@ -235,9 +235,7 @@ def test_given_upsert_exception_when_upsert_then_returns_error(
 
 def test_given_missing_file_when_move_then_returns_none(tmp_path):
     target = tmp_path / "target.txt"
-    assert file_utils_module.FileUtils.move(
-        tmp_path / "missing.txt", target
-    ) is None
+    assert file_utils_module.FileUtils.move(tmp_path / "missing.txt", target) is None
 
 
 def test_given_invalid_png_when_optimize_then_returns_false(tmp_path):

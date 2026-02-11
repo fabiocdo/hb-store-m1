@@ -24,6 +24,9 @@ class Watcher:
         self._auto_organizer = AutoOrganizer
         self._auto_organizer_enabled = Globals.ENVS.AUTO_ORGANIZER_ENABLED
         self._errors_dir = Globals.PATHS.ERRORS_DIR_PATH
+        self._log_cache = LogUtils(LogModule.CACHE_UTIL)
+        self._log_watcher = LogUtils(LogModule.WATCHER)
+        self._log_db = LogUtils(LogModule.DB_UTIL)
 
     def _content_id_from_media(self, name: str) -> str | None:
         for suffix in self._MEDIA_SUFFIXES:
@@ -61,10 +64,7 @@ class Watcher:
         changed_section_set = set(changed_sections)
 
         if not changed_sections:
-            LogUtils.log_info(
-                "No changes detected.",
-                LogModule.CACHE_UTIL,
-            )
+            self._log_cache.log_info("No changes detected.")
             return
 
         scan_sections = [section for section in changed_sections if section != "_media"]
@@ -85,7 +85,6 @@ class Watcher:
                     pkg_path,
                     self._errors_dir,
                     "validation_failed",
-                    LogModule.WATCHER,
                 )
                 continue
             result = self._pkg_utils.extract_pkg_data(pkg_path)
@@ -107,7 +106,6 @@ class Watcher:
                         pkg_path,
                         self._errors_dir,
                         "organizer_failed",
-                        LogModule.WATCHER,
                     )
                     continue
                 pkg_data.pkg_path = target_path
@@ -119,21 +117,17 @@ class Watcher:
             self._cache_utils.write_pkg_cache()
             return
 
-        LogUtils.log_error(
-            "Store DB update failed. Cache not updated.",
-            LogModule.DB_UTIL,
-        )
+        self._log_db.log_error("Store DB update failed. Cache not updated.")
 
     def start(self) -> None:
-        LogUtils.log_info(
-            f"Watcher started (interval: {self._interval}s)",
-            LogModule.WATCHER,
+        self._log_watcher.log_info(
+            f"Watcher started (interval: {self._interval}s)"
         )
         while True:
             started_at = time.monotonic()
             try:
                 self._run_cycle()
             except Exception as exc:
-                LogUtils.log_error(f"Watcher cycle failed: {exc}", LogModule.WATCHER)
+                self._log_watcher.log_error(f"Watcher cycle failed: {exc}")
             elapsed = time.monotonic() - started_at
             time.sleep(max(0.0, self._interval - elapsed))

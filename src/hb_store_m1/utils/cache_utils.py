@@ -7,6 +7,8 @@ from hb_store_m1.models.log import LogColor, LogModule
 from hb_store_m1.models.output import Output, Status
 from hb_store_m1.models.pkg.section import Section
 from hb_store_m1.utils.log_utils import LogUtils
+
+log = LogUtils(LogModule.CACHE_UTIL)
 from pydantic import ValidationError
 
 
@@ -18,9 +20,8 @@ class CacheUtils:
         store_cache_json_file_path = Globals.FILES.STORE_CACHE_JSON_FILE_PATH
 
         if not store_cache_json_file_path.exists():
-            LogUtils.log_debug(
-                f"Skipping {store_cache_json_file_path.name.upper()} read. File not found",
-                LogModule.CACHE_UTIL,
+            log.log_debug(
+                f"Skipping {store_cache_json_file_path.name.upper()} read. File not found"
             )
             return Output(Status.NOT_FOUND, {})
 
@@ -29,9 +30,8 @@ class CacheUtils:
                 store_cache_json_file_path.read_text("utf-8")
             )
         except (OSError, ValueError, ValidationError) as e:
-            LogUtils.log_error(
-                f"Failed to read {store_cache_json_file_path.name}: {e}",
-                LogModule.CACHE_UTIL,
+            log.log_error(
+                f"Failed to read {store_cache_json_file_path.name}: {e}"
             )
             return Output(Status.ERROR, {})
 
@@ -43,9 +43,8 @@ class CacheUtils:
         pkg_dir_path = Globals.PATHS.PKG_DIR_PATH
 
         if not pkg_dir_path.exists():
-            LogUtils.log_debug(
-                f"Skipping {pkg_dir_path.name.upper()} scan. Directory not found",
-                LogModule.CACHE_UTIL,
+            log.log_debug(
+                f"Skipping {pkg_dir_path.name.upper()} scan. Directory not found"
             )
             return Output(Status.NOT_FOUND, {})
 
@@ -65,9 +64,8 @@ class CacheUtils:
                     stat = pkg_path.stat()
 
                 except OSError as exc:
-                    LogUtils.log_warn(
-                        f"Failed to stat {pkg_path.name}: {exc}",
-                        LogModule.CACHE_UTIL,
+                    log.log_warn(
+                        f"Failed to stat {pkg_path.name}: {exc}"
                     )
                     continue
 
@@ -153,14 +151,13 @@ class CacheUtils:
             if temp_path.exists():
                 temp_path.unlink()
         except OSError as exc:
-            LogUtils.log_warn(
-                f"Failed to remove temp cache file: {exc}", LogModule.CACHE_UTIL
+            log.log_warn(
+                f"Failed to remove temp cache file: {exc}"
             )
 
         if summary_lines:
-            LogUtils.log_info(
-                "Changes summary: " + ", ".join(summary_lines),
-                LogModule.CACHE_UTIL,
+            log.log_info(
+                "Changes summary: " + ", ".join(summary_lines)
             )
 
         return Output(

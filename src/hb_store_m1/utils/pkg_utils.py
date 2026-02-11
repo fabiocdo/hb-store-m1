@@ -17,6 +17,8 @@ from hb_store_m1.models.pkg.validation import ValidationFields, Severity
 from hb_store_m1.helpers.pkgtool import PKGTool
 from hb_store_m1.utils.log_utils import LogUtils
 
+log = LogUtils(LogModule.PKG_UTIL)
+
 
 class PkgUtils:
     _SFO_LINE_RE = re.compile(r"^(?P<name>[^:]+?)\s*:\s*[^=]*=\s*(?P<value>.*)$")
@@ -47,7 +49,7 @@ class PkgUtils:
     def scan(sections: list[str] | None = None) -> list[Path]:
         section_by_name = {section.name: section for section in Section.ALL}
         scan_targets = sections or list(section_by_name.keys())
-        LogUtils.log_info("Scanning PKGs...", LogModule.PKG_UTIL)
+        log.log_info("Scanning PKGs...")
 
         scanned_pkgs: list[Path] = []
         counts = {name: 0 for name in scan_targets}
@@ -60,10 +62,9 @@ class PkgUtils:
                     scanned_pkgs.append(pkg_path)
                     counts[name] += 1
 
-        LogUtils.log_info(
+        log.log_info(
             f"Scanned {len(scanned_pkgs)} PKGs. "
-            + ", ".join(f"{name.upper()}: {counts[name]}" for name in scan_targets),
-            LogModule.PKG_UTIL,
+            + ", ".join(f"{name.upper()}: {counts[name]}" for name in scan_targets)
         )
 
         return scanned_pkgs
@@ -77,9 +78,8 @@ class PkgUtils:
             subprocess.TimeoutExpired,
             OSError,
         ):
-            LogUtils.log_error(
-                f"PKG {pkg.name} validation failed",
-                LogModule.PKG_UTIL,
+            log.log_error(
+                f"PKG {pkg.name} validation failed"
             )
             return Output(Status.ERROR, pkg)
 
@@ -91,24 +91,22 @@ class PkgUtils:
                 name, level = field.value
                 if name in line:
                     if level is Severity.CRITICAL:
-                        LogUtils.log_error(
-                            f"PKG {pkg.name} validation failed on [{name}] field",
-                            LogModule.PKG_UTIL,
+                        log.log_error(
+                            f"PKG {pkg.name} validation failed on [{name}] field"
                         )
                         return Output(Status.ERROR, pkg)
-                    LogUtils.log_warn(
-                        f"PKG {pkg.name} validation warning on [{name}] field",
-                        LogModule.PKG_UTIL,
+                    log.log_warn(
+                        f"PKG {pkg.name} validation warning on [{name}] field"
                     )
                     return Output(Status.WARN, pkg)
 
-        LogUtils.log_debug(f"PKG {pkg.name} validation successful", LogModule.PKG_UTIL)
+        log.log_debug(f"PKG {pkg.name} validation successful")
         return Output(Status.OK, pkg)
 
     @staticmethod
     def extract_pkg_data(pkg: Path) -> Output:
         if not pkg.is_file():
-            LogUtils.log_error(f"PKG not found: {pkg}", LogModule.PKG_UTIL)
+            log.log_error(f"PKG not found: {pkg}")
             return Output(Status.NOT_FOUND, pkg)
 
         try:
@@ -130,8 +128,8 @@ class PkgUtils:
             # Step 2: Extract PARAM.SFO
             param_sfo = None
             with tempfile.TemporaryDirectory() as tmp:
-                LogUtils.log_debug(
-                    f"Extracting PARAM.SFO from PKG {pkg.name}...", LogModule.PKG_UTIL
+                log.log_debug(
+                    f"Extracting PARAM.SFO from PKG {pkg.name}..."
                 )
                 extracted_sfo_file = Path(tmp) / "param.sfo"
                 PKGTool.extract_pkg_entry(
@@ -143,14 +141,14 @@ class PkgUtils:
                 ).stdout.splitlines()
 
                 param_sfo = PkgUtils.parse_param_sfo_entries(entries_list)
-                LogUtils.log_debug(
-                    f"PARAM.SFO extracted successfully", LogModule.PKG_UTIL
+                log.log_debug(
+                    f"PARAM.SFO extracted successfully"
                 )
 
             # Step 3: Extract ICON0.PNG, PIC0.PNG, PIC1.PNG
             extracted_medias: dict[PKGEntryKey, Path | None] = {}
-            LogUtils.log_debug(
-                f"Extracting MEDIAS from PKG {pkg.name}...", LogModule.PKG_UTIL
+            log.log_debug(
+                f"Extracting MEDIAS from PKG {pkg.name}..."
             )
 
             content_id = param_sfo.data[ParamSFOKey.CONTENT_ID]
@@ -178,24 +176,21 @@ class PkgUtils:
                 entry_index = pkg_entries.get(entry_key)
                 if entry_index is None:
                     if is_critical:
-                        LogUtils.log_error(
-                            f"Cannot extract media from {pkg.name}. {entry_key} was not found",
-                            LogModule.PKG_UTIL,
+                        log.log_error(
+                            f"Cannot extract media from {pkg.name}. {entry_key} was not found"
                         )
                         return Output(Status.ERROR, pkg)
 
                     else:
-                        LogUtils.log_debug(
-                            f"Skipping {entry_key} extraction. {entry_key} was not found in {pkg.name}",
-                            LogModule.PKG_UTIL,
+                        log.log_debug(
+                            f"Skipping {entry_key} extraction. {entry_key} was not found in {pkg.name}"
                         )
                         extracted_medias[entry_key] = None
                     continue
 
                 if file_path.exists():
-                    LogUtils.log_debug(
-                        f"Skipping {entry_key} extraction. {file_path.name} already exists",
-                        LogModule.PKG_UTIL,
+                    log.log_debug(
+                        f"Skipping {entry_key} extraction. {file_path.name} already exists"
                     )
                     extracted_medias[entry_key] = file_path
                     continue
@@ -224,13 +219,13 @@ class PkgUtils:
                 ),
                 pkg_path=pkg,
             )
-            LogUtils.log_debug(
-                f"Extracted data successfully from PKG {pkg.name}", LogModule.PKG_UTIL
+            log.log_debug(
+                f"Extracted data successfully from PKG {pkg.name}"
             )
             return Output(Status.OK, extracted_pkg)
         except Exception as exc:
-            LogUtils.log_error(
-                f"Failed to extract data from PKG {pkg.name}: {exc}", LogModule.PKG_UTIL
+            log.log_error(
+                f"Failed to extract data from PKG {pkg.name}: {exc}"
             )
             return Output(Status.ERROR, pkg)
 

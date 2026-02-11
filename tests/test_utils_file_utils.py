@@ -7,7 +7,7 @@ def test_given_existing_file_when_move_then_moves_to_target(tmp_path):
     source.write_text("data", encoding="utf-8")
     target = tmp_path / "dest" / "target.txt"
 
-    moved = FileUtils.move(source, target, LogModule.PKG_UTIL)
+    moved = FileUtils.move(source, target)
 
     assert moved == target
     assert target.exists()
@@ -23,9 +23,7 @@ def test_given_existing_file_when_move_to_error_then_appends_counter(tmp_path):
     errors_dir.mkdir(parents=True, exist_ok=True)
     existing.write_text("old", encoding="utf-8")
 
-    moved = FileUtils.move_to_error(
-        original, errors_dir, "test", LogModule.WATCHER
-    )
+    moved = FileUtils.move_to_error(original, errors_dir, "test")
 
     assert moved is not None
     assert moved.name == "pkg_1.pkg"
@@ -36,7 +34,7 @@ def test_given_existing_file_when_move_to_error_then_appends_counter(tmp_path):
 def test_given_png_when_optimize_png_then_keeps_or_reduces_size(sample_png):
     original_size = sample_png.stat().st_size
 
-    optimized = FileUtils.optimize_png(sample_png, LogModule.PKG_UTIL)
+    optimized = FileUtils.optimize_png(sample_png)
 
     assert optimized is False
     assert sample_png.exists()

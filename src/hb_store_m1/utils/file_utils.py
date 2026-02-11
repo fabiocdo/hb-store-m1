@@ -3,18 +3,16 @@ from pathlib import Path
 from hb_store_m1.models.log import LogModule
 from hb_store_m1.utils.log_utils import LogUtils
 
+log = LogUtils(LogModule.FILE_UTIL)
+
 
 class FileUtils:
     @staticmethod
-    def optimize_png(
-        path: Path,
-        module: LogModule | None = None,
-    ) -> bool:
+    def optimize_png(path: Path) -> bool:
         if not path.exists():
             return False
-        LogUtils.log_debug(
+        log.log_debug(
             f"PNG optimize skipped for {path.name}. No lossless compressor available.",
-            module,
         )
         return False
 
@@ -22,16 +20,15 @@ class FileUtils:
     def move(
         path: Path,
         target_path: Path,
-        module: LogModule | None = None,
     ) -> Path | None:
         if not path.exists():
-            LogUtils.log_warn(f"Skipping move. File not found: {path}", module)
+            log.log_warn(f"Skipping move. File not found: {path}")
             return None
         target_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             path.rename(target_path)
         except OSError as exc:
-            LogUtils.log_error(f"Failed to move file: {exc}", module)
+            log.log_error(f"Failed to move file: {exc}")
             return None
         return target_path
 
@@ -40,12 +37,9 @@ class FileUtils:
         path: Path,
         errors_dir: Path,
         reason: str,
-        module: LogModule | None = None,
     ) -> Path | None:
         if not path.exists():
-            LogUtils.log_warn(
-                f"Skipping move to errors. File not found: {path}", module
-            )
+            log.log_warn(f"Skipping move to errors. File not found: {path}")
             return None
 
         errors_dir.mkdir(parents=True, exist_ok=True)
@@ -59,11 +53,11 @@ class FileUtils:
                     break
                 counter += 1
 
-        moved_path = FileUtils.move(path, target_path, module)
+        moved_path = FileUtils.move(path, target_path)
         if not moved_path:
             return None
 
-        LogUtils.log_warn(f"Moved to errors ({reason}): {target_path.name}", module)
+        log.log_warn(f"Moved to errors ({reason}): {target_path.name}")
         return target_path
 
 
