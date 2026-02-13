@@ -42,8 +42,16 @@ def _generate_upsert_params(pkg: PKG) -> dict[str, object]:
         "Author": None,
         "apptype": pkg.app_type,
         "pv": None,
-        "main_icon_path": urljoin(Globals.ENVS.SERVER_URL, str(pkg.pic0_png_path)),
-        "main_menu_pic": urljoin(Globals.ENVS.SERVER_URL, str(pkg.pic1_png_path)),
+        "main_icon_path": (
+            urljoin(Globals.ENVS.SERVER_URL, str(pkg.pic0_png_path))
+            if pkg.pic0_png_path
+            else None
+        ),
+        "main_menu_pic": (
+            urljoin(Globals.ENVS.SERVER_URL, str(pkg.pic1_png_path))
+            if pkg.pic1_png_path
+            else None
+        ),
         "releaseddate": pkg.release_date,
         "number_of_downloads": 0,
         "github": None,
@@ -104,6 +112,12 @@ class DBUtils:
         if not pkgs:
             return Output(Status.SKIP, "Nothing to upsert")
 
+        content_ids = [pkg.content_id for pkg in pkgs if pkg.content_id]
+        existing = {
+            row["content_id"]: row["row_md5"]
+            for row in DBUtils.select_by_content_ids(conn, content_ids).content
+        }
+
         log.log_info(f"Attempting to upsert {len(pkgs)} PKGs in STORE.DB...")
 
         try:
@@ -131,14 +145,22 @@ class DBUtils:
             {update_set}
             """
 
-            upsert_params = [_generate_upsert_params(pkg) for pkg in pkgs]
+            upsert_params = [
+                params
+                for pkg in pkgs
+                if (params := _generate_upsert_params(pkg)).get("row_md5")
+                != existing.get(pkg.content_id)
+            ]
 
             if upsert_params:
                 conn.executemany(upsert_sql, upsert_params)
 
             conn.commit()
 
+            skipped = len(pkgs) - len(upsert_params)
             log.log_info(f"{len(upsert_params)} PKGs upserted successfully")
+            if skipped:
+                log.log_debug(f"Skipped {skipped} unchanged PKGs")
             return Output(Status.OK, len(upsert_params))
 
         except Exception as e:

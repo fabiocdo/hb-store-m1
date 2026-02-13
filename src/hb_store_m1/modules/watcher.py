@@ -63,25 +63,42 @@ class Watcher:
         changed_section_set = set(changed_sections)
 
         removed_by_section = changes.get("removed") or {}
-        removed_content_ids = []
-
-        for section_name, content_ids in removed_by_section.items():
-            if section_name == "_media":
-                continue
-            for content_id in content_ids or []:
-                if content_id:
-                    removed_content_ids.append(content_id)
-        if removed_content_ids:
-            delete_result = DBUtils.delete_by_content_ids(
-                sorted(set(removed_content_ids))
-            )
-            if delete_result.status is Status.ERROR:
-                log.log_error("Failed to delete removed PKGs from STORE.DB")
-
         added_by_section = changes.get("added") or {}
         updated_by_section = changes.get("updated") or {}
         current_files = changes.get("current_files") or {}
         section_by_name = {section.name: section for section in Section.ALL}
+
+        current_content_ids = set()
+        for section_name, file_map in current_files.items():
+            if section_name == "_media":
+                continue
+            current_content_ids.update((file_map or {}).keys())
+
+        removed_content_ids = []
+        for section_name, content_ids in removed_by_section.items():
+            if section_name == "_media":
+                continue
+            for content_id in content_ids or []:
+                if content_id and content_id not in current_content_ids:
+                    removed_content_ids.append(content_id)
+
+        if removed_content_ids:
+            unique_ids = sorted(set(removed_content_ids))
+            delete_result = DBUtils.delete_by_content_ids(unique_ids)
+            if delete_result.status is Status.ERROR:
+                log.log_error("Failed to delete removed PKGs from STORE.DB")
+
+            media_dir = Globals.PATHS.MEDIA_DIR_PATH
+            for content_id in unique_ids:
+                for suffix in self._MEDIA_SUFFIXES:
+                    media_path = media_dir / f"{content_id}{suffix}.png"
+                    try:
+                        if media_path.exists():
+                            media_path.unlink()
+                    except OSError as exc:
+                        log.log_warn(
+                            f"Failed to remove media file {media_path.name}: {exc}"
+                        )
 
         scanned_pkgs = []
         for section_name in changed_sections:
@@ -153,7 +170,11 @@ class Watcher:
 
         upsert_result = DBUtils.upsert(extracted_pkgs)
         if upsert_result.status in (Status.OK, Status.SKIP):
-            CacheUtils.write_pkg_cache()
+            current_cache = (changes.get("current_cache") or None)
+            if current_cache is not None:
+                CacheUtils.write_pkg_cache(cached=current_cache)
+            else:
+                CacheUtils.write_pkg_cache()
             return
 
         log.log_error("Store DB update failed. Cache not updated.")

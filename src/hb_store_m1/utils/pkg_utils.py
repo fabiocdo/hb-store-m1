@@ -197,7 +197,9 @@ class PkgUtils:
                     continue
 
                 PKGTool.extract_pkg_entry(pkg, entry_index, str(file_path))
+                log.log_debug(f"Extracted {entry_key} from {pkg.name} successfully.")
                 extracted_medias[entry_key] = file_path
+
             log.log_debug(f"Extracted data successfully from PKG {pkg.name}")
             return Output(Status.OK, [param_sfo, extracted_medias])
 

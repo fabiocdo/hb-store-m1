@@ -99,7 +99,7 @@ class CacheUtils:
                 )
                 if section.name == "_media":
                     cache_key = pkg_path.stem
-                    cache_value = f"{stat.st_size}|{stat.st_mtime_ns}"
+                    cache_value = f"{stat.st_size}|{stat.st_mtime_ns}|{pkg_path.name}"
                 else:
                     size_str = str(stat.st_size)
                     mtime_str = str(stat.st_mtime_ns)
@@ -226,6 +226,7 @@ class CacheUtils:
                 "updated": updated,
                 "removed": removed,
                 "current_files": current_files,
+                "current_cache": current,
                 "changed": sorted(changed_sections),
             },
         )
