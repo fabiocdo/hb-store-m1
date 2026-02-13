@@ -6,6 +6,7 @@ from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogColor, LogModule
 from hb_store_m1.models.output import Output, Status
 from hb_store_m1.models.pkg.section import Section
+from hb_store_m1.utils.pkg_utils import PkgUtils
 from hb_store_m1.utils.log_utils import LogUtils
 
 log = LogUtils(LogModule.CACHE_UTIL)
@@ -36,7 +37,9 @@ class CacheUtils:
         return Output(Status.OK, data)
 
     @staticmethod
-    def write_pkg_cache(path: Path | None = None):
+    def write_pkg_cache(
+        path: Path | None = None, cached: dict[str, CacheSection] | None = None
+    ):
         store_cache_path = path or Globals.FILES.STORE_CACHE_JSON_FILE_PATH
         pkg_dir_path = Globals.PATHS.PKG_DIR_PATH
 
@@ -47,6 +50,29 @@ class CacheUtils:
             return Output(Status.NOT_FOUND, {})
 
         cache = {section.name: CacheSection() for section in CacheUtils._SECTIONS}
+        if cached is None:
+            cached = CacheUtils.read_pkg_cache().content or {}
+        else:
+            cached = cached or {}
+        cached_index_by_section: dict[str, dict[str, tuple[str, str, str]]] = {}
+        for section in CacheUtils._SECTIONS:
+            if section.name == "_media":
+                continue
+            cached_section = cached.get(section.name)
+            if not cached_section:
+                continue
+            index: dict[str, tuple[str, str, str]] = {}
+            for content_id, value in cached_section.content.items():
+                parts = value.split("|", 2)
+                if len(parts) >= 3:
+                    size_str, mtime_str, filename = parts[0], parts[1], parts[2]
+                elif len(parts) >= 2:
+                    size_str, mtime_str = parts[0], parts[1]
+                    filename = f"{content_id}.pkg"
+                else:
+                    continue
+                index[filename] = (content_id, size_str, mtime_str)
+            cached_index_by_section[section.name] = index
 
         for section in CacheUtils._SECTIONS:
             section_path = section.path
@@ -71,9 +97,30 @@ class CacheUtils:
                 section_cache.meta.latest_mtime = max(
                     section_cache.meta.latest_mtime, int(stat.st_mtime_ns)
                 )
-                section_cache.content[pkg_path.name] = (
-                    f"{stat.st_size}|{stat.st_mtime_ns}"
-                )
+                if section.name == "_media":
+                    cache_key = pkg_path.stem
+                    cache_value = f"{stat.st_size}|{stat.st_mtime_ns}"
+                else:
+                    size_str = str(stat.st_size)
+                    mtime_str = str(stat.st_mtime_ns)
+                    cached_index = cached_index_by_section.get(section.name) or {}
+                    cached_entry = cached_index.get(pkg_path.name)
+                    if (
+                        cached_entry
+                        and cached_entry[1] == size_str
+                        and cached_entry[2] == mtime_str
+                    ):
+                        cache_key = cached_entry[0] or pkg_path.stem
+                    else:
+                        content_id = PkgUtils.read_content_id(pkg_path)
+                        cache_key = content_id or pkg_path.stem
+                        if not content_id:
+                            log.log_warn(
+                                f"Failed to read content_id for {pkg_path.name}. "
+                                "Falling back to filename."
+                            )
+                    cache_value = f"{size_str}|{mtime_str}|{pkg_path.name}"
+                section_cache.content[cache_key] = cache_value
 
         store_cache_path.parent.mkdir(parents=True, exist_ok=True)
         store_cache_path.write_text(
@@ -94,11 +141,11 @@ class CacheUtils:
         store_cache_path = Globals.FILES.STORE_CACHE_JSON_FILE_PATH
         temp_path = store_cache_path.with_suffix(".tmp")
 
-        current_output = CacheUtils.write_pkg_cache(temp_path)
         cached_output = CacheUtils.read_pkg_cache()
+        cached = cached_output.content or {}
+        current_output = CacheUtils.write_pkg_cache(temp_path, cached)
 
         current = current_output.content or {}
-        cached = cached_output.content or {}
 
         current_dump = CACHE_ADAPTER.dump_python(current)
         cached_dump = CACHE_ADAPTER.dump_python(cached)
@@ -107,6 +154,7 @@ class CacheUtils:
         added = {}
         removed = {}
         updated = {}
+        current_files = {}
         changed_sections = []
         summary_lines = []
 
@@ -129,6 +177,16 @@ class CacheUtils:
                     for key in current_keys & cached_keys
                     if current_content[key] != cached_content[key]
                 )
+                if section_name != "_media":
+                    file_map = {}
+                    for key, value in current_content.items():
+                        parts = value.split("|", 2)
+                        if len(parts) >= 3 and parts[2]:
+                            filename = parts[2]
+                        else:
+                            filename = f"{key}.pkg"
+                        file_map[key] = filename
+                    current_files[section_name] = file_map
                 added_count = len(added[section_name])
                 updated_count = len(updated[section_name])
                 removed_count = len(removed[section_name])
@@ -167,6 +225,7 @@ class CacheUtils:
                 "added": added,
                 "updated": updated,
                 "removed": removed,
+                "current_files": current_files,
                 "changed": sorted(changed_sections),
             },
         )

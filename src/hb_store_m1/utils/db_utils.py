@@ -17,15 +17,26 @@ log = LogUtils(LogModule.DB_UTIL)
 class DBUtils:
 
     @staticmethod
-    def _cdn_url(path: Path | str | None) -> str | None:
-        if not path:
-            return None
-        base_url = Globals.ENVS.SERVER_URL.rstrip("/")
-        try:
-            relative = Path(path).resolve().relative_to(Globals.PATHS.DATA_DIR_PATH)
-        except (OSError, ValueError):
-            return str(path)
-        return f"{base_url}/{relative.as_posix()}"
+    def _select_rows_by_content_ids(
+        conn: sqlite3.Connection,
+        content_ids: list[str],
+    ) -> list:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        placeholders = ",".join("?" for _ in content_ids)
+
+        query = f"""
+            SELECT *
+            FROM homebrews
+            WHERE content_id IN ({placeholders})
+        """
+
+        cursor.execute(query, content_ids)
+
+        rows_by_id = cursor.fetchall()
+
+        return rows_by_id
 
     @staticmethod
     def upsert(pkgs: list[PKG]) -> Output:
@@ -39,10 +50,11 @@ class DBUtils:
             return Output(Status.SKIP, "Nothing to upsert")
 
         conn = sqlite3.connect(str(store_db_file_path))
+        conn.row_factory = sqlite3.Row
+        content_ids = [pkg.content_id for pkg in pkgs if pkg.content_id]
+        existing_rows = DBUtils._select_rows_by_content_ids(conn, content_ids)
 
-        log.log_info(
-            f"Attempting to upsert {len(pkgs)} PKGs in STORE.DB..."
-        )
+        log.log_info(f"Attempting to upsert {len(pkgs)} PKGs in STORE.DB...")
         try:
             conn.execute("BEGIN")
 
@@ -77,14 +89,94 @@ class DBUtils:
                          """
 
             rows_to_insert = []
+            skipped_unchanged = 0
             for pkg in pkgs:
-                pkg_url = DBUtils._cdn_url(pkg.pkg_path)
-                icon_url = DBUtils._cdn_url(pkg.icon0_png_path)
-                pic0_url = DBUtils._cdn_url(pkg.pic0_png_path)
-                pic1_url = DBUtils._cdn_url(pkg.pic1_png_path)
+                base_url = Globals.ENVS.SERVER_URL.rstrip("/")
+
+                if pkg.pkg_path:
+                    try:
+                        pkg_rel = (
+                            Path(pkg.pkg_path)
+                            .resolve()
+                            .relative_to(Globals.PATHS.DATA_DIR_PATH)
+                        )
+                        pkg_url = f"{base_url}/{pkg_rel.as_posix()}"
+                    except (OSError, ValueError):
+                        pkg_url = str(pkg.pkg_path)
+                else:
+                    pkg_url = None
+
+                if pkg.icon0_png_path:
+                    try:
+                        icon_rel = (
+                            Path(pkg.icon0_png_path)
+                            .resolve()
+                            .relative_to(Globals.PATHS.DATA_DIR_PATH)
+                        )
+                        icon_url = f"{base_url}/{icon_rel.as_posix()}"
+                    except (OSError, ValueError):
+                        icon_url = str(pkg.icon0_png_path)
+                else:
+                    icon_url = None
+
+                if pkg.pic0_png_path:
+                    try:
+                        pic0_rel = (
+                            Path(pkg.pic0_png_path)
+                            .resolve()
+                            .relative_to(Globals.PATHS.DATA_DIR_PATH)
+                        )
+                        pic0_url = f"{base_url}/{pic0_rel.as_posix()}"
+                    except (OSError, ValueError):
+                        pic0_url = str(pkg.pic0_png_path)
+                else:
+                    pic0_url = None
+
+                if pkg.pic1_png_path:
+                    try:
+                        pic1_rel = (
+                            Path(pkg.pic1_png_path)
+                            .resolve()
+                            .relative_to(Globals.PATHS.DATA_DIR_PATH)
+                        )
+                        pic1_url = f"{base_url}/{pic1_rel.as_posix()}"
+                    except (OSError, ValueError):
+                        pic1_url = str(pkg.pic1_png_path)
+                else:
+                    pic1_url = None
                 size = 0
                 if pkg.pkg_path and Path(pkg.pkg_path).exists():
                     size = Path(pkg.pkg_path).stat().st_size
+                row_values_by_column = {
+                    StoreDB.Column.ID.value: pkg.title_id,
+                    StoreDB.Column.NAME.value: pkg.title,
+                    StoreDB.Column.CONTENT_ID.value: pkg.content_id,
+                    StoreDB.Column.DESC.value: None,
+                    StoreDB.Column.IMAGE.value: icon_url,
+                    StoreDB.Column.PACKAGE.value: pkg_url,
+                    StoreDB.Column.VERSION.value: pkg.version,
+                    StoreDB.Column.PIC_PATH.value: None,
+                    StoreDB.Column.DESC_1.value: None,
+                    StoreDB.Column.DESC_2.value: None,
+                    StoreDB.Column.REVIEW_STARS.value: None,
+                    StoreDB.Column.SIZE.value: size,
+                    StoreDB.Column.AUTHOR.value: None,
+                    StoreDB.Column.APP_TYPE.value: pkg.app_type,
+                    StoreDB.Column.PV.value: None,
+                    StoreDB.Column.MAIN_ICON_PATH.value: pic0_url,
+                    StoreDB.Column.MAIN_MENU_PIC.value: pic1_url,
+                    StoreDB.Column.RELEASEDDATE.value: pkg.release_date,
+                    StoreDB.Column.NUMBER_OF_DOWNLOADS.value: 0,
+                    StoreDB.Column.GITHUB.value: None,
+                    StoreDB.Column.VIDEO.value: None,
+                    StoreDB.Column.TWITTER.value: None,
+                    StoreDB.Column.MD5.value: None,
+                }
+                compare_values = row_values_by_column
+                existing_row = existing_rows.get(pkg.content_id)
+                if existing_row == compare_values:
+                    skipped_unchanged += 1
+                    continue
                 rows_to_insert.append(
                     (
                         pkg.content_id,
@@ -113,23 +205,61 @@ class DBUtils:
                     )
                 )
 
+            if not rows_to_insert:
+                conn.rollback()
+                log.log_info(
+                    f"All PKGs unchanged. Skipped {skipped_unchanged} upserts."
+                )
+                return Output(Status.SKIP, "Nothing to upsert")
+
             if rows_to_insert:
                 conn.executemany(insert_sql, rows_to_insert)
 
             conn.commit()
 
             upserted_pkgs = len(rows_to_insert)
-            log.log_info(
-                f"{upserted_pkgs} PKGs upserted successfully"
-            )
+            log.log_info(f"{upserted_pkgs} PKGs upserted successfully")
+            if skipped_unchanged:
+                log.log_info(f"Skipped {skipped_unchanged} unchanged PKGs")
 
             return Output(Status.OK, len(rows_to_insert))
         except Exception as e:
             conn.rollback()
-            log.log_error(
-                f"Failed to upsert {len(pkgs)} PKGs in STORE.DB: {e}"
-            )
+            log.log_error(f"Failed to upsert {len(pkgs)} PKGs in STORE.DB: {e}")
             return Output(Status.ERROR, len(pkgs))
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_by_content_ids(content_ids: list[str]) -> Output:
+
+        store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
+
+        if not store_db_file_path.exists():
+            return Output(Status.NOT_FOUND, "STORE.DB not found")
+
+        if not content_ids:
+            return Output(Status.SKIP, "Nothing to delete")
+
+        conn = sqlite3.connect(str(store_db_file_path))
+        log.log_info(f"Attempting to delete {len(content_ids)} PKGs from STORE.DB...")
+        try:
+            conn.execute("BEGIN")
+
+            before = conn.total_changes
+            conn.executemany(
+                "DELETE FROM homebrews WHERE content_id = ?",
+                [(content_id,) for content_id in content_ids],
+            )
+            conn.commit()
+            deleted = conn.total_changes - before
+
+            log.log_info(f"{deleted} PKGs deleted successfully")
+            return Output(Status.OK, deleted)
+        except Exception as e:
+            conn.rollback()
+            log.log_error(f"Failed to delete PKGs from STORE.DB: {e}")
+            return Output(Status.ERROR, len(content_ids))
         finally:
             conn.close()
 
@@ -159,9 +289,7 @@ class DBUtils:
                 ).encode("utf-8")
                 rows_md5_hash[str(key)] = hashlib.md5(payload).hexdigest()
         except Exception as exc:
-            log.log_error(
-                f"Failed to generate STORE.DB md5: {exc}"
-            )
+            log.log_error(f"Failed to generate STORE.DB md5: {exc}")
         finally:
             conn.close()
 

@@ -16,20 +16,21 @@ log = LogUtils(LogModule.WATCHER)
 
 
 class Watcher:
-    _MEDIA_SUFFIXES = ("_icon0.png", "_pic0.png", "_pic1.png")
+    _MEDIA_SUFFIXES = ("_icon0", "_pic0", "_pic1")
 
     def __init__(self):
         self._interval = max(1, Globals.ENVS.WATCHER_PERIODIC_SCAN_SECONDS)
 
     def _content_id_from_media(self, name: str) -> str | None:
+        base = name[:-4] if name.lower().endswith(".png") else name
         for suffix in self._MEDIA_SUFFIXES:
-            if name.endswith(suffix):
-                return name[: -len(suffix)]
+            if base.endswith(suffix):
+                return base[: -len(suffix)]
         return None
 
     def _pkgs_from_media_changes(self, changes: dict) -> list[Path]:
         media_changes = []
-        for key in ("added", "removed", "updated"):
+        for key in ("removed",):
             section_changes = changes.get(key, {})
             media_changes.extend(section_changes.get("_media", []) or [])
 
@@ -61,8 +62,43 @@ class Watcher:
         changed_sections = changes.get("changed") or []
         changed_section_set = set(changed_sections)
 
-        scan_sections = [section for section in changed_sections if section != "_media"]
-        scanned_pkgs = PkgUtils.scan(scan_sections) if scan_sections else []
+        removed_by_section = changes.get("removed") or {}
+        removed_content_ids = []
+        for section_name, content_ids in removed_by_section.items():
+            if section_name == "_media":
+                continue
+            for content_id in content_ids or []:
+                if content_id:
+                    removed_content_ids.append(content_id)
+        if removed_content_ids:
+            delete_result = DBUtils.delete_by_content_ids(
+                sorted(set(removed_content_ids))
+            )
+            if delete_result.status is Status.ERROR:
+                log.log_error("Failed to delete removed PKGs from STORE.DB")
+
+        added_by_section = changes.get("added") or {}
+        updated_by_section = changes.get("updated") or {}
+        current_files = changes.get("current_files") or {}
+        section_by_name = {section.name: section for section in Section.ALL}
+
+        scanned_pkgs = []
+        for section_name in changed_sections:
+            if section_name == "_media":
+                continue
+            section = section_by_name.get(section_name)
+            if not section:
+                continue
+            keys = []
+            keys.extend(added_by_section.get(section_name, []) or [])
+            keys.extend(updated_by_section.get(section_name, []) or [])
+            if not keys:
+                continue
+            file_map = current_files.get(section_name) or {}
+            for key in keys:
+                filename = file_map.get(key) or f"{key}.pkg"
+                scanned_pkgs.append(section.path / filename)
+
         scanned_pkgs.extend(self._pkgs_from_media_changes(changes))
 
         if scanned_pkgs:

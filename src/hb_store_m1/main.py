@@ -1,7 +1,10 @@
+import sqlite3
+
 from tabulate import tabulate
 
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogModule
+from hb_store_m1.utils.db_utils import DBUtils
 from hb_store_m1.utils.init_utils import InitUtils
 from hb_store_m1.utils.log_utils import LogUtils
 from hb_store_m1.modules.watcher import Watcher

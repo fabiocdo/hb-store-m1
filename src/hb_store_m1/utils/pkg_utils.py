@@ -46,6 +46,16 @@ class PkgUtils:
         return ParamSFO(data)
 
     @staticmethod
+    def read_content_id(pkg: Path) -> str | None:
+        extract_output = PkgUtils.extract_pkg_data(pkg)
+        if extract_output.status is not Status.OK or not extract_output.content:
+            return None
+
+        param_sfo, _medias = extract_output.content
+        content_id = (param_sfo.data.get(ParamSFOKey.CONTENT_ID) or "").strip()
+        return content_id or None
+
+    @staticmethod
     def scan(sections: list[str] | None = None) -> list[Path]:
         section_by_name = {section.name: section for section in Section.ALL}
         scan_targets = sections or list(section_by_name.keys())
