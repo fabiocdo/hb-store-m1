@@ -7,14 +7,17 @@ from hb_store_m1.utils.db_utils import DBUtils
 from hb_store_m1.utils.init_utils import InitUtils
 
 
-def test_given_path_outside_data_when_cdn_url_then_returns_original(temp_globals):
-    other_path = Path(temp_globals.APP_ROOT_PATH) / "other.bin"
-    assert DBUtils._cdn_url(other_path) == str(other_path)
-
-
-def test_given_pkg_when_upsert_then_writes_cdn_urls_and_md5(
-    init_paths, tmp_path
+def test_given_path_outside_data_when_prepare_db_fields_then_returns_original(
+    temp_globals, tmp_path
 ):
+    other_path = tmp_path / "other.bin"
+    other_path.write_text("data", encoding="utf-8")
+    pkg = PKG(pkg_path=other_path)
+    DBUtils.prepare_db_fields(pkg)
+    assert pkg.pkg_url == str(other_path)
+
+
+def test_given_pkg_when_upsert_then_writes_cdn_urls_and_md5(init_paths, tmp_path):
     init_sql = (
         Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
     ).read_text("utf-8")
@@ -45,22 +48,20 @@ def test_given_pkg_when_upsert_then_writes_cdn_urls_and_md5(
         pkg_path=pkg_path,
     )
 
+    DBUtils.prepare_db_fields(pkg)
     result = DBUtils.upsert([pkg])
     assert result.status.name == "OK"
 
     conn = sqlite3.connect(str(Globals.FILES.STORE_DB_FILE_PATH))
     try:
         row = conn.execute(
-            'SELECT package, image, main_icon_path, main_menu_pic FROM homebrews'
+            "SELECT package, image, main_icon_path, main_menu_pic, row_md5 FROM homebrews"
         ).fetchone()
     finally:
         conn.close()
 
-    prefix = Globals.ENVS.SERVER_URL.rstrip("/")
-    assert row[0].startswith(prefix)
-    assert row[1].startswith(prefix)
-    assert row[2].startswith(prefix)
-    assert row[3].startswith(prefix)
-
-    md5_rows = DBUtils.generate_rows_md5()
-    assert pkg.content_id in md5_rows
+    assert row[0] == pkg.pkg_url
+    assert row[1] == pkg.icon_url
+    assert row[2] == pkg.pic0_url
+    assert row[3] == pkg.pic1_url
+    assert row[4] == pkg.row_md5

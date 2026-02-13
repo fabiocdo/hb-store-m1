@@ -47,6 +47,12 @@ class PKG:
     pic0_png_path: Path = None
     pic1_png_path: Path = None
     pkg_path: Path = None
+    pkg_url: str | None = None
+    icon_url: str | None = None
+    pic0_url: str | None = None
+    pic1_url: str | None = None
+    size: int = 0
+    row_md5: str | None = None
 
     def __post_init__(self) -> None:
         # app_type

@@ -148,6 +148,7 @@ class Watcher:
                     continue
                 pkg.pkg_path = target_path
 
+            DBUtils.prepare_db_fields(pkg)
             extracted_pkgs.append(pkg)
 
         upsert_result = DBUtils.upsert(extracted_pkgs)

@@ -187,15 +187,15 @@ def test_given_missing_cache_dir_when_write_then_handles_stat_error(
     assert result.status is Status.OK
 
 
-def test_given_missing_db_when_generate_rows_md5_then_returns_empty(
-    temp_globals,
-):
-    result = db_utils_module.DBUtils.generate_rows_md5()
-    assert result == {}
-
-
-def test_given_none_path_when_cdn_url_then_returns_none():
-    assert db_utils_module.DBUtils._cdn_url(None) is None
+def test_given_none_paths_when_prepare_db_fields_then_sets_none():
+    pkg = PKG()
+    db_utils_module.DBUtils.prepare_db_fields(pkg)
+    assert pkg.pkg_url is None
+    assert pkg.icon_url is None
+    assert pkg.pic0_url is None
+    assert pkg.pic1_url is None
+    assert pkg.size == 0
+    assert pkg.row_md5
 
 
 def test_given_upsert_exception_when_upsert_then_returns_error(

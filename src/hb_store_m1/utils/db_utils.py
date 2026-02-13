@@ -14,6 +14,48 @@ from hb_store_m1.utils.log_utils import LogUtils
 log = LogUtils(LogModule.DB_UTIL)
 
 
+def _generate_row_md5(values_by_column: dict[str, object]) -> str:
+    columns = [col.value for col in StoreDB.Column if col is not StoreDB.Column.ROW_MD5]
+    payload = json.dumps(
+        [values_by_column.get(name) for name in columns],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.md5(payload).hexdigest()
+
+
+def _generate_upsert_params(pkg: PKG) -> dict[str, object]:
+    row = {
+        "content_id": pkg.content_id,
+        "id": pkg.title_id,
+        "name": pkg.title,
+        "desc": None,
+        "image": str(Globals.ENVS.SERVER_URL / pkg.icon0_png_path),
+        "package": str(Globals.ENVS.SERVER_URL / pkg.pkg_path),
+        "version": pkg.version,
+        "picpath": None,
+        "desc_1": None,
+        "desc_2": None,
+        "ReviewStars": None,
+        "Size": pkg.pkg_path.stat().st_size,
+        "Author": None,
+        "apptype": pkg.app_type,
+        "pv": None,
+        "main_icon_path": str(Globals.ENVS.SERVER_URL / pkg.pic0_png_path),
+        "main_menu_pic": str(Globals.ENVS.SERVER_URL / pkg.pic1_png_path),
+        "releaseddate": pkg.release_date,
+        "number_of_downloads": 0,
+        "github": None,
+        "video": None,
+        "twitter": None,
+        "md5": None,
+    }
+
+    row["row_md5"] = _generate_row_md5(row)
+
+    return row
+
+
 class DBUtils:
 
     @staticmethod
@@ -32,6 +74,9 @@ class DBUtils:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
+        if not content_ids:
+            return Output(Status.OK, [])
+
         placeholders = ",".join("?" for _ in content_ids)
 
         query = f"""
@@ -46,210 +91,60 @@ class DBUtils:
         return Output(Status.OK, rows)
 
     @staticmethod
-    def generate_hash_md5(values_by_column: dict[str, object]) -> str:
-        columns = [
-            col.value for col in StoreDB.Column if col is not StoreDB.Column.ROW_MD5
-        ]
-        payload = json.dumps(
-            [values_by_column.get(name) for name in columns],
-            ensure_ascii=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
-        return hashlib.md5(payload).hexdigest()
-
-    @staticmethod
-    def upsert(conn: sqlite3.Connection | None, pkgs: list[PKG]) -> Output:
+    def upsert(pkgs: list[PKG], conn: sqlite3.Connection | None = None) -> Output:
 
         store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
         if not store_db_file_path.exists():
             InitUtils.init_db()
 
         if not conn:
-            conn = sqlite3.connect(Globals.FILES.STORE_DB_FILE_PATH)
-
-        conn.row_factory = sqlite3.Row
+            conn = sqlite3.connect(str(store_db_file_path))
 
         if not pkgs:
             return Output(Status.SKIP, "Nothing to upsert")
 
-        content_ids = [pkg.content_id for pkg in pkgs if pkg.content_id]
-        existing_rows_by_id = DBUtils.select_by_content_ids(conn, content_ids).content
-
         log.log_info(f"Attempting to upsert {len(pkgs)} PKGs in STORE.DB...")
+
         try:
             conn.execute("BEGIN")
 
-            insert_sql = """
-                         INSERT INTO homebrews (content_id, id, name, "desc", image, package, version, picpath, desc_1, desc_2,
-                                                ReviewStars, Size, Author, apptype, pv, main_icon_path, main_menu_pic,
-                                                releaseddate, number_of_downloads, github, video, twitter, md5, row_md5)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                         ON CONFLICT(content_id) DO UPDATE SET
-                            id=excluded.id,
-                            name=excluded.name,
-                            "desc"=excluded."desc",
-                            image=excluded.image,
-                            package=excluded.package,
-                            version=excluded.version,
-                            picpath=excluded.picpath,
-                            desc_1=excluded.desc_1,
-                            desc_2=excluded.desc_2,
-                            ReviewStars=excluded.ReviewStars,
-                            Size=excluded.Size,
-                            Author=excluded.Author,
-                            apptype=excluded.apptype,
-                            pv=excluded.pv,
-                            main_icon_path=excluded.main_icon_path,
-                            main_menu_pic=excluded.main_menu_pic,
-                            releaseddate=excluded.releaseddate,
-                            number_of_downloads=excluded.number_of_downloads,
-                            github=excluded.github,
-                            video=excluded.video,
-                            twitter=excluded.twitter,
-                            md5=excluded.md5,
-                            row_md5=excluded.row_md5
-                         """
+            COLUMNS = [col.value for col in StoreDB.Column]
+            CONFLICT_KEY = StoreDB.Column.CONTENT_ID.value
 
-            rows_to_insert = []
-            skipped_unchanged = 0
-            for pkg in pkgs:
-                base_url = Globals.ENVS.SERVER_URL.rstrip("/")
+            def _quote(col: str) -> str:
+                return f'"{col}"'  # resolve "desc" etc
 
-                if pkg.pkg_path:
-                    try:
-                        pkg_rel = (
-                            Path(pkg.pkg_path)
-                            .resolve()
-                            .relative_to(Globals.PATHS.DATA_DIR_PATH)
-                        )
-                        pkg_url = f"{base_url}/{pkg_rel.as_posix()}"
-                    except (OSError, ValueError):
-                        pkg_url = str(pkg.pkg_path)
-                else:
-                    pkg_url = None
+            insert_cols = ", ".join(_quote(c) for c in COLUMNS)
+            values = ", ".join(f":{c}" for c in COLUMNS)
 
-                if pkg.icon0_png_path:
-                    try:
-                        icon_rel = (
-                            Path(pkg.icon0_png_path)
-                            .resolve()
-                            .relative_to(Globals.PATHS.DATA_DIR_PATH)
-                        )
-                        icon_url = f"{base_url}/{icon_rel.as_posix()}"
-                    except (OSError, ValueError):
-                        icon_url = str(pkg.icon0_png_path)
-                else:
-                    icon_url = None
+            update_set = ", ".join(
+                f"{_quote(c)}=excluded.{_quote(c)}"
+                for c in COLUMNS
+                if c != CONFLICT_KEY
+            )
 
-                if pkg.pic0_png_path:
-                    try:
-                        pic0_rel = (
-                            Path(pkg.pic0_png_path)
-                            .resolve()
-                            .relative_to(Globals.PATHS.DATA_DIR_PATH)
-                        )
-                        pic0_url = f"{base_url}/{pic0_rel.as_posix()}"
-                    except (OSError, ValueError):
-                        pic0_url = str(pkg.pic0_png_path)
-                else:
-                    pic0_url = None
+            upsert_sql = f"""
+            INSERT INTO homebrews ({insert_cols})
+            VALUES ({values})
+            ON CONFLICT({_quote(CONFLICT_KEY)}) DO UPDATE SET
+            {update_set}
+            """
 
-                if pkg.pic1_png_path:
-                    try:
-                        pic1_rel = (
-                            Path(pkg.pic1_png_path)
-                            .resolve()
-                            .relative_to(Globals.PATHS.DATA_DIR_PATH)
-                        )
-                        pic1_url = f"{base_url}/{pic1_rel.as_posix()}"
-                    except (OSError, ValueError):
-                        pic1_url = str(pkg.pic1_png_path)
-                else:
-                    pic1_url = None
-                size = 0
-                if pkg.pkg_path and Path(pkg.pkg_path).exists():
-                    size = Path(pkg.pkg_path).stat().st_size
-                row_values_by_column = {
-                    StoreDB.Column.ID.value: pkg.title_id,
-                    StoreDB.Column.NAME.value: pkg.title,
-                    StoreDB.Column.CONTENT_ID.value: pkg.content_id,
-                    StoreDB.Column.DESC.value: None,
-                    StoreDB.Column.IMAGE.value: icon_url,
-                    StoreDB.Column.PACKAGE.value: pkg_url,
-                    StoreDB.Column.VERSION.value: pkg.version,
-                    StoreDB.Column.PIC_PATH.value: None,
-                    StoreDB.Column.DESC_1.value: None,
-                    StoreDB.Column.DESC_2.value: None,
-                    StoreDB.Column.REVIEW_STARS.value: None,
-                    StoreDB.Column.SIZE.value: size,
-                    StoreDB.Column.AUTHOR.value: None,
-                    StoreDB.Column.APP_TYPE.value: pkg.app_type,
-                    StoreDB.Column.PV.value: None,
-                    StoreDB.Column.MAIN_ICON_PATH.value: pic0_url,
-                    StoreDB.Column.MAIN_MENU_PIC.value: pic1_url,
-                    StoreDB.Column.RELEASEDDATE.value: pkg.release_date,
-                    StoreDB.Column.NUMBER_OF_DOWNLOADS.value: 0,
-                    StoreDB.Column.GITHUB.value: None,
-                    StoreDB.Column.VIDEO.value: None,
-                    StoreDB.Column.TWITTER.value: None,
-                    StoreDB.Column.MD5.value: None,
-                }
-                row_md5 = DBUtils.generate_hash_md5(row_values_by_column)
-                existing_row_md5 = existing_rows_by_id.get(pkg.content_id)
-                if existing_row_md5 == row_md5:
-                    skipped_unchanged += 1
-                    continue
-                rows_to_insert.append(
-                    (
-                        pkg.content_id,
-                        pkg.title_id,
-                        pkg.title,
-                        None,  # description
-                        icon_url,
-                        pkg_url,
-                        pkg.version,
-                        None,  # picpath
-                        None,  # desc1
-                        None,  # desc2
-                        None,  # review stars
-                        size,
-                        None,  # author
-                        pkg.app_type,
-                        None,  # pv ?
-                        pic0_url,  # main_icon_path
-                        pic1_url,  # main_menu_pic
-                        pkg.release_date,
-                        0,  # number of downloads
-                        None,  # github
-                        None,  # video
-                        None,  # twitter
-                        None,  # md5
-                        row_md5,
-                    )
-                )
+            upsert_params = [_generate_upsert_params(pkg) for pkg in pkgs]
 
-            if not rows_to_insert:
-                conn.rollback()
-                log.log_info(
-                    f"All PKGs unchanged. Skipped {skipped_unchanged} upserts."
-                )
-                return Output(Status.SKIP, "Nothing to upsert")
-
-            if rows_to_insert:
-                conn.executemany(insert_sql, rows_to_insert)
+            if upsert_params:
+                conn.executemany(upsert_sql, upsert_params)
 
             conn.commit()
 
-            upserted_pkgs = len(rows_to_insert)
-            log.log_info(f"{upserted_pkgs} PKGs upserted successfully")
-            if skipped_unchanged:
-                log.log_info(f"Skipped {skipped_unchanged} unchanged PKGs")
+            log.log_info(f"{len(upsert_params)} PKGs upserted successfully")
+            return Output(Status.OK, len(upsert_params))
 
-            return Output(Status.OK, len(rows_to_insert))
         except Exception as e:
             conn.rollback()
             log.log_error(f"Failed to upsert {len(pkgs)} PKGs in STORE.DB: {e}")
             return Output(Status.ERROR, len(pkgs))
+
         finally:
             conn.close()
 

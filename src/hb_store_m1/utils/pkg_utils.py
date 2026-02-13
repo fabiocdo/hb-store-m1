@@ -21,14 +21,14 @@ log = LogUtils(LogModule.PKG_UTIL)
 
 
 class PkgUtils:
-    _SFO_LINE_RE = re.compile(r"^(?P<name>[^:]+?)\s*:\s*[^=]*=\s*(?P<value>.*)$")
 
     @staticmethod
     def parse_param_sfo_entries(lines: list[str]) -> ParamSFO:
         data: dict[ParamSFOKey, str] = {key: "" for key in ParamSFOKey}
+        param_regex = re.compile(r"^(?P<name>[^:]+?)\s*:\s*[^=]*=\s*(?P<value>.*)$")
 
         for line in lines:
-            match = PkgUtils._SFO_LINE_RE.match(line.strip())
+            match = param_regex.match(line.strip())
             if not match:
                 continue
 
