@@ -64,6 +64,7 @@ class Watcher:
 
         removed_by_section = changes.get("removed") or {}
         removed_content_ids = []
+
         for section_name, content_ids in removed_by_section.items():
             if section_name == "_media":
                 continue

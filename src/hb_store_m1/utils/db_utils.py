@@ -2,6 +2,7 @@ import hashlib
 import json
 import sqlite3
 from pathlib import Path
+from urllib.parse import urljoin
 
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogModule
@@ -30,8 +31,8 @@ def _generate_upsert_params(pkg: PKG) -> dict[str, object]:
         "id": pkg.title_id,
         "name": pkg.title,
         "desc": None,
-        "image": str(Globals.ENVS.SERVER_URL / pkg.icon0_png_path),
-        "package": str(Globals.ENVS.SERVER_URL / pkg.pkg_path),
+        "image": urljoin(Globals.ENVS.SERVER_URL, str(pkg.icon0_png_path)),
+        "package": urljoin(Globals.ENVS.SERVER_URL, str(pkg.pkg_path)),
         "version": pkg.version,
         "picpath": None,
         "desc_1": None,
@@ -41,8 +42,8 @@ def _generate_upsert_params(pkg: PKG) -> dict[str, object]:
         "Author": None,
         "apptype": pkg.app_type,
         "pv": None,
-        "main_icon_path": str(Globals.ENVS.SERVER_URL / pkg.pic0_png_path),
-        "main_menu_pic": str(Globals.ENVS.SERVER_URL / pkg.pic1_png_path),
+        "main_icon_path": urljoin(Globals.ENVS.SERVER_URL, str(pkg.pic0_png_path)),
+        "main_menu_pic": urljoin(Globals.ENVS.SERVER_URL, str(pkg.pic1_png_path)),
         "releaseddate": pkg.release_date,
         "number_of_downloads": 0,
         "github": None,
