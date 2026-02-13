@@ -1,44 +1,48 @@
+import os
 from pathlib import Path
 
 from hb_store_m1.models.log import LogModule
 from hb_store_m1.models.output import Output, Status
+from hb_store_m1.models.pkg.pkg import PKG
 from hb_store_m1.models.pkg.section import Section
 from hb_store_m1.utils.file_utils import FileUtils
 from hb_store_m1.utils.log_utils import LogUtils
 
+log = LogUtils(LogModule.AUTO_ORGANIZER)
+
 
 class AutoOrganizer:
-    _SECTIONS = {section.name: section for section in Section.ALL}
-    _LOG = LogUtils(LogModule.AUTO_ORGANIZER)
 
     @staticmethod
-    def _target_dir(app_type: str) -> Path:
-        section = AutoOrganizer._SECTIONS.get(app_type, Section.UNKNOWN)
-        return section.path
+    def dry_run(pkg: PKG) -> Output:
 
-    @staticmethod
-    def dry_run(pkg: Path, sfo_data: dict) -> Output:
-
-        if not pkg.is_file():
+        # Step 1: Check PKG existence
+        if not pkg.pkg_path.is_file():
             return Output(Status.NOT_FOUND, None)
 
-        content_id = str((sfo_data or {}).get("content_id", "").strip())
+        # Step 2: Check if the PKG filename is valid
+        invalid_chars = set('<>:"/\\|?*')
+        if pkg.pkg_path.name in {os.curdir, os.pardir} or any(
+            ch in invalid_chars for ch in pkg.pkg_path.name
+        ):
+            return Output(Status.INVALID, None)
+
+        # Step 3: Check PKG CONTENT_ID
+        content_id = pkg.content_id
+
         if not content_id:
             return Output(Status.INVALID, None)
 
-        invalid_chars = '<>:"/\\|?*'
-        if content_id in {".", ".."} or any(ch in content_id for ch in invalid_chars):
-            return Output(Status.INVALID, None)
+        # Step 4: Plan the new path and filename
+        planned_name = f"{content_id}.pkg"
+        app_type = pkg.app_type
+        app_type_name = app_type.value if app_type else ""
 
-        planned_name = (
-            content_id if content_id.lower().endswith(".pkg") else f"{content_id}.pkg"
-        )
+        section_by_name = {section.name: section for section in Section.ALL}
+        target_section = section_by_name.get(app_type_name, Section.UNKNOWN)
+        target_path = target_section.path / planned_name
 
-        app_type = str((sfo_data or {}).get("app_type", "")).strip().lower()
-        target_dir = AutoOrganizer._target_dir(app_type)
-        target_path = target_dir / planned_name
-
-        if pkg.resolve() == target_path.resolve():
+        if pkg.pkg_path.resolve() == target_path.resolve():
             return Output(Status.SKIP, target_path)
 
         if target_path.exists():
@@ -47,43 +51,41 @@ class AutoOrganizer:
         return Output(Status.OK, target_path)
 
     @staticmethod
-    def run(pkg: Path, sfo_data: dict) -> Path | None:
-        output = AutoOrganizer.dry_run(pkg, sfo_data)
-        plan_result = output.status
-        target_path = output.content if output.content else None
+    def run(pkg: PKG) -> Path | None:
+        dry_run_output = AutoOrganizer.dry_run(pkg)
+
+        plan_result = dry_run_output.status
 
         if plan_result == Status.NOT_FOUND:
-            AutoOrganizer._LOG.log_error(f"PKG file [{pkg}] not found")
+            log.log_error(f"PKG file [{pkg.pkg_path.name}] not found")
             return None
 
         if plan_result == Status.INVALID:
-            AutoOrganizer._LOG.log_error(
-                f"Invalid or missing content_id in [{pkg.name}] SFO data"
+            log.log_error(
+                f"Invalid or missing content_id in [{pkg.pkg_path.name}] SFO data"
             )
             return None
 
         if plan_result == Status.SKIP:
-            AutoOrganizer._LOG.log_debug(
-                f"Skipping rename. PKG [{pkg.name}] is already in place"
+            log.log_debug(
+                f"Skipping rename. PKG [{pkg.pkg_path.name}] is already in place"
             )
-            return target_path
+            return None
 
         if plan_result == Status.CONFLICT:
-            AutoOrganizer._LOG.log_error(
-                f"Failed to rename PKG [{pkg.name}]. Target already exists"
+            log.log_error(
+                f"Failed to rename PKG [{pkg.pkg_path.name}]. Target already exists"
             )
             return None
+
+        target_path = dry_run_output.content
 
         if not target_path:
-            AutoOrganizer._LOG.log_error(
-                f"Failed to resolve target path for {pkg.name}"
-            )
+            log.log_error(f"Failed to resolve target path for {pkg.pkg_path.name}")
             return None
 
-        if not FileUtils.move(pkg, target_path):
+        if not FileUtils.move(pkg.pkg_path, target_path):
             return None
 
-        AutoOrganizer._LOG.log_info(
-            f"PKG {pkg.name} moved successfully to {target_path}"
-        )
+        log.log_info(f"PKG {pkg.pkg_path.name} organized successfully to {target_path}")
         return target_path

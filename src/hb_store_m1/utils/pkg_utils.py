@@ -78,9 +78,7 @@ class PkgUtils:
             subprocess.TimeoutExpired,
             OSError,
         ):
-            log.log_error(
-                f"PKG {pkg.name} validation failed"
-            )
+            log.log_error(f"PKG {pkg.name} validation failed")
             return Output(Status.ERROR, pkg)
 
         for line in validation_result:
@@ -95,16 +93,15 @@ class PkgUtils:
                             f"PKG {pkg.name} validation failed on [{name}] field"
                         )
                         return Output(Status.ERROR, pkg)
-                    log.log_warn(
-                        f"PKG {pkg.name} validation warning on [{name}] field"
-                    )
+                    log.log_warn(f"PKG {pkg.name} validation warning on [{name}] field")
                     return Output(Status.WARN, pkg)
 
         log.log_debug(f"PKG {pkg.name} validation successful")
         return Output(Status.OK, pkg)
 
     @staticmethod
-    def extract_pkg_data(pkg: Path) -> Output:
+    def extract_pkg_data(pkg: Path) -> Output[dict[ParamSFO, list[Path]] | Path]:
+
         if not pkg.is_file():
             log.log_error(f"PKG not found: {pkg}")
             return Output(Status.NOT_FOUND, pkg)
@@ -128,9 +125,7 @@ class PkgUtils:
             # Step 2: Extract PARAM.SFO
             param_sfo = None
             with tempfile.TemporaryDirectory() as tmp:
-                log.log_debug(
-                    f"Extracting PARAM.SFO from PKG {pkg.name}..."
-                )
+                log.log_debug(f"Extracting PARAM.SFO from PKG {pkg.name}...")
                 extracted_sfo_file = Path(tmp) / "param.sfo"
                 PKGTool.extract_pkg_entry(
                     pkg, pkg_entries[PKGEntryKey.PARAM_SFO], str(extracted_sfo_file)
@@ -141,15 +136,11 @@ class PkgUtils:
                 ).stdout.splitlines()
 
                 param_sfo = PkgUtils.parse_param_sfo_entries(entries_list)
-                log.log_debug(
-                    f"PARAM.SFO extracted successfully"
-                )
+                log.log_debug(f"PARAM.SFO extracted successfully")
 
             # Step 3: Extract ICON0.PNG, PIC0.PNG, PIC1.PNG
             extracted_medias: dict[PKGEntryKey, Path | None] = {}
-            log.log_debug(
-                f"Extracting MEDIAS from PKG {pkg.name}..."
-            )
+            log.log_debug(f"Extracting MEDIAS from PKG {pkg.name}...")
 
             content_id = param_sfo.data[ParamSFOKey.CONTENT_ID]
             media_dir = Path(Globals.PATHS.MEDIA_DIR_PATH)
@@ -197,37 +188,36 @@ class PkgUtils:
 
                 PKGTool.extract_pkg_entry(pkg, entry_index, str(file_path))
                 extracted_medias[entry_key] = file_path
+            log.log_debug(f"Extracted data successfully from PKG {pkg.name}")
+            return Output(Status.OK, [param_sfo, extracted_medias])
 
-            # Step 4: Build PKG
-            extracted_pkg = PKG(
-                title=param_sfo.data[ParamSFOKey.TITLE],
-                title_id=param_sfo.data[ParamSFOKey.TITLE_ID],
-                content_id=param_sfo.data[ParamSFOKey.CONTENT_ID],
-                category=param_sfo.data[ParamSFOKey.CATEGORY],
-                version=param_sfo.data[ParamSFOKey.VERSION],
-                pubtoolinfo=param_sfo.data[ParamSFOKey.PUBTOOLINFO],
-                icon0_png_path=extracted_medias[PKGEntryKey.ICON0_PNG],
-                pic0_png_path=(
-                    extracted_medias[PKGEntryKey.PIC0_PNG]
-                    if extracted_medias[PKGEntryKey.PIC0_PNG]
-                    else None
-                ),
-                pic1_png_path=(
-                    extracted_medias[PKGEntryKey.PIC1_PNG]
-                    if extracted_medias[PKGEntryKey.PIC1_PNG]
-                    else None
-                ),
-                pkg_path=pkg,
-            )
-            log.log_debug(
-                f"Extracted data successfully from PKG {pkg.name}"
-            )
-            return Output(Status.OK, extracted_pkg)
         except Exception as exc:
-            log.log_error(
-                f"Failed to extract data from PKG {pkg.name}: {exc}"
-            )
+            log.log_error(f"Failed to extract data from PKG {pkg.name}: {exc}")
             return Output(Status.ERROR, pkg)
+
+    @staticmethod
+    def build_pkg(
+        pkg_path: Path, param_sfo: ParamSFO, medias: dict[str, Path]
+    ) -> Output[PKG]:
+
+        pkg = PKG(
+            title=param_sfo.data[ParamSFOKey.TITLE],
+            title_id=param_sfo.data[ParamSFOKey.TITLE_ID],
+            content_id=param_sfo.data[ParamSFOKey.CONTENT_ID],
+            category=param_sfo.data[ParamSFOKey.CATEGORY],
+            version=param_sfo.data[ParamSFOKey.VERSION],
+            pubtoolinfo=param_sfo.data[ParamSFOKey.PUBTOOLINFO],
+            icon0_png_path=medias[PKGEntryKey.ICON0_PNG],
+            pic0_png_path=(
+                medias[PKGEntryKey.PIC0_PNG] if medias[PKGEntryKey.PIC0_PNG] else None
+            ),
+            pic1_png_path=(
+                medias[PKGEntryKey.PIC1_PNG] if medias[PKGEntryKey.PIC1_PNG] else None
+            ),
+            pkg_path=pkg_path,
+        )
+        log.log_debug(f"PKG built successfully {pkg.pkg_path.name}")
+        return Output(Status.OK, pkg)
 
 
 PkgUtils = PkgUtils()

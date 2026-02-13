@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import StrEnum, Enum
 from pathlib import Path
 
 
@@ -25,6 +25,13 @@ class AppType(StrEnum):
     UNKNOWN = "unknown"
 
 
+# TODO CHECK
+class Media(Enum):
+    ICON0_PNG = Path("icon0.png")
+    PIC0_PNG = Path("icon0.png")
+    PIC1_PNG = Path("icon0.png")
+
+
 @dataclass(slots=True)
 class PKG:
     title: str = ""
@@ -33,12 +40,12 @@ class PKG:
     category: str = ""
     version: str = ""
     pubtoolinfo: str = ""
-    icon0_png_path: Path = None
-    pic0_png_path: Path = None
-    pic1_png_path: Path = None
     release_date: str = ""
     region: Region | None = None
     app_type: AppType | None = None
+    icon0_png_path: Path = None
+    pic0_png_path: Path = None
+    pic1_png_path: Path = None
     pkg_path: Path = None
 
     def __post_init__(self) -> None:

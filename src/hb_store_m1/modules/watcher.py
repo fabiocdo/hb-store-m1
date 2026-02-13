@@ -19,7 +19,6 @@ class Watcher:
     def __init__(self):
         self._interval = max(1, Globals.ENVS.WATCHER_PERIODIC_SCAN_SECONDS)
         self._cache_utils = CacheUtils
-        self._pkg_utils = PkgUtils
         self._db_utils = DBUtils
         self._auto_organizer = AutoOrganizer
         self._auto_organizer_enabled = Globals.ENVS.AUTO_ORGANIZER_ENABLED
@@ -68,7 +67,7 @@ class Watcher:
             return
 
         scan_sections = [section for section in changed_sections if section != "_media"]
-        scanned_pkgs = self._pkg_utils.scan(scan_sections) if scan_sections else []
+        scanned_pkgs = PkgUtils.scan(scan_sections) if scan_sections else []
         scanned_pkgs.extend(self._pkgs_from_media_changes(changes))
         if scanned_pkgs:
             seen = set()
@@ -79,7 +78,7 @@ class Watcher:
             ]
         extracted_pkgs = []
         for pkg_path in scanned_pkgs:
-            validation = self._pkg_utils.validate(pkg_path)
+            validation = PkgUtils.validate(pkg_path)
             if validation.status is Status.ERROR:
                 FileUtils.move_to_error(
                     pkg_path,
@@ -87,20 +86,27 @@ class Watcher:
                     "validation_failed",
                 )
                 continue
-            result = self._pkg_utils.extract_pkg_data(pkg_path)
-            if result.status is not Status.OK or not result.content:
+
+            extract_output = PkgUtils.extract_pkg_data(pkg_path)
+
+            if extract_output.status is not Status.OK or not extract_output.content:
                 continue
 
-            pkg_data = result.content
+            param_sfo, medias = extract_output.content
+            build_output = PkgUtils.build_pkg(pkg_path, param_sfo, medias)
+
+            if build_output.status is not Status.OK:
+                continue
+
+            pkg = build_output.content
+
             if (
                 self._auto_organizer_enabled
                 and pkg_path.parent.name in changed_section_set
             ):
-                sfo_data = {
-                    "content_id": pkg_data.content_id,
-                    "app_type": (pkg_data.app_type.value if pkg_data.app_type else ""),
-                }
-                target_path = self._auto_organizer.run(pkg_path, sfo_data)
+
+                target_path = self._auto_organizer.run(pkg)
+
                 if not target_path:
                     FileUtils.move_to_error(
                         pkg_path,
@@ -108,9 +114,9 @@ class Watcher:
                         "organizer_failed",
                     )
                     continue
-                pkg_data.pkg_path = target_path
+                pkg.pkg_path = target_path
 
-            extracted_pkgs.append(pkg_data)
+            extracted_pkgs.append(pkg)
 
         upsert_result = self._db_utils.upsert(extracted_pkgs)
         if upsert_result.status in (Status.OK, Status.SKIP):
@@ -120,9 +126,7 @@ class Watcher:
         self._log_db.log_error("Store DB update failed. Cache not updated.")
 
     def start(self) -> None:
-        self._log_watcher.log_info(
-            f"Watcher started (interval: {self._interval}s)"
-        )
+        self._log_watcher.log_info(f"Watcher started (interval: {self._interval}s)")
         while True:
             started_at = time.monotonic()
             try:
