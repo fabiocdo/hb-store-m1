@@ -26,6 +26,7 @@ class StoreDB:
         VIDEO = "video"
         TWITTER = "twitter"
         MD5 = "md5"
+        ROW_MD5 = "row_md5"
 
 
 StoreDB = StoreDB()

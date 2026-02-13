@@ -17,26 +17,41 @@ log = LogUtils(LogModule.DB_UTIL)
 class DBUtils:
 
     @staticmethod
-    def _select_rows_by_content_ids(
-        conn: sqlite3.Connection,
+    def select_by_content_ids(
+        conn: sqlite3.Connection | None,
         content_ids: list[str],
     ) -> list:
+
+        if not conn:
+            conn = sqlite3.connect(Globals.FILES.STORE_DB_FILE_PATH)
+
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
         placeholders = ",".join("?" for _ in content_ids)
 
         query = f"""
-            SELECT *
+            SELECT content_id, row_md5
             FROM homebrews
             WHERE content_id IN ({placeholders})
         """
 
         cursor.execute(query, content_ids)
 
-        rows_by_id = cursor.fetchall()
+        rows = [dict(row) for row in cursor.fetchall()]
+        return rows
 
-        return rows_by_id
+    @staticmethod
+    def generate_hash_md5(values_by_column: dict[str, object]) -> str:
+        columns = [
+            col.value for col in StoreDB.Column if col is not StoreDB.Column.ROW_MD5
+        ]
+        payload = json.dumps(
+            [values_by_column.get(name) for name in columns],
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return hashlib.md5(payload).hexdigest()
 
     @staticmethod
     def upsert(pkgs: list[PKG]) -> Output:
@@ -52,7 +67,7 @@ class DBUtils:
         conn = sqlite3.connect(str(store_db_file_path))
         conn.row_factory = sqlite3.Row
         content_ids = [pkg.content_id for pkg in pkgs if pkg.content_id]
-        existing_rows = DBUtils._select_rows_by_content_ids(conn, content_ids)
+        existing_rows_by_id = DBUtils.select_by_content_ids(conn, content_ids)
 
         log.log_info(f"Attempting to upsert {len(pkgs)} PKGs in STORE.DB...")
         try:
@@ -61,8 +76,8 @@ class DBUtils:
             insert_sql = """
                          INSERT INTO homebrews (content_id, id, name, "desc", image, package, version, picpath, desc_1, desc_2,
                                                 ReviewStars, Size, Author, apptype, pv, main_icon_path, main_menu_pic,
-                                                releaseddate, number_of_downloads, github, video, twitter, md5)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                releaseddate, number_of_downloads, github, video, twitter, md5, row_md5)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                          ON CONFLICT(content_id) DO UPDATE SET
                             id=excluded.id,
                             name=excluded.name,
@@ -85,7 +100,8 @@ class DBUtils:
                             github=excluded.github,
                             video=excluded.video,
                             twitter=excluded.twitter,
-                            md5=excluded.md5
+                            md5=excluded.md5,
+                            row_md5=excluded.row_md5
                          """
 
             rows_to_insert = []
@@ -172,9 +188,9 @@ class DBUtils:
                     StoreDB.Column.TWITTER.value: None,
                     StoreDB.Column.MD5.value: None,
                 }
-                compare_values = row_values_by_column
-                existing_row = existing_rows.get(pkg.content_id)
-                if existing_row == compare_values:
+                row_md5 = DBUtils.generate_hash_md5(row_values_by_column)
+                existing_row_md5 = existing_rows_by_id.get(pkg.content_id)
+                if existing_row_md5 == row_md5:
                     skipped_unchanged += 1
                     continue
                 rows_to_insert.append(
@@ -202,6 +218,7 @@ class DBUtils:
                         None,  # video
                         None,  # twitter
                         None,  # md5
+                        row_md5,
                     )
                 )
 
@@ -262,38 +279,6 @@ class DBUtils:
             return Output(Status.ERROR, len(content_ids))
         finally:
             conn.close()
-
-    @staticmethod
-    def generate_rows_md5() -> dict[str, str]:
-        rows_md5_hash: dict[str, str] = {}
-        store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
-
-        if not store_db_file_path.exists():
-            log.log_debug(
-                f"Skipping {store_db_file_path.name.upper()} read. File not found"
-            )
-            return rows_md5_hash
-
-        columns = [col for col in StoreDB.Column]
-        select_columns = ", ".join(f'"{name}"' for name in columns)
-        query = f"SELECT {select_columns} FROM homebrews"
-
-        conn = sqlite3.connect(str(store_db_file_path))
-        conn.row_factory = sqlite3.Row
-        try:
-            for row in conn.execute(query).fetchall():
-                key = row[StoreDB.Column.CONTENT_ID]
-                values = [row[name] for name in columns]
-                payload = json.dumps(
-                    values, ensure_ascii=True, separators=(",", ":")
-                ).encode("utf-8")
-                rows_md5_hash[str(key)] = hashlib.md5(payload).hexdigest()
-        except Exception as exc:
-            log.log_error(f"Failed to generate STORE.DB md5: {exc}")
-        finally:
-            conn.close()
-
-        return rows_md5_hash
 
 
 DBUtils = DBUtils()

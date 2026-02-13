@@ -27,7 +27,8 @@ create table homebrews
     github              TEXT,
     video               TEXT,
     twitter             TEXT,
-    md5                 TEXT
+    md5                 TEXT,
+    row_md5             TEXT
 );
 
 create unique index homebrews_content_id_uq
