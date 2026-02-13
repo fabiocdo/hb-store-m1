@@ -199,10 +199,10 @@ class CacheUtils:
                     changed_sections.append(section_name)
                     summary = (
                         f"{section_name.upper()}: "
-                        f"{LogColor.GREEN if added_count != 0 else LogColor.RESET}+{added_count}{LogColor.RESET} "
-                        f"{LogColor.YELLOW if updated_count != 0 else LogColor.RESET}"
+                        f"{LogColor.BRIGHT_GREEN if added_count != 0 else LogColor.RESET}+{added_count}{LogColor.RESET} "
+                        f"{LogColor.BRIGHT_YELLOW if updated_count != 0 else LogColor.RESET}"
                         f"~{updated_count}{LogColor.RESET} "
-                        f"{LogColor.RED if removed_count != 0 else LogColor.RESET}-{removed_count}{LogColor.RESET}"
+                        f"{LogColor.BRIGHT_RED if removed_count != 0 else LogColor.RESET}-{removed_count}{LogColor.RESET}"
                     )
                     summary_lines.append(summary)
 

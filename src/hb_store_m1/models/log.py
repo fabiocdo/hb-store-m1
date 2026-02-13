@@ -6,10 +6,6 @@ class LogColor(StrEnum):
     # Regular
     GRAY = "\033[0;90m"
     WHITE = "\033[0;97m"
-    BLUE = "\033[0;34m"
-    GREEN = "\033[0;32m"
-    CYAN = "\033[0;36m"
-    MAGENTA = "\033[0;35m"
     YELLOW = "\033[0;33m"
     RED = "\033[0;31m"
     # Bright
@@ -17,21 +13,20 @@ class LogColor(StrEnum):
     BRIGHT_GREEN = "\033[1;92m"
     BRIGHT_CYAN = "\033[1;96m"
     BRIGHT_MAGENTA = "\033[1;95m"
-    BRIGHT_RED = "\033[1;91m"
-    BRIGHT_YELLOW = "\033[1;93m"
     BRIGHT_PURPLE = "\033[38;5;135m"
+    BRIGHT_YELLOW = "\033[1;93m"
+    BRIGHT_RED = "\033[1;91m"
     BRIGHT_GRAY = "\033[1;90m"
 
 
 class LogModule(StrEnum):
-    DB_UTIL = LogColor.BLUE
-    PKG_UTIL = LogColor.GREEN
-    INIT_UTIL = LogColor.CYAN
-    CACHE_UTIL = LogColor.MAGENTA
-    FILE_UTIL = LogColor.BRIGHT_BLUE
-
-    AUTO_ORGANIZER = LogColor.BRIGHT_RED
-    WATCHER = LogColor.BRIGHT_PURPLE
+    DB_UTIL = LogColor.BRIGHT_BLUE
+    PKG_UTIL = LogColor.BRIGHT_GREEN
+    INIT_UTIL = LogColor.BRIGHT_CYAN
+    CACHE_UTIL = LogColor.BRIGHT_MAGENTA
+    FILE_UTIL = LogColor.BRIGHT_PURPLE
+    AUTO_ORGANIZER = LogColor.BRIGHT_YELLOW
+    WATCHER = LogColor.BRIGHT_RED
 
     def color(self):
         return self.value
