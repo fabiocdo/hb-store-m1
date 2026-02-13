@@ -112,7 +112,7 @@ class DBUtils:
             CONFLICT_KEY = StoreDB.Column.CONTENT_ID.value
 
             def _quote(col: str) -> str:
-                return f'"{col}"'  # resolve "desc" etc
+                return f'"{col}"'
 
             insert_cols = ", ".join(_quote(c) for c in COLUMNS)
             values = ", ".join(f":{c}" for c in COLUMNS)

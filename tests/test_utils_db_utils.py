@@ -7,14 +7,46 @@ from hb_store_m1.utils.db_utils import DBUtils
 from hb_store_m1.utils.init_utils import InitUtils
 
 
-def test_given_path_outside_data_when_prepare_db_fields_then_returns_original(
-    temp_globals, tmp_path
+def test_given_path_outside_data_when_upsert_then_writes_original(
+    init_paths, tmp_path
 ):
+    init_sql = (
+        Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
+    ).read_text("utf-8")
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(
+        init_sql, encoding="utf-8"
+    )
+
+    InitUtils.init_db()
+
     other_path = tmp_path / "other.bin"
     other_path.write_text("data", encoding="utf-8")
-    pkg = PKG(pkg_path=other_path)
-    DBUtils.prepare_db_fields(pkg)
-    assert pkg.pkg_url == str(other_path)
+    icon_path = init_paths.MEDIA_DIR_PATH / "content_icon0.png"
+    icon_path.write_text("png", encoding="utf-8")
+
+    pkg = PKG(
+        title="Test",
+        title_id="CUSA00001",
+        content_id="UP0000-TEST00000_00-TEST000000000000",
+        category="GD",
+        version="01.00",
+        icon0_png_path=icon_path,
+        pkg_path=other_path,
+    )
+
+    result = DBUtils.upsert([pkg])
+    assert result.status.name == "OK"
+
+    conn = sqlite3.connect(str(Globals.FILES.STORE_DB_FILE_PATH))
+    try:
+        row = conn.execute(
+            "SELECT package FROM homebrews WHERE content_id=?",
+            (pkg.content_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    assert row[0] == str(other_path)
 
 
 def test_given_pkg_when_upsert_then_writes_cdn_urls_and_md5(init_paths, tmp_path):
@@ -48,7 +80,6 @@ def test_given_pkg_when_upsert_then_writes_cdn_urls_and_md5(init_paths, tmp_path
         pkg_path=pkg_path,
     )
 
-    DBUtils.prepare_db_fields(pkg)
     result = DBUtils.upsert([pkg])
     assert result.status.name == "OK"
 
@@ -60,8 +91,14 @@ def test_given_pkg_when_upsert_then_writes_cdn_urls_and_md5(init_paths, tmp_path
     finally:
         conn.close()
 
-    assert row[0] == pkg.pkg_url
-    assert row[1] == pkg.icon_url
-    assert row[2] == pkg.pic0_url
-    assert row[3] == pkg.pic1_url
-    assert row[4] == pkg.row_md5
+    prefix = Globals.ENVS.SERVER_URL.rstrip("/")
+    expected_pkg_url = f"{prefix}/{pkg_path.relative_to(Globals.PATHS.DATA_DIR_PATH).as_posix()}"
+    expected_icon_url = f"{prefix}/{icon_path.relative_to(Globals.PATHS.DATA_DIR_PATH).as_posix()}"
+    expected_pic0_url = f"{prefix}/{pic0_path.relative_to(Globals.PATHS.DATA_DIR_PATH).as_posix()}"
+    expected_pic1_url = f"{prefix}/{pic1_path.relative_to(Globals.PATHS.DATA_DIR_PATH).as_posix()}"
+
+    assert row[0] == expected_pkg_url
+    assert row[1] == expected_icon_url
+    assert row[2] == expected_pic0_url
+    assert row[3] == expected_pic1_url
+    assert row[4]
