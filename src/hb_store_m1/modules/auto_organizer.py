@@ -68,13 +68,13 @@ class AutoOrganizer:
 
         if plan_result == Status.SKIP:
             log.log_debug(
-                f"Skipping rename. PKG [{pkg.pkg_path.name}] is already in place"
+                f"Skipping move/rename. PKG {pkg.pkg_path.name} is already in place"
             )
-            return None
+            return dry_run_output.content or pkg.pkg_path
 
         if plan_result == Status.CONFLICT:
             log.log_error(
-                f"Failed to rename PKG [{pkg.pkg_path.name}]. Target already exists"
+                f"Failed to move/rename PKG [{pkg.pkg_path.name}]. Target already exists"
             )
             return None
 
@@ -87,5 +87,7 @@ class AutoOrganizer:
         if not FileUtils.move(pkg.pkg_path, target_path):
             return None
 
-        log.log_info(f"PKG {pkg.pkg_path.name} organized successfully to {target_path}")
+        log.log_info(
+            f"PKG {pkg.pkg_path.name} moved/renamed successfully to {target_path}"
+        )
         return target_path
