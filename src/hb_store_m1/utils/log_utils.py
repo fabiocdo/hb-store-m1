@@ -23,7 +23,7 @@ class LogUtils:
 
         print(f"{timestamp} | {module_log_tag}{log_color}{message}{LogColor.RESET}")
 
-        if log_level is LogLevel.ERROR:
+        if log_level is LogLevel.ERROR or LogLevel.WARN:
             try:
                 errors_log_file_path = Globals.FILES.ERRORS_LOG_FILE_PATH
                 errors_log_file_path.parent.mkdir(parents=True, exist_ok=True)

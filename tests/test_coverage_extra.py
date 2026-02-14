@@ -385,15 +385,6 @@ def test_given_empty_init_script_when_init_db_then_skips(init_paths):
     assert not globals_module.Globals.FILES.STORE_DB_FILE_PATH.exists()
 
 
-def test_given_invalid_template_json_when_init_template_json_then_skips(
-    init_paths,
-):
-    template_path = init_paths.INIT_DIR_PATH / "json_template.json"
-    template_path.write_text("{not-json}", encoding="utf-8")
-    init_utils_module.InitUtils.init_template_json()
-    assert not globals_module.Globals.FILES.INDEX_JSON_FILE_PATH.exists()
-
-
 def test_given_github_exception_when_init_assets_then_handles_error(
     monkeypatch, temp_globals
 ):

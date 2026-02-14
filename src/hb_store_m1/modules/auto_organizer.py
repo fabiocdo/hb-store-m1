@@ -14,7 +14,7 @@ log = LogUtils(LogModule.AUTO_ORGANIZER)
 class AutoOrganizer:
 
     @staticmethod
-    def dry_run(pkg: PKG) -> Output:
+    def dry_run(pkg: PKG) -> Output[Path | None]:
 
         # Step 1: Check PKG existence
         if not pkg.pkg_path.is_file():
@@ -75,7 +75,7 @@ class AutoOrganizer:
 
         if plan_result == Status.CONFLICT:
             log.log_error(
-                f"Failed to move/rename PKG [{pkg.pkg_path.name}]. Target {target_path} already exists"
+                f"Failed to move/rename PKG [{pkg.pkg_path.name}]. Target {target_path.name} already exists"
             )
             return None
 

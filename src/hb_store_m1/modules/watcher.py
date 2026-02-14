@@ -7,6 +7,7 @@ from hb_store_m1.models.output import Output, Status
 from hb_store_m1.models.pkg.section import Section
 from hb_store_m1.models.pkg.pkg import PKG
 from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFOKey
+from hb_store_m1.models.pkg.pkg import AppType
 from hb_store_m1.modules.auto_organizer import AutoOrganizer
 from hb_store_m1.utils.cache_utils import CacheUtils
 from hb_store_m1.utils.db_utils import DBUtils
@@ -61,38 +62,55 @@ class Watcher:
             if not Globals.ENVS.FPGKI_FORMAT_ENABLED:
                 log.log_info("No changes detected.")
                 return
+
+            missing_fpkgi = False
+            for app_type in AppType:
+                json_path = Globals.PATHS.DATA_DIR_PATH / f"{app_type.value}.json"
+                if not json_path.exists():
+                    missing_fpkgi = True
+                    break
+
+            if not missing_fpkgi:
+                log.log_info("No changes detected.")
+                return
+
             cached = CacheUtils.read_pkg_cache().content or {}
             current_files = {}
-            rebuild_sections = []
+            section_by_name = {section.name: section for section in Section.ALL}
+
             for section in Section.ALL:
                 if section.name == "_media":
                     continue
-                section_cache = cached.get(section.name)
-                if not section_cache or not section_cache.content:
-                    continue
-                json_path = Globals.PATHS.DATA_DIR_PATH / f"{section.name}.json"
-                if json_path.exists():
-                    continue
-                rebuild_sections.append(section.name)
                 file_map = {}
-                for key, value in section_cache.content.items():
-                    parts = value.split("|", 2)
-                    if len(parts) >= 3 and parts[2]:
-                        filename = parts[2]
-                    else:
-                        filename = f"{key}.pkg"
-                    file_map[key] = filename
-                current_files[section.name] = file_map
+                section_cache = cached.get(section.name)
+                if section_cache and section_cache.content:
+                    for key, value in section_cache.content.items():
+                        parts = value.split("|", 2)
+                        if len(parts) >= 3 and parts[2]:
+                            filename = parts[2]
+                        else:
+                            filename = f"{key}.pkg"
+                        file_map[key] = filename
+                else:
+                    section_entry = section_by_name.get(section.name)
+                    if section_entry and section_entry.path.exists():
+                        for pkg_path in section_entry.path.iterdir():
+                            if not section_entry.accepts(pkg_path):
+                                continue
+                            file_map[pkg_path.stem] = pkg_path.name
 
-            if not rebuild_sections:
+                if file_map:
+                    current_files[section.name] = file_map
+
+            if not current_files:
                 log.log_info("No changes detected.")
                 return
 
             changes = {
-                "changed": rebuild_sections,
+                "changed": list(current_files.keys()),
                 "added": {
                     name: list((current_files.get(name) or {}).keys())
-                    for name in rebuild_sections
+                    for name in current_files
                 },
                 "updated": {},
                 "removed": {},

@@ -36,7 +36,7 @@ def welcome():
 
 
 def main():
-    # welcome()
+    welcome()
     InitUtils.init_directories()
     InitUtils.init_db()
     InitUtils.init_assets()
