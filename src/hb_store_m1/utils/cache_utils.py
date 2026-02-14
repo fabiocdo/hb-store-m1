@@ -6,8 +6,8 @@ from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogColor, LogModule
 from hb_store_m1.models.output import Output, Status
 from hb_store_m1.models.pkg.section import Section
-from hb_store_m1.utils.pkg_utils import PkgUtils
 from hb_store_m1.utils.log_utils import LogUtils
+from hb_store_m1.utils.pkg_utils import PkgUtils
 
 log = LogUtils(LogModule.CACHE_UTIL)
 from pydantic import ValidationError

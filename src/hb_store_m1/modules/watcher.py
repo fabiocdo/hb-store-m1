@@ -4,15 +4,15 @@ from pathlib import Path
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogModule
 from hb_store_m1.models.output import Output, Status
-from hb_store_m1.models.pkg.section import Section
-from hb_store_m1.models.pkg.pkg import PKG
 from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFOKey
 from hb_store_m1.models.pkg.pkg import AppType
+from hb_store_m1.models.pkg.pkg import PKG
+from hb_store_m1.models.pkg.section import Section
 from hb_store_m1.modules.auto_organizer import AutoOrganizer
 from hb_store_m1.utils.cache_utils import CacheUtils
 from hb_store_m1.utils.db_utils import DBUtils
-from hb_store_m1.utils.fpkgi_utils import FPKGIUtils
 from hb_store_m1.utils.file_utils import FileUtils
+from hb_store_m1.utils.fpkgi_utils import FPKGIUtils
 from hb_store_m1.utils.log_utils import LogUtils
 from hb_store_m1.utils.pkg_utils import PkgUtils
 

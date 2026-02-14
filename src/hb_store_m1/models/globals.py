@@ -73,10 +73,6 @@ class _GlobalFiles:
         return self.paths.INIT_DIR_PATH / "store_db.sql"
 
     @property
-    def JSON_TEMPLATE_INIT_FILE_PATH(self) -> _Path:
-        return self.paths.INIT_DIR_PATH / "json_template.json"
-
-    @property
     def PKGTOOL_FILE_PATH(self) -> _Path:
         return self.paths.APP_ROOT_PATH / "bin" / "pkgtool"
 

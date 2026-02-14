@@ -1,15 +1,15 @@
 import pytest
 
 from hb_store_m1.models.output import Output, Status
-from hb_store_m1.modules.watcher import Watcher
-from hb_store_m1.models.pkg.pkg import PKG
 from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFO, ParamSFOKey
-from hb_store_m1.utils import cache_utils as cache_utils_module
-from hb_store_m1.utils import pkg_utils as pkg_utils_module
-from hb_store_m1.utils import db_utils as db_utils_module
-from hb_store_m1.utils import fpkgi_utils as fpkgi_utils_module
-from hb_store_m1.utils import file_utils as file_utils_module
+from hb_store_m1.models.pkg.pkg import PKG
 from hb_store_m1.modules import auto_organizer as auto_organizer_module
+from hb_store_m1.modules.watcher import Watcher
+from hb_store_m1.utils import cache_utils as cache_utils_module
+from hb_store_m1.utils import db_utils as db_utils_module
+from hb_store_m1.utils import file_utils as file_utils_module
+from hb_store_m1.utils import fpkgi_utils as fpkgi_utils_module
+from hb_store_m1.utils import pkg_utils as pkg_utils_module
 
 
 def test_given_media_change_when_pkgs_from_media_changes_then_returns_pkg_path(

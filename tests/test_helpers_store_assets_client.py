@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from hb_store_m1.helpers.store_assets_client import StoreAssetClient
 from hb_store_m1.models.globals import Globals
 

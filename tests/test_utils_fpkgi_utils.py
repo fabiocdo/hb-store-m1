@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from urllib.parse import urljoin
 
 from hb_store_m1.models.fpkgi import FPKGI
@@ -9,26 +8,7 @@ from hb_store_m1.models.pkg.pkg import PKG
 from hb_store_m1.utils.fpkgi_utils import FPKGIUtils
 
 
-def _write_template(init_dir: Path) -> None:
-    template = [
-        {
-            "id": "EP0000-CUSA00000_00-GAME000000000000",
-            "name": "Game Title Name",
-            "version": "01.00",
-            "package": "https://url-to-your-pkg-file.pkg",
-            "size": 1024000000,
-            "desc": "Game Description",
-            "icon": "https://url-to-icon.png",
-            "bg_image": "https://url-to-background.png",
-        }
-    ]
-    template_path = init_dir / "json_template.json"
-    template_path.write_text(json.dumps(template), encoding="utf-8")
-
-
 def test_given_pkg_when_upsert_then_writes_json_per_app_type(init_paths):
-    _write_template(init_paths.INIT_DIR_PATH)
-
     pkg_path = init_paths.GAME_DIR_PATH / "game.pkg"
     pkg_path.write_text("data", encoding="utf-8")
     icon_path = init_paths.MEDIA_DIR_PATH / "game_icon0.png"
@@ -86,8 +66,6 @@ def test_given_pkg_when_upsert_then_writes_json_per_app_type(init_paths):
 
 
 def test_given_unchanged_pkg_when_upsert_then_skips(init_paths):
-    _write_template(init_paths.INIT_DIR_PATH)
-
     pkg_path = init_paths.GAME_DIR_PATH / "game.pkg"
     pkg_path.write_text("data", encoding="utf-8")
     icon_path = init_paths.MEDIA_DIR_PATH / "game_icon0.png"
@@ -112,8 +90,6 @@ def test_given_unchanged_pkg_when_upsert_then_skips(init_paths):
 
 
 def test_given_content_ids_when_delete_then_removes_entries(init_paths):
-    _write_template(init_paths.INIT_DIR_PATH)
-
     pkg_path = init_paths.GAME_DIR_PATH / "game.pkg"
     pkg_path.write_text("data", encoding="utf-8")
 

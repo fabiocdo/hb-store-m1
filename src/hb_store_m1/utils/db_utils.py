@@ -1,7 +1,6 @@
 import hashlib
 import json
 import sqlite3
-from pathlib import Path
 from urllib.parse import urljoin
 
 from hb_store_m1.models.globals import Globals

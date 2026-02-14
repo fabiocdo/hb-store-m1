@@ -5,13 +5,13 @@ import pytest
 from github import GithubException
 
 from hb_store_m1.models import globals as globals_module
-from hb_store_m1.models.globals import _env, _pyproject_value
-from hb_store_m1.models.pkg.metadata.pkg_entry import PKGEntry, PKGEntryKey
-from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFO, ParamSFOKey
 from hb_store_m1.models.cache import CacheSection
+from hb_store_m1.models.globals import _env, _pyproject_value
+from hb_store_m1.models.output import Status, Output
+from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFO, ParamSFOKey
+from hb_store_m1.models.pkg.metadata.pkg_entry import PKGEntry, PKGEntryKey
 from hb_store_m1.models.pkg.pkg import PKG
 from hb_store_m1.models.pkg.section import SectionEntry
-from hb_store_m1.models.output import Status, Output
 from hb_store_m1.modules.auto_organizer import AutoOrganizer
 from hb_store_m1.modules.watcher import Watcher
 from hb_store_m1.utils import cache_utils as cache_utils_module
@@ -106,9 +106,7 @@ def test_given_move_failure_when_run_then_returns_none(init_paths, monkeypatch):
     assert result is None
 
 
-def test_given_no_changes_when_run_cycle_then_skips_scan(
-    init_paths, monkeypatch
-):
+def test_given_no_changes_when_run_cycle_then_skips_scan(init_paths, monkeypatch):
     watcher = Watcher()
     monkeypatch.setattr(
         cache_utils_module.CacheUtils,
@@ -145,7 +143,9 @@ def test_given_fpkgi_enabled_and_missing_json_when_run_cycle_then_runs(
         lambda: Output(Status.SKIP, None),
     )
     monkeypatch.setattr(
-        cache_utils_module.CacheUtils, "read_pkg_cache", lambda: Output(Status.OK, cache)
+        cache_utils_module.CacheUtils,
+        "read_pkg_cache",
+        lambda: Output(Status.OK, cache),
     )
     monkeypatch.setattr(
         globals_module.Globals.ENVS, "FPGKI_FORMAT_ENABLED", True, raising=False
@@ -305,15 +305,11 @@ def test_given_empty_content_ids_when_select_by_content_ids_then_returns_empty(
         conn.close()
 
 
-def test_given_upsert_exception_when_upsert_then_returns_error(
-    init_paths, monkeypatch
-):
+def test_given_upsert_exception_when_upsert_then_returns_error(init_paths, monkeypatch):
     init_sql = (
         Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
     ).read_text("utf-8")
-    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(
-        init_sql, encoding="utf-8"
-    )
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(init_sql, encoding="utf-8")
     init_utils_module.InitUtils.init_db()
 
     class _BadConn:
@@ -359,9 +355,7 @@ def test_given_invalid_png_when_optimize_then_returns_false(tmp_path):
     bad_png = tmp_path / "bad.png"
     bad_png.write_bytes(b"not-png")
 
-    assert (
-        file_utils_module.FileUtils.optimize_png(bad_png) is False
-    )
+    assert file_utils_module.FileUtils.optimize_png(bad_png) is False
 
 
 def test_given_missing_file_when_move_to_error_then_returns_none(tmp_path):

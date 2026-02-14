@@ -1,10 +1,10 @@
 import subprocess
 from pathlib import Path
 
+from hb_store_m1.helpers import pkgtool as pkgtool_module
 from hb_store_m1.models.output import Status
 from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFOKey
 from hb_store_m1.utils.pkg_utils import PkgUtils
-from hb_store_m1.helpers import pkgtool as pkgtool_module
 
 
 def test_given_param_sfo_lines_when_parse_then_maps_expected_keys(

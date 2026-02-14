@@ -3,7 +3,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from hb_store_m1.models.pkg.section import Section
+from hb_store_m1.helpers.pkgtool import PKGTool
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogModule
 from hb_store_m1.models.output import Output, Status
@@ -13,8 +13,8 @@ from hb_store_m1.models.pkg.metadata.param_sfo import (
 )
 from hb_store_m1.models.pkg.metadata.pkg_entry import PKGEntryKey
 from hb_store_m1.models.pkg.pkg import PKG
+from hb_store_m1.models.pkg.section import Section
 from hb_store_m1.models.pkg.validation import ValidationFields, Severity
-from hb_store_m1.helpers.pkgtool import PKGTool
 from hb_store_m1.utils.log_utils import LogUtils
 
 log = LogUtils(LogModule.PKG_UTIL)

@@ -1,4 +1,3 @@
-from hb_store_m1.models.log import LogModule
 from hb_store_m1.utils.file_utils import FileUtils
 
 

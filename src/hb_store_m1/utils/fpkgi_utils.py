@@ -40,30 +40,6 @@ def _pkg_size(pkg: PKG) -> int:
         return 0
 
 
-def _template_ok() -> bool:
-    template_path = Globals.PATHS.INIT_DIR_PATH / "json_template.json"
-    if not template_path.is_file():
-        log.log_error(
-            f"Failed to load template. {template_path.name} not found at {template_path.parent}"
-        )
-        return False
-    raw = template_path.read_text("utf-8").strip()
-    if not raw:
-        log.log_error(f"Failed to load template. {template_path.name} is empty")
-        return False
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        log.log_error(f"Failed to load template. {template_path.name}: {exc}")
-        return False
-    if not isinstance(data, list):
-        log.log_error(
-            f"Failed to load template. {template_path.name} must be a JSON list"
-        )
-        return False
-    return True
-
-
 def _read_json(path: Path) -> list[dict[str, object]] | None:
     if not path.exists():
         return []
@@ -108,9 +84,6 @@ class FPKGIUtils:
     def upsert(pkgs: list[PKG]) -> Output:
         if not pkgs:
             return Output(Status.SKIP, "Nothing to upsert")
-
-        if not _template_ok():
-            return Output(Status.ERROR, "Template unavailable")
 
         pkgs_by_type: dict[str, list[PKG]] = {}
         for pkg in pkgs:

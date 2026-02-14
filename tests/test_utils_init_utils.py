@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from hb_store_m1.utils.init_utils import InitUtils
 from hb_store_m1.models.globals import Globals
+from hb_store_m1.utils.init_utils import InitUtils
 
 
 def test_given_empty_directories_when_init_directories_then_creates_all(temp_globals):
