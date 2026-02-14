@@ -28,14 +28,10 @@ class InitUtils:
         store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
         store_db_init_script = Globals.FILES.STORE_DB_INIT_SCRIPT_FILE_PATH
 
-        log.log_debug(
-            f"Initializing {store_db_file_path.name} ..."
-        )
+        log.log_debug(f"Initializing {store_db_file_path.name} ...")
 
         if store_db_file_path.exists():
-            log.log_info(
-                f"{store_db_file_path.name.upper()} OK"
-            )
+            log.log_info(f"{store_db_file_path.name.upper()} OK")
             return
 
         if not store_db_init_script.is_file():
@@ -61,58 +57,9 @@ class InitUtils:
                 conn.commit()
             finally:
                 conn.close()
-            log.log_info(
-                f"{store_db_file_path.name.upper()} OK"
-            )
+            log.log_info(f"{store_db_file_path.name.upper()} OK")
         except sqlite3.Error as exc:
-            log.log_error(
-                f"Failed to initialize {store_db_file_path.name}: {exc}"
-            )
-
-    @staticmethod
-    def init_template_json():
-        index_json_file_path = Globals.FILES.INDEX_JSON_FILE_PATH
-        index_json_template = Globals.PATHS.INIT_DIR_PATH / "json_template.json"
-
-        log.log_debug(
-            f"Initializing {index_json_file_path.name} ..."
-        )
-
-        if index_json_file_path.exists():
-            log.log_info(
-                f"{index_json_file_path.name.upper()} OK"
-            )
-            return
-
-        if not index_json_template.is_file():
-            log.log_error(
-                f"Failed to initialize {index_json_file_path.name}. "
-                f"Initialization script {index_json_template.name} not found at {index_json_template.parent}"
-            )
-            return
-
-        template_raw = index_json_template.read_text("utf-8").strip()
-        if not template_raw:
-            log.log_error(
-                f"Failed to initialize {index_json_file_path.name}. "
-                f"Initialization script {index_json_template.name} is empty"
-            )
-            return
-
-        try:
-            json.loads(template_raw)
-            log.log_info(f"{index_json_file_path.name} OK")
-        except json.JSONDecodeError as exc:
-            log.log_error(
-                f"Failed to initialize {index_json_file_path.name}: {exc}"
-            )
-            return
-
-        index_json_file_path.parent.mkdir(parents=True, exist_ok=True)
-        index_json_file_path.write_text(template_raw + "\n", encoding="utf-8")
-        log.log_info(
-            f"Initialized index.json at {index_json_file_path}"
-        )
+            log.log_error(f"Failed to initialize {store_db_file_path.name}: {exc}")
 
     @staticmethod
     def init_assets():
@@ -134,13 +81,9 @@ class InitUtils:
             else:
                 log.log_info("Store assets OK...")
         except GithubException as e:
-            log.log_error(
-                f"Failed to download store assets: {e.data['message']}"
-            )
+            log.log_error(f"Failed to download store assets: {e.data['message']}")
         except Exception as e:
-            log.log_error(
-                f"Failed to download store assets: {e.__cause__}"
-            )
+            log.log_error(f"Failed to download store assets: {e.__cause__}")
 
 
 InitUtils = InitUtils()

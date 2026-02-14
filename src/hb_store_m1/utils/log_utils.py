@@ -26,6 +26,7 @@ class LogUtils:
         if log_level is LogLevel.ERROR:
             try:
                 errors_log_file_path = Globals.FILES.ERRORS_LOG_FILE_PATH
+                errors_log_file_path.parent.mkdir(parents=True, exist_ok=True)
                 line = f"{timestamp} | [{self._module.name}] {message}"
                 errors_log_file_path.open("a", encoding="utf-8").write(line + "\n")
             except OSError:

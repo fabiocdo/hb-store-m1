@@ -8,6 +8,7 @@ from hb_store_m1.models import globals as globals_module
 from hb_store_m1.models.globals import _env, _pyproject_value
 from hb_store_m1.models.pkg.metadata.pkg_entry import PKGEntry, PKGEntryKey
 from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFO, ParamSFOKey
+from hb_store_m1.models.cache import CacheSection
 from hb_store_m1.models.pkg.pkg import PKG
 from hb_store_m1.models.pkg.section import SectionEntry
 from hb_store_m1.models.output import Status, Output
@@ -126,6 +127,78 @@ def test_given_no_changes_when_run_cycle_then_skips_scan(
     assert called["write"] is False
 
 
+def test_given_fpkgi_enabled_and_missing_json_when_run_cycle_then_runs(
+    init_paths, monkeypatch
+):
+    watcher = Watcher()
+    pkg_path = init_paths.GAME_DIR_PATH / "sample.pkg"
+    pkg_path.write_text("pkg", encoding="utf-8")
+    cache = {
+        "game": CacheSection(
+            content={"UP0000-TEST00000_00-TEST000000000000": "1|2|sample.pkg"}
+        )
+    }
+
+    monkeypatch.setattr(
+        cache_utils_module.CacheUtils,
+        "compare_pkg_cache",
+        lambda: Output(Status.SKIP, None),
+    )
+    monkeypatch.setattr(
+        cache_utils_module.CacheUtils, "read_pkg_cache", lambda: Output(Status.OK, cache)
+    )
+    monkeypatch.setattr(
+        globals_module.Globals.ENVS, "FPGKI_FORMAT_ENABLED", True, raising=False
+    )
+    monkeypatch.setattr(
+        "hb_store_m1.utils.pkg_utils.PkgUtils.validate",
+        lambda _p: Output(Status.OK, _p),
+    )
+    sfo = ParamSFO(
+        {
+            ParamSFOKey.TITLE: "t",
+            ParamSFOKey.TITLE_ID: "CUSA00001",
+            ParamSFOKey.CONTENT_ID: "UP0000-TEST00000_00-TEST000000000000",
+            ParamSFOKey.CATEGORY: "GD",
+            ParamSFOKey.VERSION: "01.00",
+            ParamSFOKey.PUBTOOLINFO: "",
+        }
+    )
+    monkeypatch.setattr(
+        "hb_store_m1.utils.pkg_utils.PkgUtils.extract_pkg_data",
+        lambda _p, **_kwargs: Output(Status.OK, sfo),
+    )
+    monkeypatch.setattr(
+        "hb_store_m1.utils.pkg_utils.PkgUtils.extract_pkg_medias",
+        lambda _p, _content_id: Output(Status.OK, {"icon": _p}),
+    )
+    monkeypatch.setattr(
+        "hb_store_m1.utils.pkg_utils.PkgUtils.build_pkg",
+        lambda _p, _sfo, _medias: Output(
+            Status.OK, PKG(content_id="X", category="GD", pkg_path=_p)
+        ),
+    )
+    monkeypatch.setattr(
+        db_utils_module.DBUtils,
+        "upsert",
+        lambda _pkgs: Output(Status.OK, 1),
+    )
+    monkeypatch.setattr(
+        "hb_store_m1.utils.fpkgi_utils.FPKGIUtils.upsert",
+        lambda _pkgs: Output(Status.OK, 1),
+    )
+    called = {"write": False}
+    monkeypatch.setattr(
+        cache_utils_module.CacheUtils,
+        "write_pkg_cache",
+        lambda *args, **kwargs: called.__setitem__("write", True),
+    )
+
+    watcher._run_cycle()
+
+    assert called["write"] is True
+
+
 def test_given_upsert_error_when_run_cycle_then_skips_cache_write(
     init_paths, monkeypatch
 ):
@@ -223,9 +296,13 @@ def test_given_missing_cache_dir_when_write_then_handles_stat_error(
 def test_given_empty_content_ids_when_select_by_content_ids_then_returns_empty(
     temp_globals,
 ):
-    result = db_utils_module.DBUtils.select_by_content_ids(None, [])
-    assert result.status is Status.OK
-    assert result.content == []
+    conn = sqlite3.connect(":memory:")
+    try:
+        result = db_utils_module.DBUtils.select_by_content_ids(conn, [])
+        assert result.status is Status.OK
+        assert result.content == []
+    finally:
+        conn.close()
 
 
 def test_given_upsert_exception_when_upsert_then_returns_error(

@@ -39,7 +39,6 @@ def main():
     # welcome()
     InitUtils.init_directories()
     InitUtils.init_db()
-    InitUtils.init_template_json()
     InitUtils.init_assets()
     if Globals.ENVS.WATCHER_ENABLED:
         Watcher().start()

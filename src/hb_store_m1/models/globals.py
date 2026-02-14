@@ -81,10 +81,6 @@ class _GlobalFiles:
         return self.paths.APP_ROOT_PATH / "bin" / "pkgtool"
 
     @property
-    def INDEX_JSON_FILE_PATH(self) -> _Path:
-        return self.paths.DATA_DIR_PATH / "index.json"
-
-    @property
     def STORE_DB_FILE_PATH(self) -> _Path:
         return self.paths.DATA_DIR_PATH / "store.db"
 
@@ -106,7 +102,7 @@ class _GlobalFiles:
 
     @property
     def ERRORS_LOG_FILE_PATH(self) -> _Path:
-        return self.paths.ERRORS_DIR_PATH / "app_errors.log"
+        return self.paths.LOGS_DIR_PATH / "app_errors.log"
 
 
 class _GlobalEnvs:

@@ -55,6 +55,7 @@ class AutoOrganizer:
         dry_run_output = AutoOrganizer.dry_run(pkg)
 
         plan_result = dry_run_output.status
+        target_path = dry_run_output.content
 
         if plan_result == Status.NOT_FOUND:
             log.log_error(f"PKG file [{pkg.pkg_path.name}] not found")
@@ -74,11 +75,9 @@ class AutoOrganizer:
 
         if plan_result == Status.CONFLICT:
             log.log_error(
-                f"Failed to move/rename PKG [{pkg.pkg_path.name}]. Target already exists"
+                f"Failed to move/rename PKG [{pkg.pkg_path.name}]. Target {target_path} already exists"
             )
             return None
-
-        target_path = dry_run_output.content
 
         if not target_path:
             log.log_error(f"Failed to resolve target path for {pkg.pkg_path.name}")

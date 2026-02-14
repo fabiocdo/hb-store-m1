@@ -17,24 +17,11 @@ def test_given_store_db_script_when_init_db_then_creates_database(
     init_sql = (
         Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
     ).read_text("utf-8")
-    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(
-        init_sql, encoding="utf-8"
-    )
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(init_sql, encoding="utf-8")
 
     InitUtils.init_db()
 
     assert Globals.FILES.STORE_DB_FILE_PATH.exists()
-
-
-def test_given_template_json_when_init_template_json_then_creates_index(
-    init_paths,
-):
-    template_path = init_paths.INIT_DIR_PATH / "json_template.json"
-    template_path.write_text('[{"id":"x"}]', encoding="utf-8")
-
-    InitUtils.init_template_json()
-
-    assert Globals.FILES.INDEX_JSON_FILE_PATH.exists()
 
 
 def test_given_assets_when_init_assets_then_handles_missing(monkeypatch, temp_globals):
