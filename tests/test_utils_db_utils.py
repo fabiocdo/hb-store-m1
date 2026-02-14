@@ -441,6 +441,98 @@ def test_given_deleted_rows_when_delete_then_compacts_pid_sequence(init_paths):
     assert rows == [(1, pkg1.content_id), (2, pkg3.content_id)]
 
 
+def test_given_valid_game_and_patch_when_sanity_check_then_returns_ok(init_paths):
+    init_sql = (
+        Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
+    ).read_text("utf-8")
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(init_sql, encoding="utf-8")
+    InitUtils.init_db()
+
+    game_pkg_path = init_paths.GAME_DIR_PATH / "game.pkg"
+    game_pkg_path.write_text("data", encoding="utf-8")
+    patch_pkg_path = init_paths.UPDATE_DIR_PATH / "patch.pkg"
+    patch_pkg_path.write_text("data", encoding="utf-8")
+
+    game_pkg = PKG(
+        title="Game",
+        title_id="CUSA10001",
+        content_id="UP0000-TEST10001_00-TEST000000001001",
+        category="GD",
+        version="01.00",
+        pkg_path=game_pkg_path,
+    )
+    patch_pkg = PKG(
+        title="Patch",
+        title_id="CUSA10002",
+        content_id="UP0000-TEST10002_00-TEST000000001002",
+        category="GP",
+        version="01.00",
+        pkg_path=patch_pkg_path,
+    )
+    DBUtils.upsert([game_pkg, patch_pkg])
+
+    result = DBUtils.sanity_check()
+
+    assert result.status is Status.OK
+    assert (result.content or {}).get("missing_by_type") == {}
+    assert (result.content or {}).get("has_pid_gaps") is False
+
+
+def test_given_missing_game_fields_when_sanity_check_then_returns_warn(init_paths):
+    init_sql = (
+        Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
+    ).read_text("utf-8")
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(init_sql, encoding="utf-8")
+    InitUtils.init_db()
+
+    content_id = "UP0000-TEST20001_00-TEST000000002001"
+    conn = sqlite3.connect(str(Globals.FILES.STORE_DB_FILE_PATH))
+    conn.execute(
+        """
+        INSERT INTO homebrews (
+            content_id, id, name, desc, image, package, version, picpath, desc_1, desc_2,
+            ReviewStars, Size, Author, apptype, pv, main_icon_path, main_menu_pic, releaseddate,
+            number_of_downloads, github, video, twitter, md5, row_md5
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            content_id,
+            "CUSA20001",
+            "Broken Game",
+            None,
+            "",
+            "http://example/pkg/game.pkg",
+            "01.00",
+            None,
+            None,
+            None,
+            None,
+            1,
+            None,
+            "Game",
+            None,
+            None,
+            None,
+            "2024-01-01",
+            0,
+            None,
+            None,
+            None,
+            None,
+            "row",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    result = DBUtils.sanity_check()
+    summary = result.content or {}
+
+    assert result.status is Status.WARN
+    assert summary["missing_by_type"]["Game"]["image"] == 1
+    assert summary["missing_by_type"]["Game"]["picpath"] == 1
+
+
 def test_given_missing_db_when_delete_then_returns_not_found(temp_globals):
     result = DBUtils.delete_by_content_ids(["X"])
 

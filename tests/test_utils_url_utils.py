@@ -87,3 +87,9 @@ def test_given_valid_content_id_when_ps4_store_icon_cache_path_then_returns_loca
     )
 
     assert value == "/user/app/NPXS39041/storedata/UP0000-CUSA00001_00-ABCDEFGHIJKLMNOP_icon0.png"
+
+
+def test_given_non_standard_content_id_when_ps4_store_icon_cache_path_then_still_returns_local_path():
+    value = URLUtils.ps4_store_icon_cache_path("UP9000-CUSA01967_00-POBANUKTRAVPACK0")
+
+    assert value == "/user/app/NPXS39041/storedata/UP9000-CUSA01967_00-POBANUKTRAVPACK0_icon0.png"

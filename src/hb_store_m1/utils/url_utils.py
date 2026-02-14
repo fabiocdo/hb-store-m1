@@ -7,6 +7,7 @@ from hb_store_m1.models.globals import Globals
 
 class URLUtils:
     _PS4_STOREDATA_ROOT = "/user/app/NPXS39041/storedata"
+    _CACHE_KEY_SANITIZE = re.compile(r"[^A-Z0-9._-]")
     _APP_TYPE_TO_SECTION = {
         "app": "app",
         "dlc": "dlc",
@@ -140,9 +141,12 @@ class URLUtils:
     @staticmethod
     def ps4_store_icon_cache_path(content_id: str | None) -> str | None:
         content = (content_id or "").strip().upper()
-        if not URLUtils._is_content_id(content):
+        if not content:
             return None
-        return f"{URLUtils._PS4_STOREDATA_ROOT}/{content}_icon0.png"
+        safe_key = URLUtils._CACHE_KEY_SANITIZE.sub("_", content).strip("._-")
+        if not safe_key:
+            return None
+        return f"{URLUtils._PS4_STOREDATA_ROOT}/{safe_key}_icon0.png"
 
 
 URLUtils = URLUtils()

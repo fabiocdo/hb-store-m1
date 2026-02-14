@@ -27,6 +27,7 @@ def _generate_row_md5(values_by_column: dict[str, object]) -> str:
 def _generate_upsert_params(pkg: PKG) -> dict[str, object]:
     app_type_raw = str(pkg.app_type or "")
     app_type_label = URLUtils.to_client_app_type(app_type_raw)
+    cache_key = str(pkg.content_id or pkg.title_id or "")
 
     row = {
         "content_id": pkg.content_id,
@@ -40,7 +41,7 @@ def _generate_upsert_params(pkg: PKG) -> dict[str, object]:
             pkg.content_id, app_type_raw, pkg.pkg_path
         ),
         "version": pkg.version,
-        "picpath": URLUtils.ps4_store_icon_cache_path(pkg.content_id),
+        "picpath": URLUtils.ps4_store_icon_cache_path(cache_key),
         "desc_1": None,
         "desc_2": None,
         "ReviewStars": None,
@@ -285,7 +286,10 @@ class DBUtils:
                     else None
                 )
                 updated[StoreDB.Column.PIC_PATH.value] = (
-                    URLUtils.ps4_store_icon_cache_path(str(content_id or ""))
+                    URLUtils.ps4_store_icon_cache_path(
+                        str(content_id or current.get(StoreDB.Column.ID.value) or "")
+                    )
+                    or current.get(StoreDB.Column.PIC_PATH.value)
                 )
                 updated[StoreDB.Column.MAIN_MENU_PIC.value] = (
                     URLUtils.canonical_media_url(
@@ -359,6 +363,68 @@ class DBUtils:
             conn.rollback()
             log.log_error(f"Failed to refresh URLs in STORE.DB: {e}")
             return Output(Status.ERROR, 0)
+        finally:
+            conn.close()
+
+    @staticmethod
+    def sanity_check(
+        app_types: tuple[str, ...] = ("Game", "Patch"),
+        required_fields: tuple[str, ...] = ("id", "name", "package", "image", "picpath"),
+    ) -> Output[dict[str, object]]:
+        store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
+        if not store_db_file_path.exists():
+            return Output(Status.NOT_FOUND, {"error": "STORE.DB not found"})
+
+        conn = DBUtils._connect()
+        try:
+            total_rows = conn.execute("SELECT COUNT(*) FROM homebrews").fetchone()[0]
+
+            missing_by_type: dict[str, dict[str, int]] = {}
+            app_type_counts: dict[str, int] = {}
+            issues = 0
+
+            for app_type in app_types:
+                type_count = conn.execute(
+                    "SELECT COUNT(*) FROM homebrews WHERE apptype = ?",
+                    (app_type,),
+                ).fetchone()[0]
+                app_type_counts[app_type] = type_count
+                if type_count <= 0:
+                    issues += 1
+
+                field_issues: dict[str, int] = {}
+                for field in required_fields:
+                    if field not in {col.value for col in StoreDB.Column}:
+                        continue
+                    query = (
+                        f"SELECT COUNT(*) FROM homebrews "
+                        f"WHERE apptype = ? AND ({DBUtils._quote(field)} IS NULL OR "
+                        f"TRIM(CAST({DBUtils._quote(field)} AS TEXT)) = '')"
+                    )
+                    missing_count = conn.execute(query, (app_type,)).fetchone()[0]
+                    if missing_count > 0:
+                        field_issues[field] = missing_count
+                        issues += missing_count
+
+                if field_issues:
+                    missing_by_type[app_type] = field_issues
+
+            has_pid_gaps = DBUtils._needs_pid_compaction(conn)
+            if has_pid_gaps:
+                issues += 1
+
+            summary = {
+                "total_rows": total_rows,
+                "app_type_counts": app_type_counts,
+                "missing_by_type": missing_by_type,
+                "has_pid_gaps": has_pid_gaps,
+            }
+            if issues > 0:
+                return Output(Status.WARN, summary)
+            return Output(Status.OK, summary)
+        except Exception as exc:
+            log.log_error(f"Failed STORE.DB sanity check: {exc}")
+            return Output(Status.ERROR, {"error": str(exc)})
         finally:
             conn.close()
 

@@ -123,5 +123,21 @@ class InitUtils:
         else:
             log.log_debug("FPKGI JSON URLs already up to date")
 
+        sanity = DBUtils.sanity_check()
+        if sanity.status is Status.WARN:
+            details = sanity.content or {}
+            log.log_warn(
+                "STORE.DB sanity check warnings: "
+                f"counts={details.get('app_type_counts')} "
+                f"missing={details.get('missing_by_type')} "
+                f"pid_gaps={details.get('has_pid_gaps')}"
+            )
+        elif sanity.status is Status.OK:
+            log.log_info("STORE.DB sanity check OK")
+        elif sanity.status is Status.NOT_FOUND:
+            log.log_warn("STORE.DB sanity check skipped: STORE.DB not found")
+        else:
+            log.log_warn("STORE.DB sanity check failed")
+
 
 InitUtils = InitUtils()
