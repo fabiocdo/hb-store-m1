@@ -28,6 +28,7 @@ class WatchChanges:
     removed: dict[str, list[str]] = field(default_factory=dict)
     current_files: dict[str, dict[str, str]] = field(default_factory=dict)
     current_cache: dict | None = None
+    cache_missing: bool = False
 
     @classmethod
     def from_dict(cls, data: dict | None) -> "WatchChanges":
@@ -198,10 +199,15 @@ class Watcher:
         )
 
     def _load_changes(self) -> WatchChanges | None:
+        cache_read_output = self._cache_utils.read_pkg_cache()
+        cache_missing = cache_read_output.status is Status.NOT_FOUND
+
         cache_output = self._cache_utils.compare_pkg_cache()
         if cache_output.status is Status.SKIP:
             return self._build_changes_for_missing_fpkgi()
-        return WatchChanges.from_dict(cache_output.content)
+        changes = WatchChanges.from_dict(cache_output.content)
+        changes.cache_missing = cache_missing
+        return changes
 
     @staticmethod
     def _collect_current_content_ids(current_files: dict[str, dict[str, str]]) -> set[str]:
@@ -220,6 +226,13 @@ class Watcher:
                 if content_id and content_id not in current_content_ids:
                     removed_content_ids.append(content_id)
         return removed_content_ids
+
+    def _collect_removed_ids_from_db_snapshot(self, current_content_ids: set[str]) -> list[str]:
+        db_content_ids_output = self._db_utils.select_content_ids()
+        if db_content_ids_output.status not in (Status.OK, Status.SKIP):
+            return []
+        db_content_ids = db_content_ids_output.content or []
+        return [content_id for content_id in db_content_ids if content_id not in current_content_ids]
 
     def _handle_removed_content_ids(self, removed_content_ids: list[str]) -> None:
         if not removed_content_ids:
@@ -348,6 +361,11 @@ class Watcher:
 
         changed_section_set = set(changes.changed)
         removed_content_ids = self._collect_removed_content_ids(changes)
+        if changes.cache_missing:
+            current_content_ids = self._collect_current_content_ids(changes.current_files)
+            removed_content_ids.extend(
+                self._collect_removed_ids_from_db_snapshot(current_content_ids)
+            )
         self._handle_removed_content_ids(removed_content_ids)
 
         scanned_pkgs = self._collect_scanned_pkgs(changes)

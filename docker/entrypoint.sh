@@ -18,7 +18,6 @@ SERVER_PORT=80
 ENABLE_TLS=false
 # Logging verbosity (debug | info | warn | error). Value type: string.
 LOG_LEVEL=info
-
 # Watcher
 # Operates scanning/sorting/indexing when true. Value type: boolean.
 WATCHER_ENABLED=true

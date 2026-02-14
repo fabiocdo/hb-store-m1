@@ -11,6 +11,37 @@ log = LogUtils(LogModule.INIT_UTIL)
 
 
 class InitUtils:
+    @staticmethod
+    def init_all():
+        InitUtils.init_directories()
+        InitUtils.init_db()
+        InitUtils.init_assets()
+
+    @staticmethod
+    def _read_db_init_sql(db_path, init_script_path) -> str | None:
+        if not init_script_path.is_file():
+            log.log_error(
+                f"Failed to initialize {db_path.name}. "
+                f"Initialization script {init_script_path.name} not found at {init_script_path.parent}"
+            )
+            return None
+
+        sql = init_script_path.read_text("utf-8").strip()
+        if not sql:
+            log.log_error(
+                f"Failed to initialize {db_path.name}. "
+                f"Initialization script {init_script_path.name} is empty"
+            )
+            return None
+        return sql
+
+    @staticmethod
+    def _assets_to_download():
+        return [
+            Globals.FILES.HOMEBREW_ELF_FILE_PATH,
+            Globals.FILES.HOMEBREW_ELF_SIG_FILE_PATH,
+            Globals.FILES.REMOTE_MD5_FILE_PATH,
+        ]
 
     @staticmethod
     def init_directories():
@@ -33,19 +64,8 @@ class InitUtils:
             log.log_info(f"{store_db_file_path.name.upper()} OK")
             return
 
-        if not store_db_init_script.is_file():
-            log.log_error(
-                f"Failed to initialize {store_db_file_path.name}. "
-                f"Initialization script {store_db_init_script.name} not found at {store_db_init_script.parent}"
-            )
-            return
-
-        sql = store_db_init_script.read_text("utf-8").strip()
+        sql = InitUtils._read_db_init_sql(store_db_file_path, store_db_init_script)
         if not sql:
-            log.log_error(
-                f"Failed to initialize {store_db_file_path.name}. "
-                f"Initialization script {store_db_init_script.name} is empty"
-            )
             return
 
         store_db_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -64,11 +84,7 @@ class InitUtils:
     def init_assets():
         log.log_debug("Initializing store assets...")
 
-        assets = [
-            Globals.FILES.HOMEBREW_ELF_FILE_PATH,
-            Globals.FILES.HOMEBREW_ELF_SIG_FILE_PATH,
-            Globals.FILES.REMOTE_MD5_FILE_PATH,
-        ]
+        assets = InitUtils._assets_to_download()
 
         try:
             downloaded, missing = StoreAssetClient.download_store_assets(assets)
@@ -80,9 +96,10 @@ class InitUtils:
             else:
                 log.log_info("Store assets OK...")
         except GithubException as e:
-            log.log_error(f"Failed to download store assets: {e.data['message']}")
+            message = (getattr(e, "data", {}) or {}).get("message", str(e))
+            log.log_error(f"Failed to download store assets: {message}")
         except Exception as e:
-            log.log_error(f"Failed to download store assets: {e.__cause__}")
+            log.log_error(f"Failed to download store assets: {e}")
 
 
 InitUtils = InitUtils()

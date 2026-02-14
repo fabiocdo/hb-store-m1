@@ -15,6 +15,87 @@ from pydantic import ValidationError
 
 class CacheUtils:
     _SECTIONS = Section.ALL
+    _MEDIA_SECTION = "_media"
+    _MEDIA_SUFFIXES = ("_icon0", "_pic0", "_pic1")
+
+    @staticmethod
+    def _parse_cache_entry(content_id: str, value: str) -> tuple[str, str, str] | None:
+        parts = value.split("|", 2)
+        if len(parts) >= 3:
+            return parts[0], parts[1], parts[2]
+        if len(parts) >= 2:
+            return parts[0], parts[1], f"{content_id}.pkg"
+        return None
+
+    @staticmethod
+    def _filename_from_cache_entry(content_id: str, value: str) -> str:
+        parsed = CacheUtils._parse_cache_entry(content_id, value)
+        if parsed:
+            return parsed[2]
+        return f"{content_id}.pkg"
+
+    @staticmethod
+    def _cached_index_by_section(
+        cached: dict[str, CacheSection],
+    ) -> dict[str, dict[str, tuple[str, str, str]]]:
+        cached_index_by_section: dict[str, dict[str, tuple[str, str, str]]] = {}
+        for section in CacheUtils._SECTIONS:
+            if section.name == CacheUtils._MEDIA_SECTION:
+                continue
+            cached_section = cached.get(section.name)
+            if not cached_section:
+                continue
+
+            index: dict[str, tuple[str, str, str]] = {}
+            for content_id, value in cached_section.content.items():
+                parsed = CacheUtils._parse_cache_entry(content_id, value)
+                if not parsed:
+                    continue
+                size_str, mtime_str, filename = parsed
+                index[filename] = (content_id, size_str, mtime_str)
+            cached_index_by_section[section.name] = index
+        return cached_index_by_section
+
+    @staticmethod
+    def _content_id_from_media_key(media_key: str) -> str | None:
+        for suffix in CacheUtils._MEDIA_SUFFIXES:
+            if media_key.endswith(suffix):
+                return media_key[: -len(suffix)]
+        return None
+
+    @staticmethod
+    def _cache_value(size: int, mtime_ns: int, filename: str) -> str:
+        return f"{size}|{mtime_ns}|{filename}"
+
+    @staticmethod
+    def _current_file_map(current_content: dict[str, str]) -> dict[str, str]:
+        return {
+            key: CacheUtils._filename_from_cache_entry(key, value)
+            for key, value in current_content.items()
+        }
+
+    @staticmethod
+    def _section_changes(current_section: CacheSection, cached_section: CacheSection) -> tuple[list[str], list[str], list[str]]:
+        current_keys = set(current_section.content)
+        cached_keys = set(cached_section.content)
+        added = sorted(current_keys - cached_keys)
+        removed = sorted(cached_keys - current_keys)
+        updated = sorted(
+            key
+            for key in current_keys & cached_keys
+            if current_section.content[key] != cached_section.content[key]
+        )
+        return added, removed, updated
+
+    @staticmethod
+    def _section_summary(section_name: str, added: int, updated: int, removed: int) -> str:
+        return (
+            f"{section_name.upper()}: "
+            f"{LogColor.BRIGHT_GREEN if added != 0 else LogColor.RESET}+{added}{LogColor.RESET} "
+            f"{LogColor.BRIGHT_YELLOW if updated != 0 else LogColor.RESET}"
+            f"~{updated}{LogColor.RESET} "
+            f"{LogColor.BRIGHT_RED if removed != 0 else LogColor.RESET}-{removed}{LogColor.RESET}"
+        )
 
     @staticmethod
     def read_pkg_cache():
@@ -55,25 +136,7 @@ class CacheUtils:
             cached = CacheUtils.read_pkg_cache().content or {}
         else:
             cached = cached or {}
-        cached_index_by_section: dict[str, dict[str, tuple[str, str, str]]] = {}
-        for section in CacheUtils._SECTIONS:
-            if section.name == "_media":
-                continue
-            cached_section = cached.get(section.name)
-            if not cached_section:
-                continue
-            index: dict[str, tuple[str, str, str]] = {}
-            for content_id, value in cached_section.content.items():
-                parts = value.split("|", 2)
-                if len(parts) >= 3:
-                    size_str, mtime_str, filename = parts[0], parts[1], parts[2]
-                elif len(parts) >= 2:
-                    size_str, mtime_str = parts[0], parts[1]
-                    filename = f"{content_id}.pkg"
-                else:
-                    continue
-                index[filename] = (content_id, size_str, mtime_str)
-            cached_index_by_section[section.name] = index
+        cached_index_by_section = CacheUtils._cached_index_by_section(cached)
 
         for section in CacheUtils._SECTIONS:
             section_path = section.path
@@ -98,17 +161,15 @@ class CacheUtils:
                 section_cache.meta.latest_mtime = max(
                     section_cache.meta.latest_mtime, int(stat.st_mtime_ns)
                 )
-                if section.name == "_media":
+                if section.name == CacheUtils._MEDIA_SECTION:
                     media_key = pkg_path.stem
-                    content_id = None
-                    for suffix in ("_icon0", "_pic0", "_pic1"):
-                        if media_key.endswith(suffix):
-                            content_id = media_key[: -len(suffix)]
-                            break
+                    content_id = CacheUtils._content_id_from_media_key(media_key)
                     if not content_id or content_id not in valid_content_ids:
                         continue
                     cache_key = media_key
-                    cache_value = f"{stat.st_size}|{stat.st_mtime_ns}|{pkg_path.name}"
+                    cache_value = CacheUtils._cache_value(
+                        stat.st_size, stat.st_mtime_ns, pkg_path.name
+                    )
                 else:
                     size_str = str(stat.st_size)
                     mtime_str = str(stat.st_mtime_ns)
@@ -132,7 +193,9 @@ class CacheUtils:
                             )
                         else:
                             valid_content_ids.add(content_id)
-                    cache_value = f"{size_str}|{mtime_str}|{pkg_path.name}"
+                    cache_value = CacheUtils._cache_value(
+                        int(size_str), int(mtime_str), pkg_path.name
+                    )
                 section_cache.content[cache_key] = cache_value
 
         store_cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -178,28 +241,19 @@ class CacheUtils:
                 cached_section = cached.get(section_name, CacheSection())
                 current_meta = current_section.meta
                 cached_meta = cached_section.meta
-                current_content = current_section.content
-                cached_content = cached_section.content
-                current_keys = set(current_content)
-                cached_keys = set(cached_content)
 
-                added[section_name] = sorted(current_keys - cached_keys)
-                removed[section_name] = sorted(cached_keys - current_keys)
-                updated[section_name] = sorted(
-                    key
-                    for key in current_keys & cached_keys
-                    if current_content[key] != cached_content[key]
+                section_added, section_removed, section_updated = CacheUtils._section_changes(
+                    current_section, cached_section
                 )
-                if section_name != "_media":
-                    file_map = {}
-                    for key, value in current_content.items():
-                        parts = value.split("|", 2)
-                        if len(parts) >= 3 and parts[2]:
-                            filename = parts[2]
-                        else:
-                            filename = f"{key}.pkg"
-                        file_map[key] = filename
-                    current_files[section_name] = file_map
+                added[section_name] = section_added
+                removed[section_name] = section_removed
+                updated[section_name] = section_updated
+
+                if section_name != CacheUtils._MEDIA_SECTION:
+                    current_files[section_name] = CacheUtils._current_file_map(
+                        current_section.content
+                    )
+
                 added_count = len(added[section_name])
                 updated_count = len(updated[section_name])
                 removed_count = len(removed[section_name])
@@ -210,12 +264,11 @@ class CacheUtils:
                     or updated[section_name]
                 ):
                     changed_sections.append(section_name)
-                    summary = (
-                        f"{section_name.upper()}: "
-                        f"{LogColor.BRIGHT_GREEN if added_count != 0 else LogColor.RESET}+{added_count}{LogColor.RESET} "
-                        f"{LogColor.BRIGHT_YELLOW if updated_count != 0 else LogColor.RESET}"
-                        f"~{updated_count}{LogColor.RESET} "
-                        f"{LogColor.BRIGHT_RED if removed_count != 0 else LogColor.RESET}-{removed_count}{LogColor.RESET}"
+                    summary = CacheUtils._section_summary(
+                        section_name,
+                        added_count,
+                        updated_count,
+                        removed_count,
                     )
                     summary_lines.append(summary)
 

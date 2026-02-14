@@ -8,6 +8,18 @@ log = LogUtils(LogModule.FILE_UTIL)
 
 class FileUtils:
     @staticmethod
+    def _next_available_path(path: Path) -> Path:
+        if not path.exists():
+            return path
+
+        counter = 1
+        while True:
+            candidate = path.with_name(f"{path.stem}_{counter}{path.suffix}")
+            if not candidate.exists():
+                return candidate
+            counter += 1
+
+    @staticmethod
     def optimize_png(path: Path) -> bool:
         if not path.exists():
             return False
@@ -43,15 +55,7 @@ class FileUtils:
             return None
 
         errors_dir.mkdir(parents=True, exist_ok=True)
-        target_path = errors_dir / path.name
-        if target_path.exists():
-            counter = 1
-            while True:
-                candidate = errors_dir / f"{path.stem}_{counter}{path.suffix}"
-                if not candidate.exists():
-                    target_path = candidate
-                    break
-                counter += 1
+        target_path = FileUtils._next_available_path(errors_dir / path.name)
 
         moved_path = FileUtils.move(path, target_path)
         if not moved_path:

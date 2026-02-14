@@ -33,9 +33,7 @@ def welcome():
 
 def main():
     welcome()
-    InitUtils.init_directories()
-    InitUtils.init_db()
-    InitUtils.init_assets()
+    InitUtils.init_all()
     if Globals.ENVS.WATCHER_ENABLED:
         Watcher().start()
     else:

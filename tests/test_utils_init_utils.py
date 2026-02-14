@@ -34,3 +34,27 @@ def test_given_assets_when_init_assets_then_handles_missing(monkeypatch, temp_gl
     )
 
     InitUtils.init_assets()
+
+
+def test_given_init_all_when_called_then_runs_all_init_steps(monkeypatch):
+    called = {"dirs": 0, "db": 0, "assets": 0}
+
+    monkeypatch.setattr(
+        InitUtils,
+        "init_directories",
+        lambda: called.__setitem__("dirs", called["dirs"] + 1),
+    )
+    monkeypatch.setattr(
+        InitUtils,
+        "init_db",
+        lambda: called.__setitem__("db", called["db"] + 1),
+    )
+    monkeypatch.setattr(
+        InitUtils,
+        "init_assets",
+        lambda: called.__setitem__("assets", called["assets"] + 1),
+    )
+
+    InitUtils.init_all()
+
+    assert called == {"dirs": 1, "db": 1, "assets": 1}

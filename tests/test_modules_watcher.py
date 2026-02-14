@@ -1,5 +1,6 @@
 import pytest
 
+from hb_store_m1.models import globals as globals_module
 from hb_store_m1.models.output import Output, Status
 from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFO, ParamSFOKey
 from hb_store_m1.models.pkg.pkg import PKG
@@ -170,3 +171,58 @@ def test_given_start_called_when_sleep_raises_then_cycle_runs_once(
         watcher.start()
 
     assert calls == ["run"]
+
+
+def test_given_missing_cache_when_run_cycle_then_removes_db_orphans(
+    init_paths, monkeypatch
+):
+    watcher = Watcher()
+
+    monkeypatch.setattr(
+        cache_utils_module.CacheUtils,
+        "read_pkg_cache",
+        lambda: Output(Status.NOT_FOUND, {}),
+    )
+    monkeypatch.setattr(
+        cache_utils_module.CacheUtils,
+        "compare_pkg_cache",
+        lambda: Output(
+            Status.OK,
+            {
+                "changed": [],
+                "added": {},
+                "updated": {},
+                "removed": {},
+                "current_files": {"game": {"KEEP": "keep.pkg"}},
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        globals_module.Globals.ENVS, "FPGKI_FORMAT_ENABLED", False, raising=False
+    )
+    monkeypatch.setattr(
+        db_utils_module.DBUtils,
+        "select_content_ids",
+        lambda: Output(Status.OK, ["KEEP", "DROP"]),
+    )
+    deleted = {"ids": []}
+
+    monkeypatch.setattr(
+        db_utils_module.DBUtils,
+        "delete_by_content_ids",
+        lambda ids: deleted.__setitem__("ids", ids) or Output(Status.OK, len(ids)),
+    )
+    monkeypatch.setattr(
+        db_utils_module.DBUtils,
+        "upsert",
+        lambda _pkgs: Output(Status.SKIP, None),
+    )
+    monkeypatch.setattr(
+        cache_utils_module.CacheUtils,
+        "write_pkg_cache",
+        lambda *args, **kwargs: Output(Status.OK, {}),
+    )
+
+    watcher._run_cycle()
+
+    assert deleted["ids"] == ["DROP"]

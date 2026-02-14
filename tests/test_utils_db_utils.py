@@ -96,3 +96,28 @@ def test_given_pkg_when_upsert_then_writes_cdn_urls_and_md5(init_paths, tmp_path
     assert row[2] == expected_pic0_url
     assert row[3] == expected_pic1_url
     assert row[4]
+
+
+def test_given_existing_rows_when_select_content_ids_then_returns_values(init_paths):
+    init_sql = (
+        Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
+    ).read_text("utf-8")
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(init_sql, encoding="utf-8")
+    InitUtils.init_db()
+
+    pkg_path = init_paths.GAME_DIR_PATH / "content.pkg"
+    pkg_path.write_text("data", encoding="utf-8")
+    pkg = PKG(
+        title="Test",
+        title_id="CUSA00001",
+        content_id="UP0000-TEST00000_00-TEST000000000000",
+        category="GD",
+        version="01.00",
+        pkg_path=pkg_path,
+    )
+    DBUtils.upsert([pkg])
+
+    result = DBUtils.select_content_ids()
+
+    assert result.status.name == "OK"
+    assert pkg.content_id in (result.content or [])

@@ -65,25 +65,53 @@ def _generate_upsert_params(pkg: PKG) -> dict[str, object]:
 
 
 class DBUtils:
+    @staticmethod
+    def _ensure_db_initialized() -> None:
+        store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
+        if not store_db_file_path.exists():
+            InitUtils.init_db()
+
+    @staticmethod
+    def _connect() -> sqlite3.Connection:
+        return sqlite3.connect(str(Globals.FILES.STORE_DB_FILE_PATH))
+
+    @staticmethod
+    def _quote(column: str) -> str:
+        return f'"{column}"'
+
+    @staticmethod
+    def _build_upsert_sql() -> str:
+        columns = [col.value for col in StoreDB.Column]
+        conflict_key = StoreDB.Column.CONTENT_ID.value
+        insert_cols = ", ".join(DBUtils._quote(col) for col in columns)
+        values = ", ".join(f":{col}" for col in columns)
+        update_set = ", ".join(
+            f"{DBUtils._quote(col)}=excluded.{DBUtils._quote(col)}"
+            for col in columns
+            if col != conflict_key
+        )
+        return (
+            f"INSERT INTO homebrews ({insert_cols}) "
+            f"VALUES ({values}) "
+            f"ON CONFLICT({DBUtils._quote(conflict_key)}) DO UPDATE SET {update_set}"
+        )
 
     @staticmethod
     def select_by_content_ids(
         conn: sqlite3.Connection | None,
         content_ids: list[str],
     ) -> Output[list[dict[str, object]]]:
-
-        store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
-        if not store_db_file_path.exists():
-            InitUtils.init_db()
-
-        if not conn:
-            conn = sqlite3.connect(Globals.FILES.STORE_DB_FILE_PATH)
-
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        DBUtils._ensure_db_initialized()
 
         if not content_ids:
             return Output(Status.OK, [])
+
+        own_conn = conn is None
+        if own_conn:
+            conn = DBUtils._connect()
+
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
 
         placeholders = ",".join("?" for _ in content_ids)
 
@@ -92,57 +120,64 @@ class DBUtils:
             FROM homebrews
             WHERE content_id IN ({placeholders})
         """
+        try:
+            cursor.execute(query, content_ids)
+            rows = [dict(row) for row in cursor.fetchall()]
+            return Output(Status.OK, rows)
+        finally:
+            if own_conn:
+                conn.close()
 
-        cursor.execute(query, content_ids)
+    @staticmethod
+    def select_content_ids(conn: sqlite3.Connection | None = None) -> Output[list[str]]:
+        store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
+        if not store_db_file_path.exists():
+            return Output(Status.NOT_FOUND, [])
 
-        rows = [dict(row) for row in cursor.fetchall()]
-        return Output(Status.OK, rows)
+        own_conn = conn is None
+        if own_conn:
+            conn = DBUtils._connect()
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT content_id FROM homebrews")
+            return Output(
+                Status.OK,
+                [
+                    row[0]
+                    for row in cursor.fetchall()
+                    if row and row[0]
+                ],
+            )
+        except Exception as e:
+            log.log_error(f"Failed to list content_ids from STORE.DB: {e}")
+            return Output(Status.ERROR, [])
+        finally:
+            if own_conn:
+                conn.close()
 
     @staticmethod
     def upsert(pkgs: list[PKG], conn: sqlite3.Connection | None = None) -> Output:
-
-        store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
-        if not store_db_file_path.exists():
-            InitUtils.init_db()
-
-        if not conn:
-            conn = sqlite3.connect(str(store_db_file_path))
+        DBUtils._ensure_db_initialized()
 
         if not pkgs:
             return Output(Status.SKIP, "Nothing to upsert")
 
+        own_conn = conn is None
+        if own_conn:
+            conn = DBUtils._connect()
+
         content_ids = [pkg.content_id for pkg in pkgs if pkg.content_id]
+        existing_output = DBUtils.select_by_content_ids(conn, content_ids)
         existing = {
-            row["content_id"]: row["row_md5"]
-            for row in DBUtils.select_by_content_ids(conn, content_ids).content
+            row["content_id"]: row["row_md5"] for row in (existing_output.content or [])
         }
 
         log.log_info(f"Attempting to upsert {len(pkgs)} PKGs in STORE.DB...")
 
         try:
             conn.execute("BEGIN")
-
-            COLUMNS = [col.value for col in StoreDB.Column]
-            CONFLICT_KEY = StoreDB.Column.CONTENT_ID.value
-
-            def _quote(col: str) -> str:
-                return f'"{col}"'
-
-            insert_cols = ", ".join(_quote(c) for c in COLUMNS)
-            values = ", ".join(f":{c}" for c in COLUMNS)
-
-            update_set = ", ".join(
-                f"{_quote(c)}=excluded.{_quote(c)}"
-                for c in COLUMNS
-                if c != CONFLICT_KEY
-            )
-
-            upsert_sql = f"""
-            INSERT INTO homebrews ({insert_cols})
-            VALUES ({values})
-            ON CONFLICT({_quote(CONFLICT_KEY)}) DO UPDATE SET
-            {update_set}
-            """
+            upsert_sql = DBUtils._build_upsert_sql()
 
             upsert_params = [
                 params
@@ -171,7 +206,8 @@ class DBUtils:
             return Output(Status.ERROR, len(pkgs))
 
         finally:
-            conn.close()
+            if own_conn:
+                conn.close()
 
     @staticmethod
     def delete_by_content_ids(content_ids: list[str]) -> Output:
@@ -184,7 +220,7 @@ class DBUtils:
         if not content_ids:
             return Output(Status.SKIP, "Nothing to delete")
 
-        conn = sqlite3.connect(str(store_db_file_path))
+        conn = DBUtils._connect()
         log.log_info(f"Attempting to delete {len(content_ids)} PKGs from STORE.DB...")
         try:
             conn.execute("BEGIN")

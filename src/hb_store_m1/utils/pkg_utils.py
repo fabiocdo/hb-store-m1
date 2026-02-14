@@ -21,13 +21,51 @@ log = LogUtils(LogModule.PKG_UTIL)
 
 
 class PkgUtils:
+    _PARAM_REGEX = re.compile(r"^(?P<name>[^:]+?)\s*:\s*[^=]*=\s*(?P<value>.*)$")
+
+    @staticmethod
+    def _list_pkg_entries(pkg: Path) -> dict[PKGEntryKey, str]:
+        pkg_entries: dict[PKGEntryKey, str] = {}
+        entries_result = PKGTool.list_pkg_entries(pkg).stdout.splitlines()
+        for line in entries_result[1:]:
+            parts = line.split()
+            if len(parts) < 5:
+                continue
+            name = str(parts[4])
+            index = str(parts[3])
+            entry_key = PKGEntryKey.__members__.get(name)
+            if entry_key is None:
+                continue
+            pkg_entries[entry_key] = index
+        return pkg_entries
+
+    @staticmethod
+    def _media_targets(content_id: str) -> list[tuple[PKGEntryKey, bool, Path]]:
+        media_dir = Path(Globals.PATHS.MEDIA_DIR_PATH)
+        return [
+            (
+                PKGEntryKey.ICON0_PNG,
+                True,
+                media_dir / f"{content_id}_icon0.png",
+            ),
+            (
+                PKGEntryKey.PIC0_PNG,
+                False,
+                media_dir / f"{content_id}_pic0.png",
+            ),
+            (
+                PKGEntryKey.PIC1_PNG,
+                False,
+                media_dir / f"{content_id}_pic1.png",
+            ),
+        ]
+
     @staticmethod
     def parse_param_sfo_entries(lines: list[str]) -> ParamSFO:
         data: dict[ParamSFOKey, str] = {key: "" for key in ParamSFOKey}
-        param_regex = re.compile(r"^(?P<name>[^:]+?)\s*:\s*[^=]*=\s*(?P<value>.*)$")
 
         for line in lines:
-            match = param_regex.match(line.strip())
+            match = PkgUtils._PARAM_REGEX.match(line.strip())
             if not match:
                 continue
 
@@ -122,20 +160,7 @@ class PkgUtils:
             return Output(Status.NOT_FOUND, pkg)
 
         try:
-            # Step 1: Track the entries indexes
-            pkg_entries = {}
-            entries_result = PKGTool.list_pkg_entries(pkg).stdout.splitlines()
-
-            for line in entries_result[1:]:
-                parts = line.split()
-                name = str(parts[4])
-                index = str(parts[3])
-
-                entry_key = PKGEntryKey.__members__.get(name)
-                if entry_key is None:
-                    continue
-
-                pkg_entries[entry_key] = index
+            pkg_entries = PkgUtils._list_pkg_entries(pkg)
 
             # Step 2: Extract PARAM.SFO
             param_sfo = None
@@ -173,44 +198,12 @@ class PkgUtils:
             return Output(Status.ERROR, pkg)
 
         try:
-            pkg_entries = {}
-            entries_result = PKGTool.list_pkg_entries(pkg).stdout.splitlines()
-
-            for line in entries_result[1:]:
-                parts = line.split()
-                name = str(parts[4])
-                index = str(parts[3])
-
-                entry_key = PKGEntryKey.__members__.get(name)
-                if entry_key is None:
-                    continue
-
-                pkg_entries[entry_key] = index
+            pkg_entries = PkgUtils._list_pkg_entries(pkg)
 
             extracted_medias: dict[PKGEntryKey, Path | None] = {}
             log.log_debug(f"Extracting MEDIAS from PKG {pkg.name}...")
 
-            media_dir = Path(Globals.PATHS.MEDIA_DIR_PATH)
-
-            targets: list[tuple[PKGEntryKey, bool, Path]] = [
-                (
-                    PKGEntryKey.ICON0_PNG,
-                    True,
-                    media_dir / f"{content_id}_icon0.png",
-                ),
-                (
-                    PKGEntryKey.PIC0_PNG,
-                    False,
-                    media_dir / f"{content_id}_pic0.png",
-                ),
-                (
-                    PKGEntryKey.PIC1_PNG,
-                    False,
-                    media_dir / f"{content_id}_pic1.png",
-                ),
-            ]
-
-            for entry_key, is_critical, file_path in targets:
+            for entry_key, is_critical, file_path in PkgUtils._media_targets(content_id):
                 entry_index = pkg_entries.get(entry_key)
                 if entry_index is None:
                     if is_critical:
@@ -245,7 +238,7 @@ class PkgUtils:
 
     @staticmethod
     def build_pkg(
-        pkg_path: Path, param_sfo: ParamSFO, medias: dict[str, Path]
+        pkg_path: Path, param_sfo: ParamSFO, medias: dict[PKGEntryKey, Path | None]
     ) -> Output[PKG]:
 
         pkg = PKG(
