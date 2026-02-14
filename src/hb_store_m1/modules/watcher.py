@@ -1,4 +1,6 @@
 import time
+import traceback
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from hb_store_m1.models.globals import Globals
@@ -18,11 +20,69 @@ from hb_store_m1.utils.pkg_utils import PkgUtils
 log = LogUtils(LogModule.WATCHER)
 
 
+@dataclass(slots=True)
+class WatchChanges:
+    changed: list[str] = field(default_factory=list)
+    added: dict[str, list[str]] = field(default_factory=dict)
+    updated: dict[str, list[str]] = field(default_factory=dict)
+    removed: dict[str, list[str]] = field(default_factory=dict)
+    current_files: dict[str, dict[str, str]] = field(default_factory=dict)
+    current_cache: dict | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict | None) -> "WatchChanges":
+        raw = data or {}
+        return cls(
+            changed=list(raw.get("changed") or []),
+            added={key: list(value or []) for key, value in (raw.get("added") or {}).items()},
+            updated={
+                key: list(value or []) for key, value in (raw.get("updated") or {}).items()
+            },
+            removed={
+                key: list(value or []) for key, value in (raw.get("removed") or {}).items()
+            },
+            current_files={
+                key: dict(value or {})
+                for key, value in (raw.get("current_files") or {}).items()
+            },
+            current_cache=raw.get("current_cache"),
+        )
+
+
 class Watcher:
+    _MEDIA_SECTION_NAME = "_media"
     _MEDIA_SUFFIXES = ("_icon0", "_pic0", "_pic1")
 
-    def __init__(self):
-        self._interval = max(1, Globals.ENVS.WATCHER_PERIODIC_SCAN_SECONDS)
+    def __init__(
+        self,
+        cache_utils=None,
+        db_utils=None,
+        file_utils=None,
+        fpkgi_utils=None,
+        pkg_utils=None,
+        auto_organizer=None,
+        envs=None,
+        paths=None,
+    ):
+        self._cache_utils = cache_utils or CacheUtils
+        self._db_utils = db_utils or DBUtils
+        self._file_utils = file_utils or FileUtils
+        self._fpkgi_utils = fpkgi_utils or FPKGIUtils
+        self._pkg_utils = pkg_utils or PkgUtils
+        self._auto_organizer = auto_organizer or AutoOrganizer
+        self._envs = envs or Globals.ENVS
+        self._paths = paths or Globals.PATHS
+        self._interval = max(1, self._envs.WATCHER_PERIODIC_SCAN_SECONDS)
+
+    @staticmethod
+    def _iter_pkg_sections():
+        for section in Section.ALL:
+            if section.name != Watcher._MEDIA_SECTION_NAME:
+                yield section
+
+    @staticmethod
+    def _section_by_name() -> dict[str, object]:
+        return {section.name: section for section in Section.ALL}
 
     def _content_id_from_media(self, name: str) -> str | None:
         base = name[:-4] if name.lower().endswith(".png") else name
@@ -31,11 +91,9 @@ class Watcher:
                 return base[: -len(suffix)]
         return None
 
-    def _pkgs_from_media_changes(self, changes: dict) -> list[Path]:
-        media_changes = []
-        for key in ("removed",):
-            section_changes = changes.get(key, {})
-            media_changes.extend(section_changes.get("_media", []) or [])
+    def _pkgs_from_media_changes(self, changes: dict[str, list[str]] | dict) -> list[Path]:
+        removed_by_section = changes.get("removed", changes)
+        media_changes = removed_by_section.get(self._MEDIA_SECTION_NAME, []) or []
 
         if not media_changes:
             return []
@@ -45,219 +103,226 @@ class Watcher:
             content_id = self._content_id_from_media(media_name)
             if not content_id:
                 continue
-            for section in Section.ALL:
-                if section.name == "_media":
-                    continue
+            for section in self._iter_pkg_sections():
                 pkg_path = section.path / f"{content_id}.pkg"
                 if pkg_path.exists():
                     pkgs.append(pkg_path)
                     break
         return pkgs
 
-    def _run_cycle(self) -> None:
-        cache_output = CacheUtils.compare_pkg_cache()
+    @staticmethod
+    def _filename_from_cache_entry(key: str, value: str) -> str:
+        parts = value.split("|", 2)
+        if len(parts) >= 3 and parts[2]:
+            return parts[2]
+        return f"{key}.pkg"
 
-        if cache_output.status == Status.SKIP:
-            if not Globals.ENVS.FPGKI_FORMAT_ENABLED:
-                log.log_info("No changes detected.")
-                return
-            cached = CacheUtils.read_pkg_cache().content or {}
-            sections_with_content = []
-            for section in Section.ALL:
-                if section.name == "_media":
-                    continue
-                section_cache = cached.get(section.name)
-                if section_cache and section_cache.content:
-                    sections_with_content.append(section.name)
+    @staticmethod
+    def _log_no_changes() -> None:
+        log.log_info("No changes detected.")
 
-            if not sections_with_content:
-                log.log_info("No changes detected.")
-                return
+    def _sections_with_cached_content(self, cached: dict) -> list[str]:
+        sections_with_content = []
+        for section in self._iter_pkg_sections():
+            section_cache = cached.get(section.name)
+            if section_cache and section_cache.content:
+                sections_with_content.append(section.name)
+        return sections_with_content
 
-            missing_fpkgi = False
-            for section_name in sections_with_content:
-                json_path = Globals.PATHS.DATA_DIR_PATH / f"{section_name}.json"
-                if not json_path.exists():
-                    missing_fpkgi = True
-                    break
+    def _has_missing_fpkgi_json(self, sections: list[str]) -> bool:
+        for section_name in sections:
+            json_path = self._paths.DATA_DIR_PATH / f"{section_name}.json"
+            if not json_path.exists():
+                return True
+        return False
 
-            if not missing_fpkgi:
-                log.log_info("No changes detected.")
-                return
+    def _file_map_from_cache(self, section_cache) -> dict[str, str]:
+        if not section_cache or not section_cache.content:
+            return {}
+        return {
+            key: self._filename_from_cache_entry(key, value)
+            for key, value in section_cache.content.items()
+        }
 
-            current_files = {}
-            section_by_name = {section.name: section for section in Section.ALL}
-
-            for section in Section.ALL:
-                if section.name == "_media":
-                    continue
-                file_map = {}
-                section_cache = cached.get(section.name)
-                if section_cache and section_cache.content:
-                    for key, value in section_cache.content.items():
-                        parts = value.split("|", 2)
-                        if len(parts) >= 3 and parts[2]:
-                            filename = parts[2]
-                        else:
-                            filename = f"{key}.pkg"
-                        file_map[key] = filename
-                else:
-                    section_entry = section_by_name.get(section.name)
-                    if section_entry and section_entry.path.exists():
-                        for pkg_path in section_entry.path.iterdir():
-                            if not section_entry.accepts(pkg_path):
-                                continue
-                            file_map[pkg_path.stem] = pkg_path.name
-
-                if file_map:
-                    current_files[section.name] = file_map
-
-            if not current_files:
-                log.log_info("No changes detected.")
-                return
-
-            changes = {
-                "changed": list(current_files.keys()),
-                "added": {
-                    name: list((current_files.get(name) or {}).keys())
-                    for name in current_files
-                },
-                "updated": {},
-                "removed": {},
-                "current_files": current_files,
-                "current_cache": cached,
-            }
-        else:
-            changes = cache_output.content or {}
-
-        changed_sections = changes.get("changed") or []
-        changed_section_set = set(changed_sections)
-
-        removed_by_section = changes.get("removed") or {}
-        added_by_section = changes.get("added") or {}
-        updated_by_section = changes.get("updated") or {}
-        current_files = changes.get("current_files") or {}
-        section_by_name = {section.name: section for section in Section.ALL}
-
-        current_content_ids = set()
-        for section_name, file_map in current_files.items():
-            if section_name == "_media":
+    @staticmethod
+    def _file_map_from_disk(section) -> dict[str, str]:
+        if not section.path.exists():
+            return {}
+        file_map = {}
+        for pkg_path in section.path.iterdir():
+            if not section.accepts(pkg_path):
                 continue
-            current_content_ids.update((file_map or {}).keys())
+            file_map[pkg_path.stem] = pkg_path.name
+        return file_map
 
+    def _build_current_files(self, cached: dict) -> dict[str, dict[str, str]]:
+        current_files: dict[str, dict[str, str]] = {}
+        for section in self._iter_pkg_sections():
+            file_map = self._file_map_from_cache(cached.get(section.name))
+            if not file_map:
+                file_map = self._file_map_from_disk(section)
+            if file_map:
+                current_files[section.name] = file_map
+        return current_files
+
+    def _build_changes_for_missing_fpkgi(self) -> WatchChanges | None:
+        if not self._envs.FPGKI_FORMAT_ENABLED:
+            self._log_no_changes()
+            return None
+
+        cached = self._cache_utils.read_pkg_cache().content or {}
+        sections_with_content = self._sections_with_cached_content(cached)
+        if not sections_with_content:
+            self._log_no_changes()
+            return None
+
+        if not self._has_missing_fpkgi_json(sections_with_content):
+            self._log_no_changes()
+            return None
+
+        current_files = self._build_current_files(cached)
+        if not current_files:
+            self._log_no_changes()
+            return None
+
+        return WatchChanges(
+            changed=list(current_files.keys()),
+            added={
+                section_name: list((current_files.get(section_name) or {}).keys())
+                for section_name in current_files
+            },
+            updated={},
+            removed={},
+            current_files=current_files,
+            current_cache=cached,
+        )
+
+    def _load_changes(self) -> WatchChanges | None:
+        cache_output = self._cache_utils.compare_pkg_cache()
+        if cache_output.status is Status.SKIP:
+            return self._build_changes_for_missing_fpkgi()
+        return WatchChanges.from_dict(cache_output.content)
+
+    @staticmethod
+    def _collect_current_content_ids(current_files: dict[str, dict[str, str]]) -> set[str]:
+        current_content_ids = set()
+        for file_map in current_files.values():
+            current_content_ids.update((file_map or {}).keys())
+        return current_content_ids
+
+    def _collect_removed_content_ids(self, changes: WatchChanges) -> list[str]:
+        current_content_ids = self._collect_current_content_ids(changes.current_files)
         removed_content_ids = []
-        for section_name, content_ids in removed_by_section.items():
-            if section_name == "_media":
+        for section_name, content_ids in changes.removed.items():
+            if section_name == self._MEDIA_SECTION_NAME:
                 continue
             for content_id in content_ids or []:
                 if content_id and content_id not in current_content_ids:
                     removed_content_ids.append(content_id)
+        return removed_content_ids
 
-        if removed_content_ids:
-            unique_ids = sorted(set(removed_content_ids))
-            delete_result = DBUtils.delete_by_content_ids(unique_ids)
-            if delete_result.status is Status.ERROR:
-                log.log_error("Failed to delete removed PKGs from STORE.DB")
+    def _handle_removed_content_ids(self, removed_content_ids: list[str]) -> None:
+        if not removed_content_ids:
+            return
 
-            if Globals.ENVS.FPGKI_FORMAT_ENABLED:
-                fpkgi_delete = FPKGIUtils.delete_by_content_ids(unique_ids)
-                if fpkgi_delete.status is Status.ERROR:
-                    log.log_error("Failed to delete removed PKGs from FPKGI JSON")
+        unique_ids = sorted(set(removed_content_ids))
+        delete_result = self._db_utils.delete_by_content_ids(unique_ids)
+        if delete_result.status is Status.ERROR:
+            log.log_error("Failed to delete removed PKGs from STORE.DB")
 
-            media_dir = Globals.PATHS.MEDIA_DIR_PATH
-            for content_id in unique_ids:
-                for suffix in self._MEDIA_SUFFIXES:
-                    media_path = media_dir / f"{content_id}{suffix}.png"
-                    try:
-                        if media_path.exists():
-                            media_path.unlink()
-                    except OSError as exc:
-                        log.log_warn(
-                            f"Failed to remove media file {media_path.name}: {exc}"
-                        )
+        if self._envs.FPGKI_FORMAT_ENABLED:
+            fpkgi_delete = self._fpkgi_utils.delete_by_content_ids(unique_ids)
+            if fpkgi_delete.status is Status.ERROR:
+                log.log_error("Failed to delete removed PKGs from FPKGI JSON")
 
-        scanned_pkgs = []
-        for section_name in changed_sections:
-            if section_name == "_media":
+        media_dir = self._paths.MEDIA_DIR_PATH
+        for content_id in unique_ids:
+            for suffix in self._MEDIA_SUFFIXES:
+                media_path = media_dir / f"{content_id}{suffix}.png"
+                try:
+                    if media_path.exists():
+                        media_path.unlink()
+                except OSError as exc:
+                    log.log_warn(f"Failed to remove media file {media_path.name}: {exc}")
+
+    def _collect_scanned_pkgs(self, changes: WatchChanges) -> list[Path]:
+        scanned_pkgs: list[Path] = []
+        section_by_name = self._section_by_name()
+
+        for section_name in changes.changed:
+            if section_name == self._MEDIA_SECTION_NAME:
                 continue
             section = section_by_name.get(section_name)
             if not section:
                 continue
             keys = []
-            keys.extend(added_by_section.get(section_name, []) or [])
-            keys.extend(updated_by_section.get(section_name, []) or [])
+            keys.extend(changes.added.get(section_name, []) or [])
+            keys.extend(changes.updated.get(section_name, []) or [])
             if not keys:
                 continue
-            file_map = current_files.get(section_name) or {}
+            file_map = changes.current_files.get(section_name) or {}
             for key in keys:
                 filename = file_map.get(key) or f"{key}.pkg"
                 scanned_pkgs.append(section.path / filename)
 
-        scanned_pkgs.extend(self._pkgs_from_media_changes(changes))
+        scanned_pkgs.extend(self._pkgs_from_media_changes(changes.removed))
+        return list(dict.fromkeys(scanned_pkgs))
 
-        if scanned_pkgs:
-            seen = set()
-            scanned_pkgs = [
-                pkg
-                for pkg in scanned_pkgs
-                if not (str(pkg) in seen or seen.add(str(pkg)))
-            ]
-        extracted_pkgs = []
-        for pkg_path in scanned_pkgs:
-            validation = PkgUtils.validate(pkg_path)
-            if validation.status is not Status.OK:
-                FileUtils.move_to_error(
-                    pkg_path,
-                    Globals.PATHS.ERRORS_DIR_PATH,
-                    "validation_failed",
-                )
-                continue
+    @staticmethod
+    def _build_pkg_model(pkg_path: Path, param_sfo) -> PKG:
+        return PKG(
+            title=param_sfo.data[ParamSFOKey.TITLE],
+            title_id=param_sfo.data[ParamSFOKey.TITLE_ID],
+            content_id=param_sfo.data[ParamSFOKey.CONTENT_ID],
+            category=param_sfo.data[ParamSFOKey.CATEGORY],
+            version=param_sfo.data[ParamSFOKey.VERSION],
+            pubtoolinfo=param_sfo.data[ParamSFOKey.PUBTOOLINFO],
+            pkg_path=pkg_path,
+        )
 
-            extract_output = PkgUtils.extract_pkg_data(pkg_path)
-
-            if extract_output.status is not Status.OK or not extract_output.content:
-                continue
-
-            param_sfo = extract_output.content
-            pkg = PKG(
-                title=param_sfo.data[ParamSFOKey.TITLE],
-                title_id=param_sfo.data[ParamSFOKey.TITLE_ID],
-                content_id=param_sfo.data[ParamSFOKey.CONTENT_ID],
-                category=param_sfo.data[ParamSFOKey.CATEGORY],
-                version=param_sfo.data[ParamSFOKey.VERSION],
-                pubtoolinfo=param_sfo.data[ParamSFOKey.PUBTOOLINFO],
-                pkg_path=pkg_path,
+    def _process_pkg(self, pkg_path: Path, changed_section_set: set[str]):
+        validation = self._pkg_utils.validate(pkg_path)
+        if validation.status is not Status.OK:
+            self._file_utils.move_to_error(
+                pkg_path,
+                self._paths.ERRORS_DIR_PATH,
+                "validation_failed",
             )
+            return None
 
-            if pkg_path.parent.name in changed_section_set:
+        extract_output = self._pkg_utils.extract_pkg_data(pkg_path)
+        if extract_output.status is not Status.OK or not extract_output.content:
+            return None
 
-                target_path = AutoOrganizer.run(pkg)
+        param_sfo = extract_output.content
+        pkg = self._build_pkg_model(pkg_path, param_sfo)
 
-                if not target_path:
-                    FileUtils.move_to_error(
-                        pkg_path,
-                        Globals.PATHS.ERRORS_DIR_PATH,
-                        "organizer_failed",
-                    )
-                    continue
-                pkg.pkg_path = target_path
-                pkg_path = target_path
+        if pkg_path.parent.name in changed_section_set:
+            target_path = self._auto_organizer.run(pkg)
+            if not target_path:
+                self._file_utils.move_to_error(
+                    pkg_path,
+                    self._paths.ERRORS_DIR_PATH,
+                    "organizer_failed",
+                )
+                return None
+            pkg.pkg_path = target_path
+            pkg_path = target_path
 
-            media_output = PkgUtils.extract_pkg_medias(pkg_path, pkg.content_id)
+        media_output = self._pkg_utils.extract_pkg_medias(pkg_path, pkg.content_id)
+        if media_output.status is not Status.OK or not media_output.content:
+            return None
 
-            if media_output.status is not Status.OK or not media_output.content:
-                continue
+        build_output = self._pkg_utils.build_pkg(pkg_path, param_sfo, media_output.content)
+        if build_output.status is not Status.OK:
+            return None
 
-            build_output = PkgUtils.build_pkg(pkg_path, param_sfo, media_output.content)
+        return build_output.content
 
-            if build_output.status is not Status.OK:
-                continue
-
-            extracted_pkgs.append(build_output.content)
-
-        upsert_result = DBUtils.upsert(extracted_pkgs)
-        if Globals.ENVS.FPGKI_FORMAT_ENABLED:
-            fpkgi_result = FPKGIUtils.upsert(extracted_pkgs)
+    def _persist_results(self, extracted_pkgs: list, current_cache: dict | None) -> None:
+        upsert_result = self._db_utils.upsert(extracted_pkgs)
+        if self._envs.FPGKI_FORMAT_ENABLED:
+            fpkgi_result = self._fpkgi_utils.upsert(extracted_pkgs)
         else:
             fpkgi_result = Output(Status.SKIP, "FPKGI disabled")
 
@@ -265,17 +330,34 @@ class Watcher:
             Status.OK,
             Status.SKIP,
         ):
-            current_cache = changes.get("current_cache") or None
             if current_cache is not None:
-                CacheUtils.write_pkg_cache(cached=current_cache)
+                self._cache_utils.write_pkg_cache(cached=current_cache)
             else:
-                CacheUtils.write_pkg_cache()
+                self._cache_utils.write_pkg_cache()
             return
 
         if upsert_result.status is Status.ERROR:
             log.log_error("Store DB update failed. Cache not updated.")
         if fpkgi_result.status is Status.ERROR:
             log.log_error("FPKGI JSON update failed. Cache not updated.")
+
+    def _run_cycle(self) -> None:
+        changes = self._load_changes()
+        if not changes:
+            return
+
+        changed_section_set = set(changes.changed)
+        removed_content_ids = self._collect_removed_content_ids(changes)
+        self._handle_removed_content_ids(removed_content_ids)
+
+        scanned_pkgs = self._collect_scanned_pkgs(changes)
+        extracted_pkgs = []
+        for pkg_path in scanned_pkgs:
+            built_pkg = self._process_pkg(pkg_path, changed_section_set)
+            if built_pkg is not None:
+                extracted_pkgs.append(built_pkg)
+
+        self._persist_results(extracted_pkgs, changes.current_cache)
 
     def start(self) -> None:
         log.log_info(f"Watcher started (interval: {self._interval}s)")
@@ -284,6 +366,6 @@ class Watcher:
             try:
                 self._run_cycle()
             except Exception as exc:
-                log.log_error(f"Watcher cycle failed: {exc}")
+                log.log_error(f"Watcher cycle failed: {exc}\n{traceback.format_exc()}")
             elapsed = time.monotonic() - started_at
             time.sleep(max(0.0, self._interval - elapsed))
