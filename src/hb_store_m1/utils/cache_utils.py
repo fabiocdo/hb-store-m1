@@ -50,6 +50,7 @@ class CacheUtils:
             return Output(Status.NOT_FOUND, {})
 
         cache = {section.name: CacheSection() for section in CacheUtils._SECTIONS}
+        valid_content_ids: set[str] = set()
         if cached is None:
             cached = CacheUtils.read_pkg_cache().content or {}
         else:
@@ -98,7 +99,15 @@ class CacheUtils:
                     section_cache.meta.latest_mtime, int(stat.st_mtime_ns)
                 )
                 if section.name == "_media":
-                    cache_key = pkg_path.stem
+                    media_key = pkg_path.stem
+                    content_id = None
+                    for suffix in ("_icon0", "_pic0", "_pic1"):
+                        if media_key.endswith(suffix):
+                            content_id = media_key[: -len(suffix)]
+                            break
+                    if not content_id or content_id not in valid_content_ids:
+                        continue
+                    cache_key = media_key
                     cache_value = f"{stat.st_size}|{stat.st_mtime_ns}|{pkg_path.name}"
                 else:
                     size_str = str(stat.st_size)
@@ -111,6 +120,8 @@ class CacheUtils:
                         and cached_entry[2] == mtime_str
                     ):
                         cache_key = cached_entry[0] or pkg_path.stem
+                        if cached_entry[0]:
+                            valid_content_ids.add(cached_entry[0])
                     else:
                         content_id = PkgUtils.read_content_id(pkg_path)
                         cache_key = content_id or pkg_path.stem
@@ -119,6 +130,8 @@ class CacheUtils:
                                 f"Failed to read content_id for {pkg_path.name}. "
                                 "Falling back to filename."
                             )
+                        else:
+                            valid_content_ids.add(content_id)
                     cache_value = f"{size_str}|{mtime_str}|{pkg_path.name}"
                 section_cache.content[cache_key] = cache_value
 

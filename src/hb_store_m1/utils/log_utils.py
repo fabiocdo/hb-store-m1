@@ -23,6 +23,15 @@ class LogUtils:
 
         print(f"{timestamp} | {module_log_tag}{log_color}{message}{LogColor.RESET}")
 
+        if log_level is LogLevel.ERROR:
+            try:
+                logs_dir = Globals.PATHS.LOGS_DIR_PATH
+                logs_dir.mkdir(parents=True, exist_ok=True)
+                line = f"{timestamp} | [{self._module.name}] {message}"
+                (logs_dir / "errors.log").open("a", encoding="utf-8").write(line + "\n")
+            except OSError:
+                pass
+
     def log_debug(self, message=None):
         if CURRENT_LOG_PRIORITY <= LogLevel.DEBUG.priority():
             self._log(LogLevel.DEBUG, message)

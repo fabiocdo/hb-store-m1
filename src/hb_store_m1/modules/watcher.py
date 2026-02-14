@@ -129,7 +129,7 @@ class Watcher:
         extracted_pkgs = []
         for pkg_path in scanned_pkgs:
             validation = PkgUtils.validate(pkg_path)
-            if validation.status is Status.ERROR:
+            if validation.status is not Status.OK:
                 FileUtils.move_to_error(
                     pkg_path,
                     Globals.PATHS.ERRORS_DIR_PATH,
@@ -170,7 +170,7 @@ class Watcher:
 
         upsert_result = DBUtils.upsert(extracted_pkgs)
         if upsert_result.status in (Status.OK, Status.SKIP):
-            current_cache = (changes.get("current_cache") or None)
+            current_cache = changes.get("current_cache") or None
             if current_cache is not None:
                 CacheUtils.write_pkg_cache(cached=current_cache)
             else:
