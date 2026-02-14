@@ -78,18 +78,6 @@ mkdir -p /app/data/_cache
 
 # Normalize the TLS toggle
 ENABLE_TLS_LC="$(printf "%s" "$ENABLE_TLS" | tr '[:upper:]' '[:lower:]')"
-if [ "$ENABLE_TLS_LC" = "true" ] || [ "$ENABLE_TLS_LC" = "1" ] || [ "$ENABLE_TLS_LC" = "yes" ]; then
-  URL_SCHEME="https"
-  DEFAULT_PORT="443"
-else
-  URL_SCHEME="http"
-  DEFAULT_PORT="80"
-fi
-if [ "$SERVER_PORT" = "$DEFAULT_PORT" ]; then
-  SERVER_URL="${URL_SCHEME}://${SERVER_IP}"
-else
-  SERVER_URL="${URL_SCHEME}://${SERVER_IP}:${SERVER_PORT}"
-fi
 
 GENERATED_AT="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 cat > /app/data/_cache/index.html <<EOF
@@ -98,7 +86,7 @@ cat > /app/data/_cache/index.html <<EOF
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>HB-Store CDN Status</title>
+  <title>HB-Store-M1 Status</title>
   <style>
     :root { color-scheme: light; }
     body {
@@ -205,10 +193,8 @@ cat > /app/data/_cache/index.html <<EOF
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>HB-Store CDN</h1>
+      <h1>HB-Store-M1</h1>
       <div class="ok">Status: ONLINE</div>
-
-      <p>Base URL: <code>${SERVER_URL}</code></p>
 
       <h2>Health</h2>
       <ul>
@@ -282,25 +268,6 @@ cat > /app/data/_cache/index.html <<EOF
           </tr>
         </tbody>
       </table>
-
-      <h2>Main Endpoints</h2>
-      <ul>
-        <li><a href="/store.db"><code>/store.db</code></a> - SQLite database.</li>
-        <li><a href="/api.php?db_check_hash=true"><code>/api.php?db_check_hash=true</code></a> - Returns <code>{"hash":"..."}</code>.</li>
-        <li><a href="/api.php"><code>/api.php</code></a> - Optional JSON view from <code>_cache/store.db.json</code>.</li>
-        <li><code>/download.php?tid=&lt;TITLE_ID&gt;&amp;check=true</code> - Returns <code>{"number_of_downloads":N}</code>.</li>
-        <li><code>/download.php?tid=&lt;TITLE_ID&gt;</code> - Serves matching PKG file.</li>
-        <li><a href="/update/remote.md5"><code>/update/remote.md5</code></a> - MD5 metadata.</li>
-        <li><a href="/update/homebrew.elf"><code>/update/homebrew.elf</code></a> - Homebrew ELF binary.</li>
-        <li><a href="/update/homebrew.elf.sig"><code>/update/homebrew.elf.sig</code></a> - Homebrew ELF signature.</li>
-      </ul>
-
-      <h2>PKG Content</h2>
-      <ul>
-        <li><code>/pkg/&lt;section&gt;/&lt;CONTENT_ID&gt;.pkg</code> - PKG files.</li>
-        <li><code>/pkg/_media/&lt;CONTENT_ID&gt;_icon0.png</code> - media assets.</li>
-        <li><code>/pkg/&lt;section&gt;.json</code> - optional fPKGi output when enabled.</li>
-      </ul>
 
       <div class="meta">
         Generated at ${GENERATED_AT} by container entrypoint.
