@@ -122,7 +122,6 @@ class PkgUtils:
 
     @staticmethod
     def validate(pkg: Path) -> Output:
-        validation_result: list[str] = []
         command_failed = False
         command_error_message = ""
         try:
@@ -140,7 +139,6 @@ class PkgUtils:
             if "[ERROR]" not in line:
                 continue
 
-            found_error_line = True
             for field in ValidationFields:
                 name, level = field.value
                 if name in line:
@@ -219,7 +217,9 @@ class PkgUtils:
             extracted_medias: dict[PKGEntryKey, Path | None] = {}
             log.log_debug(f"Extracting MEDIAS from PKG {pkg.name}...")
 
-            for entry_key, is_critical, file_path in PkgUtils._media_targets(content_id):
+            for entry_key, is_critical, file_path in PkgUtils._media_targets(
+                content_id
+            ):
                 entry_index = pkg_entries.get(entry_key)
                 if entry_index is None:
                     if is_critical:
