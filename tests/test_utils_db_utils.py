@@ -343,6 +343,104 @@ def test_given_content_ids_when_delete_then_deletes_rows(init_paths):
     assert pkg.content_id not in remaining
 
 
+def test_given_pid_gaps_when_refresh_urls_then_compacts_pid_sequence(init_paths):
+    init_sql = (
+        Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
+    ).read_text("utf-8")
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(init_sql, encoding="utf-8")
+    InitUtils.init_db()
+
+    pkg1_path = init_paths.GAME_DIR_PATH / "content1.pkg"
+    pkg1_path.write_text("data", encoding="utf-8")
+    pkg2_path = init_paths.GAME_DIR_PATH / "content2.pkg"
+    pkg2_path.write_text("data", encoding="utf-8")
+
+    pkg1 = PKG(
+        title="Test 1",
+        title_id="CUSA00001",
+        content_id="UP0000-TEST00001_00-TEST000000000001",
+        category="GD",
+        version="01.00",
+        pkg_path=pkg1_path,
+    )
+    pkg2 = PKG(
+        title="Test 2",
+        title_id="CUSA00002",
+        content_id="UP0000-TEST00002_00-TEST000000000002",
+        category="GD",
+        version="01.00",
+        pkg_path=pkg2_path,
+    )
+    DBUtils.upsert([pkg1, pkg2])
+
+    conn = sqlite3.connect(str(Globals.FILES.STORE_DB_FILE_PATH))
+    conn.execute("DELETE FROM homebrews WHERE content_id = ?", (pkg1.content_id,))
+    conn.commit()
+    before = conn.execute("SELECT pid, content_id FROM homebrews ORDER BY pid").fetchall()
+    conn.close()
+    assert before == [(2, pkg2.content_id)]
+
+    result = DBUtils.refresh_urls()
+
+    conn = sqlite3.connect(str(Globals.FILES.STORE_DB_FILE_PATH))
+    after = conn.execute("SELECT pid, content_id FROM homebrews ORDER BY pid").fetchall()
+    conn.close()
+
+    assert result.status is Status.OK
+    assert after == [(1, pkg2.content_id)]
+
+
+def test_given_deleted_rows_when_delete_then_compacts_pid_sequence(init_paths):
+    init_sql = (
+        Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
+    ).read_text("utf-8")
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(init_sql, encoding="utf-8")
+    InitUtils.init_db()
+
+    pkg1_path = init_paths.GAME_DIR_PATH / "content1.pkg"
+    pkg1_path.write_text("data", encoding="utf-8")
+    pkg2_path = init_paths.GAME_DIR_PATH / "content2.pkg"
+    pkg2_path.write_text("data", encoding="utf-8")
+    pkg3_path = init_paths.GAME_DIR_PATH / "content3.pkg"
+    pkg3_path.write_text("data", encoding="utf-8")
+
+    pkg1 = PKG(
+        title="Test 1",
+        title_id="CUSA00001",
+        content_id="UP0000-TEST00001_00-TEST000000000001",
+        category="GD",
+        version="01.00",
+        pkg_path=pkg1_path,
+    )
+    pkg2 = PKG(
+        title="Test 2",
+        title_id="CUSA00002",
+        content_id="UP0000-TEST00002_00-TEST000000000002",
+        category="GD",
+        version="01.00",
+        pkg_path=pkg2_path,
+    )
+    pkg3 = PKG(
+        title="Test 3",
+        title_id="CUSA00003",
+        content_id="UP0000-TEST00003_00-TEST000000000003",
+        category="GD",
+        version="01.00",
+        pkg_path=pkg3_path,
+    )
+    DBUtils.upsert([pkg1, pkg2, pkg3])
+
+    result = DBUtils.delete_by_content_ids([pkg2.content_id])
+
+    conn = sqlite3.connect(str(Globals.FILES.STORE_DB_FILE_PATH))
+    rows = conn.execute("SELECT pid, content_id FROM homebrews ORDER BY pid").fetchall()
+    conn.close()
+
+    assert result.status is Status.OK
+    assert result.content == 1
+    assert rows == [(1, pkg1.content_id), (2, pkg3.content_id)]
+
+
 def test_given_missing_db_when_delete_then_returns_not_found(temp_globals):
     result = DBUtils.delete_by_content_ids(["X"])
 

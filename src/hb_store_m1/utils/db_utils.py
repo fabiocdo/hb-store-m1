@@ -87,6 +87,34 @@ class DBUtils:
         return f'"{column}"'
 
     @staticmethod
+    def _needs_pid_compaction(conn: sqlite3.Connection) -> bool:
+        count, min_pid, max_pid = conn.execute(
+            "SELECT COUNT(*), COALESCE(MIN(pid), 0), COALESCE(MAX(pid), 0) FROM homebrews"
+        ).fetchone()
+        if count <= 0:
+            return False
+        return min_pid != 1 or max_pid != count
+
+    @staticmethod
+    def _compact_pid_sequence(conn: sqlite3.Connection) -> int:
+        if not DBUtils._needs_pid_compaction(conn):
+            return 0
+
+        columns = [col.value for col in StoreDB.Column]
+        quoted_cols = ", ".join(DBUtils._quote(col) for col in columns)
+
+        conn.execute(
+            f"CREATE TEMP TABLE _homebrews_reseq AS SELECT {quoted_cols} FROM homebrews ORDER BY pid"
+        )
+        conn.execute("DELETE FROM homebrews")
+        conn.execute("DELETE FROM sqlite_sequence WHERE name = 'homebrews'")
+        conn.execute(
+            f"INSERT INTO homebrews ({quoted_cols}) SELECT {quoted_cols} FROM _homebrews_reseq"
+        )
+        conn.execute("DROP TABLE _homebrews_reseq")
+        return conn.execute("SELECT COUNT(*) FROM homebrews").fetchone()[0]
+
+    @staticmethod
     def _build_upsert_sql() -> str:
         columns = [col.value for col in StoreDB.Column]
         conflict_key = StoreDB.Column.CONTENT_ID.value
@@ -221,11 +249,13 @@ class DBUtils:
         conn = DBUtils._connect()
         conn.row_factory = sqlite3.Row
         try:
+            conn.execute("BEGIN")
+            compacted = DBUtils._compact_pid_sequence(conn)
             rows = conn.execute("SELECT * FROM homebrews").fetchall()
             if not rows:
+                conn.commit()
                 return Output(Status.SKIP, "Nothing to refresh")
 
-            conn.execute("BEGIN")
             refreshed = 0
             for row in rows:
                 current = dict(row)
@@ -313,9 +343,17 @@ class DBUtils:
                 refreshed += 1
 
             conn.commit()
+            if refreshed and compacted:
+                log.log_info(
+                    f"Refreshed URLs for {refreshed} rows and compacted pid sequence ({compacted} rows)"
+                )
+                return Output(Status.OK, refreshed)
             if refreshed:
                 log.log_info(f"Refreshed URLs for {refreshed} rows in STORE.DB")
                 return Output(Status.OK, refreshed)
+            if compacted:
+                log.log_info(f"Compacted pid sequence for {compacted} rows in STORE.DB")
+                return Output(Status.OK, compacted)
             return Output(Status.SKIP, "URLs already up to date")
         except Exception as e:
             conn.rollback()
@@ -339,16 +377,24 @@ class DBUtils:
         log.log_info(f"Attempting to delete {len(content_ids)} PKGs from STORE.DB...")
         try:
             conn.execute("BEGIN")
-
-            before = conn.total_changes
+            total_before = conn.execute("SELECT COUNT(*) FROM homebrews").fetchone()[0]
             conn.executemany(
                 "DELETE FROM homebrews WHERE content_id = ?",
                 [(content_id,) for content_id in content_ids],
             )
+            total_after_delete = conn.execute("SELECT COUNT(*) FROM homebrews").fetchone()[
+                0
+            ]
+            compacted = DBUtils._compact_pid_sequence(conn)
             conn.commit()
-            deleted = conn.total_changes - before
+            deleted = max(0, total_before - total_after_delete)
 
-            log.log_info(f"{deleted} PKGs deleted successfully")
+            if compacted:
+                log.log_info(
+                    f"{deleted} PKGs deleted successfully (pid compacted for {compacted} rows)"
+                )
+            else:
+                log.log_info(f"{deleted} PKGs deleted successfully")
             return Output(Status.OK, deleted)
         except Exception as e:
             conn.rollback()
