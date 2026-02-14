@@ -16,8 +16,7 @@ def welcome():
     print(app_banner)
     rows = []
     items = [
-        ("SERVER_IP", Globals.ENVS.SERVER_IP),
-        ("SERVER_PORT", Globals.ENVS.SERVER_PORT),
+        ("SERVER_URL", Globals.ENVS.SERVER_URL),
         ("ENABLE_TLS", Globals.ENVS.ENABLE_TLS),
         ("LOG_LEVEL", Globals.ENVS.LOG_LEVEL),
         ("WATCHER_ENABLED", Globals.ENVS.WATCHER_ENABLED),
