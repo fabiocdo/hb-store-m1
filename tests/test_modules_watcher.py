@@ -26,9 +26,7 @@ def test_given_media_change_when_pkgs_from_media_changes_then_returns_pkg_path(
     assert pkgs == [pkg_path]
 
 
-def test_given_changes_when_run_cycle_then_updates_cache(
-    init_paths, monkeypatch
-):
+def test_given_changes_when_run_cycle_then_updates_cache(init_paths, monkeypatch):
     watcher = Watcher()
     pkg_path = init_paths.GAME_DIR_PATH / "sample.pkg"
     pkg_path.write_text("pkg", encoding="utf-8")
@@ -44,9 +42,7 @@ def test_given_changes_when_run_cycle_then_updates_cache(
                 "updated": {},
                 "removed": {},
                 "current_files": {
-                    "game": {
-                        "UP0000-TEST00000_00-TEST000000000000": "sample.pkg"
-                    }
+                    "game": {"UP0000-TEST00000_00-TEST000000000000": "sample.pkg"}
                 },
             },
         ),

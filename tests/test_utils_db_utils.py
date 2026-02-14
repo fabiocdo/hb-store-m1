@@ -8,15 +8,11 @@ from hb_store_m1.utils.db_utils import DBUtils
 from hb_store_m1.utils.init_utils import InitUtils
 
 
-def test_given_path_outside_data_when_upsert_then_writes_original(
-    init_paths, tmp_path
-):
+def test_given_path_outside_data_when_upsert_then_writes_original(init_paths, tmp_path):
     init_sql = (
         Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
     ).read_text("utf-8")
-    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(
-        init_sql, encoding="utf-8"
-    )
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(init_sql, encoding="utf-8")
 
     InitUtils.init_db()
 
@@ -54,9 +50,7 @@ def test_given_pkg_when_upsert_then_writes_cdn_urls_and_md5(init_paths, tmp_path
     init_sql = (
         Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
     ).read_text("utf-8")
-    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(
-        init_sql, encoding="utf-8"
-    )
+    (init_paths.INIT_DIR_PATH / "store_db.sql").write_text(init_sql, encoding="utf-8")
 
     InitUtils.init_db()
 

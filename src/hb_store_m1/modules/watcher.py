@@ -251,9 +251,9 @@ class Watcher:
         else:
             fpkgi_result = Output(Status.SKIP, "FPKGI disabled")
 
-        if (
-            upsert_result.status in (Status.OK, Status.SKIP)
-            and fpkgi_result.status in (Status.OK, Status.SKIP)
+        if upsert_result.status in (Status.OK, Status.SKIP) and fpkgi_result.status in (
+            Status.OK,
+            Status.SKIP,
         ):
             current_cache = changes.get("current_cache") or None
             if current_cache is not None:

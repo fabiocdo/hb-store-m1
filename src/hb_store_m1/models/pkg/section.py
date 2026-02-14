@@ -17,6 +17,7 @@ class SectionEntry:
             return suffix == ".png"
         return suffix == ".pkg"
 
+
 class Section:
     PKG = SectionEntry("pkg", Globals.PATHS.PKG_DIR_PATH)
     APP = SectionEntry("app", Globals.PATHS.APP_DIR_PATH)
