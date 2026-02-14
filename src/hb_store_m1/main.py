@@ -22,6 +22,19 @@ def welcome():
         ("WATCHER_ENABLED", Globals.ENVS.WATCHER_ENABLED),
         ("WATCHER_PERIODIC_SCAN_SECONDS", Globals.ENVS.WATCHER_PERIODIC_SCAN_SECONDS),
         ("FPGKI_FORMAT_ENABLED", Globals.ENVS.FPGKI_FORMAT_ENABLED),
+        ("PKGTOOL_TIMEOUT_SECONDS", Globals.ENVS.PKGTOOL_TIMEOUT_SECONDS),
+        (
+            "PKGTOOL_VALIDATE_TIMEOUT_SECONDS",
+            Globals.ENVS.PKGTOOL_VALIDATE_TIMEOUT_SECONDS,
+        ),
+        (
+            "PKGTOOL_VALIDATE_TIMEOUT_PER_GB_SECONDS",
+            Globals.ENVS.PKGTOOL_VALIDATE_TIMEOUT_PER_GB_SECONDS,
+        ),
+        (
+            "PKGTOOL_VALIDATE_TIMEOUT_MAX_SECONDS",
+            Globals.ENVS.PKGTOOL_VALIDATE_TIMEOUT_MAX_SECONDS,
+        ),
     ]
     for key, value in items:
         if isinstance(value, list):
