@@ -33,9 +33,10 @@ def test_given_invalid_bool_env_when_parse_then_raises(monkeypatch):
         _env("TEST_BOOL", False, bool)
 
 
-def test_given_list_env_when_parse_then_uppercases(monkeypatch):
+def test_given_unsupported_env_type_when_parse_then_raises_type_error(monkeypatch):
     monkeypatch.setenv("TEST_LIST", "a, b")
-    assert _env("TEST_LIST", [], list) == ["A", "B"]
+    with pytest.raises(TypeError):
+        _env("TEST_LIST", [], list)
 
 
 def test_given_pyproject_missing_when_read_then_returns_default(tmp_path):

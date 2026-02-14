@@ -87,14 +87,7 @@ def _env(name: str, default, type_):
         return default if v == "" else int(v)
 
     if type_ is str:
-        return v.upper()
-
-    if type_ is list:
-        if v == "":
-            if isinstance(default, list):
-                return [str(p).strip().upper() for p in default if str(p).strip()]
-            return [p.strip().upper() for p in str(default).split(",") if p.strip()]
-        return [p.strip().upper() for p in v.split(",") if p.strip()]
+        return v
 
     raise TypeError(f"Unsupported type {type_}")
 
