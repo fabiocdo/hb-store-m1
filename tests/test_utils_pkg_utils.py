@@ -66,7 +66,7 @@ def test_given_pkg_dir_when_scan_then_returns_only_pkg_files(init_paths):
 def test_given_validate_output_with_critical_error_when_validate_then_returns_error(
     temp_globals, monkeypatch
 ):
-    fake_stdout = "[ERROR] Content Digest mismatch"
+    fake_stdout = "[ERROR] PKG Header Digest mismatch"
 
     def fake_validate(_pkg):
         return subprocess.CompletedProcess([], 0, stdout=fake_stdout, stderr="")
