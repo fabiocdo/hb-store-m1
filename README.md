@@ -163,6 +163,11 @@ services:
     restart: unless-stopped
 ```
 
+Port mapping note:
+
+- If `SERVER_PORT` in `configs/settings.env` is different from `80` or `443`, you must publish that same port in `docker-compose.yml`.
+- Example: for `SERVER_PORT=8443`, add `- "8443:8443"` under `ports`.
+
 ## Data Layout (`/app/data`)
 
 ```text
