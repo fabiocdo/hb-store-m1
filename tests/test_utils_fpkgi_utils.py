@@ -15,7 +15,9 @@ def _read_data(path):
     return payload[FPKGI.Root.DATA.value]
 
 
-def test_given_app_type_when_json_path_requested_then_uses_uppercase_pattern(init_paths):
+def test_given_app_type_when_json_path_requested_then_uses_uppercase_pattern(
+    init_paths,
+):
     assert FPKGIUtils.json_path_for_app_type("game").name == "GAMES.json"
     assert FPKGIUtils.json_path_for_app_type("dlc").name == "DLC.json"
     assert FPKGIUtils.json_path_for_app_type("update").name == "UPDATES.json"
@@ -247,7 +249,9 @@ def test_given_existing_entry_when_upsert_then_replaces_in_place(init_paths):
     assert data[package_url][FPKGI.Column.NAME.value] == "New"
 
 
-def test_given_pkg_without_content_id_when_upsert_then_ignores_or_uses_fallback(init_paths):
+def test_given_pkg_without_content_id_when_upsert_then_ignores_or_uses_fallback(
+    init_paths,
+):
     pkg_path = init_paths.GAME_DIR_PATH / "game.pkg"
     pkg_path.write_text("data", encoding="utf-8")
     pkg = PKG(
@@ -331,7 +335,9 @@ def test_given_external_cover_url_when_refresh_then_keeps_external_cover(init_pa
     assert data[package_url][FPKGI.Column.COVER_URL.value] == external_cover
 
 
-def test_given_legacy_json_list_and_lowercase_file_when_refresh_then_migrates(init_paths):
+def test_given_legacy_json_list_and_lowercase_file_when_refresh_then_migrates(
+    init_paths,
+):
     content_id = "UP0000-TEST00000_00-TEST000000000000"
     legacy_path = Globals.PATHS.DATA_DIR_PATH / "game.json"
     legacy_path.write_text(
@@ -385,7 +391,9 @@ def test_given_helper_inputs_when_normalizing_then_handles_edge_cases(init_paths
     )
 
 
-def test_given_legacy_file_when_cleanup_fails_then_logs_warning(init_paths, monkeypatch):
+def test_given_legacy_file_when_cleanup_fails_then_logs_warning(
+    init_paths, monkeypatch
+):
     json_path = FPKGIUtils.json_path_for_app_type("game")
     legacy_path = Globals.PATHS.DATA_DIR_PATH / "game.json"
     legacy_path.write_text("[]", encoding="utf-8")
@@ -531,11 +539,15 @@ def test_given_upsert_with_invalid_and_stale_entries_when_run_then_keeps_only_ca
     assert list(data.keys()) == [canonical_url]
 
 
-def test_given_delete_and_refresh_edge_branches_when_run_then_handles_migrations(init_paths):
+def test_given_delete_and_refresh_edge_branches_when_run_then_handles_migrations(
+    init_paths,
+):
     legacy_save_path = Globals.PATHS.DATA_DIR_PATH / "save.json"
     legacy_save_path.write_text("[]", encoding="utf-8")
 
-    delete_result = FPKGIUtils.delete_by_content_ids(["UP0000-TEST00000_00-TEST000000000000"])
+    delete_result = FPKGIUtils.delete_by_content_ids(
+        ["UP0000-TEST00000_00-TEST000000000000"]
+    )
     assert delete_result.status is Status.OK
     assert FPKGIUtils.json_path_for_app_type("save").exists()
     assert not legacy_save_path.exists()
@@ -554,7 +566,9 @@ def test_given_delete_and_refresh_edge_branches_when_run_then_handles_migrations
     assert not legacy_game_path.exists()
 
 
-def test_given_refresh_with_duplicate_canonical_url_when_run_then_marks_changed(init_paths):
+def test_given_refresh_with_duplicate_canonical_url_when_run_then_marks_changed(
+    init_paths,
+):
     content_id = "UP0000-TEST00000_00-TEST000000000000"
     canonical_url = urljoin(Globals.ENVS.SERVER_URL, f"/pkg/game/{content_id}.pkg")
     game_path = FPKGIUtils.json_path_for_app_type("game")

@@ -477,9 +477,7 @@ class Watcher:
                     extracted_pkgs.append(built_pkg)
             return extracted_pkgs
 
-        log.log_info(
-            f"Parallel PKG preprocessing enabled ({workers} workers)"
-        )
+        log.log_info(f"Parallel PKG preprocessing enabled ({workers} workers)")
         preprocess_outputs: dict[Path, Output] = {}
         with ThreadPoolExecutor(max_workers=workers) as executor:
             futures = {

@@ -3,7 +3,6 @@ import datetime
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogLevel, LogModule, LogColor
 
-
 CURRENT_LOG_PRIORITY: int | None = None
 
 

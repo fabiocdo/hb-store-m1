@@ -376,14 +376,18 @@ def test_given_pid_gaps_when_refresh_urls_then_compacts_pid_sequence(init_paths)
     conn = sqlite3.connect(str(Globals.FILES.STORE_DB_FILE_PATH))
     conn.execute("DELETE FROM homebrews WHERE content_id = ?", (pkg1.content_id,))
     conn.commit()
-    before = conn.execute("SELECT pid, content_id FROM homebrews ORDER BY pid").fetchall()
+    before = conn.execute(
+        "SELECT pid, content_id FROM homebrews ORDER BY pid"
+    ).fetchall()
     conn.close()
     assert before == [(2, pkg2.content_id)]
 
     result = DBUtils.refresh_urls()
 
     conn = sqlite3.connect(str(Globals.FILES.STORE_DB_FILE_PATH))
-    after = conn.execute("SELECT pid, content_id FROM homebrews ORDER BY pid").fetchall()
+    after = conn.execute(
+        "SELECT pid, content_id FROM homebrews ORDER BY pid"
+    ).fetchall()
     conn.close()
 
     assert result.status is Status.OK

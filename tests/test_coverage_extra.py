@@ -272,9 +272,7 @@ def test_given_fpkgi_bootstrap_ok_when_missing_json_then_skips_heavy_processing(
     content_id = "UP0000-TEST00000_00-TEST000000000000"
     pkg_path = init_paths.GAME_DIR_PATH / f"{content_id}.pkg"
     pkg_path.write_text("pkg", encoding="utf-8")
-    cache = {
-        "game": CacheSection(content={content_id: f"1|2|{pkg_path.name}"})
-    }
+    cache = {"game": CacheSection(content={content_id: f"1|2|{pkg_path.name}"})}
 
     monkeypatch.setattr(
         cache_utils_module.CacheUtils,
@@ -293,7 +291,8 @@ def test_given_fpkgi_bootstrap_ok_when_missing_json_then_skips_heavy_processing(
     called = {"sections": None, "processed": 0}
     monkeypatch.setattr(
         "hb_store_m1.utils.fpkgi_utils.FPKGIUtils.bootstrap_from_store_db",
-        lambda sections: called.__setitem__("sections", sections) or Output(Status.OK, 1),
+        lambda sections: called.__setitem__("sections", sections)
+        or Output(Status.OK, 1),
     )
     monkeypatch.setattr(
         watcher,

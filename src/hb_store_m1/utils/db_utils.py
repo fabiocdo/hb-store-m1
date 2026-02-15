@@ -280,7 +280,7 @@ class DBUtils:
                     URLUtils.canonical_media_url(
                         str(content_id or ""),
                         "pic0",
-                        current.get(StoreDB.Column.MAIN_ICON_PATH.value)
+                        current.get(StoreDB.Column.MAIN_ICON_PATH.value),
                     )
                     if current.get(StoreDB.Column.MAIN_ICON_PATH.value)
                     else None
@@ -295,7 +295,7 @@ class DBUtils:
                     URLUtils.canonical_media_url(
                         str(content_id or ""),
                         "pic1",
-                        current.get(StoreDB.Column.MAIN_MENU_PIC.value)
+                        current.get(StoreDB.Column.MAIN_MENU_PIC.value),
                     )
                     if current.get(StoreDB.Column.MAIN_MENU_PIC.value)
                     else None
@@ -369,7 +369,13 @@ class DBUtils:
     @staticmethod
     def sanity_check(
         app_types: tuple[str, ...] = ("Game", "Patch"),
-        required_fields: tuple[str, ...] = ("id", "name", "package", "image", "picpath"),
+        required_fields: tuple[str, ...] = (
+            "id",
+            "name",
+            "package",
+            "image",
+            "picpath",
+        ),
     ) -> Output[dict[str, object]]:
         store_db_file_path = Globals.FILES.STORE_DB_FILE_PATH
         if not store_db_file_path.exists():
@@ -448,9 +454,9 @@ class DBUtils:
                 "DELETE FROM homebrews WHERE content_id = ?",
                 [(content_id,) for content_id in content_ids],
             )
-            total_after_delete = conn.execute("SELECT COUNT(*) FROM homebrews").fetchone()[
-                0
-            ]
+            total_after_delete = conn.execute(
+                "SELECT COUNT(*) FROM homebrews"
+            ).fetchone()[0]
             compacted = DBUtils._compact_pid_sequence(conn)
             conn.commit()
             deleted = max(0, total_before - total_after_delete)

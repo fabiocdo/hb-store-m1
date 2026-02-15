@@ -123,7 +123,9 @@ class FPKGIUtils:
         try:
             legacy_path.unlink()
         except OSError as exc:
-            log.log_warn(f"Failed to remove legacy FPKGI file {legacy_path.name}: {exc}")
+            log.log_warn(
+                f"Failed to remove legacy FPKGI file {legacy_path.name}: {exc}"
+            )
 
     @staticmethod
     def _entry_md5(values_by_column: dict[str, object]) -> str:
@@ -318,11 +320,10 @@ class FPKGIUtils:
         if not content_id:
             return None
 
-        app_type = (
-            FPKGIUtils._app_type_from_package_url(package_raw)
-            or FPKGIUtils._app_type_from_db_value(
-                row["apptype"] if "apptype" in row.keys() else None
-            )
+        app_type = FPKGIUtils._app_type_from_package_url(
+            package_raw
+        ) or FPKGIUtils._app_type_from_db_value(
+            row["apptype"] if "apptype" in row.keys() else None
         )
         package_url = URLUtils.canonical_pkg_url(content_id, app_type, package_raw)
         if not package_url:
@@ -366,9 +367,9 @@ class FPKGIUtils:
             if not isinstance(legacy_entry, dict):
                 continue
 
-            content_id = str(
-                legacy_entry.get(FPKGI.LegacyColumn.ID.value) or ""
-            ).strip().upper()
+            content_id = (
+                str(legacy_entry.get(FPKGI.LegacyColumn.ID.value) or "").strip().upper()
+            )
             package_url = URLUtils.canonical_pkg_url(
                 content_id,
                 app_type,
@@ -379,7 +380,9 @@ class FPKGIUtils:
 
             data_entries[package_url] = {
                 FPKGI.Column.TITLE_ID.value: None,
-                FPKGI.Column.REGION.value: FPKGIUtils._region_from_content_id(content_id),
+                FPKGI.Column.REGION.value: FPKGIUtils._region_from_content_id(
+                    content_id
+                ),
                 FPKGI.Column.NAME.value: FPKGIUtils._string_or_none(
                     legacy_entry.get(FPKGI.LegacyColumn.NAME.value)
                 ),
@@ -463,7 +466,9 @@ class FPKGIUtils:
         if not package_url:
             return None
 
-        region = pkg.region.value if pkg.region and pkg.region.value != "UNKNOWN" else None
+        region = (
+            pkg.region.value if pkg.region and pkg.region.value != "UNKNOWN" else None
+        )
         metadata = {
             FPKGI.Column.TITLE_ID.value: FPKGIUtils._string_or_none(pkg.title_id),
             FPKGI.Column.REGION.value: region,
@@ -566,8 +571,8 @@ class FPKGIUtils:
         updated_files = 0
         for app_type in app_types:
             target_entries = grouped_entries.get(app_type, {})
-            json_path, legacy_path, entries, migrated = FPKGIUtils._read_entries_for_app_type(
-                app_type
+            json_path, legacy_path, entries, migrated = (
+                FPKGIUtils._read_entries_for_app_type(app_type)
             )
             if entries is None:
                 return Output(Status.ERROR, "Failed to read FPKGI JSON")
@@ -578,9 +583,7 @@ class FPKGIUtils:
                 updated_files += 1
 
         if updated_files:
-            log.log_info(
-                f"Bootstrapped {updated_files} FPKGI JSON files from STORE.DB"
-            )
+            log.log_info(f"Bootstrapped {updated_files} FPKGI JSON files from STORE.DB")
             return Output(Status.OK, updated_files)
 
         return Output(Status.SKIP, "FPKGI JSON already synced with STORE.DB")
@@ -599,8 +602,8 @@ class FPKGIUtils:
         renamed_total = 0
 
         for app_type, pkgs_for_type in pkgs_by_type.items():
-            json_path, legacy_path, entries, migrated = FPKGIUtils._read_entries_for_app_type(
-                app_type
+            json_path, legacy_path, entries, migrated = (
+                FPKGIUtils._read_entries_for_app_type(app_type)
             )
             if entries is None:
                 return Output(Status.ERROR, "Failed to read FPKGI JSON")
@@ -666,8 +669,8 @@ class FPKGIUtils:
         target_ids = set(content_ids)
 
         for app_type in FPKGIUtils._app_type_names():
-            json_path, legacy_path, entries, migrated = FPKGIUtils._read_entries_for_app_type(
-                app_type
+            json_path, legacy_path, entries, migrated = (
+                FPKGIUtils._read_entries_for_app_type(app_type)
             )
             if entries is None:
                 return Output(Status.ERROR, "Failed to read FPKGI JSON")
@@ -697,8 +700,8 @@ class FPKGIUtils:
         app_types = FPKGIUtils._app_type_names()
 
         for app_type in app_types:
-            json_path, legacy_path, entries, migrated = FPKGIUtils._read_entries_for_app_type(
-                app_type
+            json_path, legacy_path, entries, migrated = (
+                FPKGIUtils._read_entries_for_app_type(app_type)
             )
             if entries is None:
                 return Output(Status.ERROR, "Failed to read FPKGI JSON")
@@ -713,7 +716,9 @@ class FPKGIUtils:
             refreshed: dict[str, dict[str, object]] = {}
             for package_old, metadata_old in entries.items():
                 content_id = FPKGIUtils._content_id_from_pkg_url(package_old)
-                package_new = URLUtils.canonical_pkg_url(content_id, app_type, package_old)
+                package_new = URLUtils.canonical_pkg_url(
+                    content_id, app_type, package_old
+                )
                 if package_new is None:
                     package_new = package_old
                 if package_new != package_old:
