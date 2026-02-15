@@ -160,20 +160,20 @@ docker compose down
 
 `entrypoint.sh` creates this file automatically on first run.
 
-| Variable | Type | Default in entrypoint | Description |
-|---|---|---|---|
-| `SERVER_IP` | string | `127.0.0.1` | Host used to build URLs (`SERVER_URL`). |
-| `SERVER_PORT` | int | `80` | Nginx port inside container. |
-| `ENABLE_TLS` | bool | `false` | `true` requires `configs/certs/tls.crt` and `tls.key`. |
-| `LOG_LEVEL` | string | `info` | `debug`, `info`, `warn`, `error`. |
-| `WATCHER_ENABLED` | bool | `true` | Enable/disable watcher loop. |
-| `WATCHER_PERIODIC_SCAN_SECONDS` | int | `30` | Scan loop interval. |
-| `WATCHER_PKG_PREPROCESS_WORKERS` | int | `1` | Parallel workers for validate + PARAM.SFO preprocessing (`1` disables parallel preprocessing). |
-| `FPGKI_FORMAT_ENABLED` | bool | `false` | Generate/update per-type FPKGi JSON output (`GAMES.json`, `DLC.json`, etc.). |
-| `PKGTOOL_TIMEOUT_SECONDS` | int | `300` | Generic timeout for lightweight `pkgtool` commands. |
-| `PKGTOOL_VALIDATE_TIMEOUT_SECONDS` | int | `300` | Base timeout for `pkg_validate`. |
-| `PKGTOOL_VALIDATE_TIMEOUT_PER_GB_SECONDS` | int | `45` | Extra timeout budget per GiB for `pkg_validate`. |
-| `PKGTOOL_VALIDATE_TIMEOUT_MAX_SECONDS` | int | `3600` | Upper cap for `pkg_validate` timeout (`0` disables cap). |
+| Variable                                  | Type   | Default in entrypoint | Description                                                                                    |
+|-------------------------------------------|--------|-----------------------|------------------------------------------------------------------------------------------------|
+| `SERVER_IP`                               | string | `127.0.0.1`           | Host used to build URLs (`SERVER_URL`).                                                        |
+| `SERVER_PORT`                             | int    | `80`                  | Nginx port inside container.                                                                   |
+| `ENABLE_TLS`                              | bool   | `false`               | `true` requires `configs/certs/tls.crt` and `tls.key`.                                         |
+| `LOG_LEVEL`                               | string | `info`                | `debug`, `info`, `warn`, `error`.                                                              |
+| `WATCHER_ENABLED`                         | bool   | `true`                | Enable/disable watcher loop.                                                                   |
+| `WATCHER_PERIODIC_SCAN_SECONDS`           | int    | `30`                  | Scan loop interval.                                                                            |
+| `WATCHER_PKG_PREPROCESS_WORKERS`          | int    | `1`                   | Parallel workers for validate + PARAM.SFO preprocessing (`1` disables parallel preprocessing). |
+| `FPGKI_FORMAT_ENABLED`                    | bool   | `false`               | Generate/update per-type FPKGi JSON output (`GAMES.json`, `DLC.json`, etc.).                   |
+| `PKGTOOL_TIMEOUT_SECONDS`                 | int    | `300`                 | Generic timeout for lightweight `pkgtool` commands.                                            |
+| `PKGTOOL_VALIDATE_TIMEOUT_SECONDS`        | int    | `300`                 | Base timeout for `pkg_validate`.                                                               |
+| `PKGTOOL_VALIDATE_TIMEOUT_PER_GB_SECONDS` | int    | `45`                  | Extra timeout budget per GiB for `pkg_validate`.                                               |
+| `PKGTOOL_VALIDATE_TIMEOUT_MAX_SECONDS`    | int    | `3600`                | Upper cap for `pkg_validate` timeout (`0` disables cap).                                       |
 
 Notes:
 
@@ -297,21 +297,21 @@ From the `PKG` model:
 
 ## Exposed HTTP Endpoints (nginx)
 
-| Endpoint | Source | Behavior |
-|---|---|---|
-| `/` | `/_cache/index.html` | status page with live endpoint UP/DOWN checks |
-| `/health` | inline response | returns `{"status":"online"}` |
-| `/store.db` | `/app/data/store.db` | `no-store`, byte-range enabled |
-| `/api.php?db_check_hash=true` | internal API | returns `{"hash":"<md5_of_store.db>"}` |
-| `/api.php` | `/app/data/_cache/store.db.json` | serves JSON if file exists |
-| `/download.php?tid=<TITLE_ID>&check=true` | internal API + SQLite | returns `{"number_of_downloads":N}` |
-| `/download.php?tid=<TITLE_ID>` | internal API + SQLite | serves matching PKG file (supports range via nginx internal path) |
-| `/update/remote.md5` | `/_cache/remote.md5` | `no-store` |
-| `/update/homebrew.elf` | `/_cache/homebrew.elf` | `no-store` |
-| `/update/homebrew.elf.sig` | `/_cache/homebrew.elf.sig` | `no-store` |
-| `/pkg/**/*.pkg` | `/app/data/pkg` | long cache (`max-age=31536000`, `immutable`), range |
-| `/pkg/**/*.(png|jpg|jpeg|webp)` | `/app/data/pkg` | 30-day cache |
-| `/pkg/**/*.(json|db)` | `/app/data/pkg` | `no-store` |
+| Endpoint                                  | Source                           | Behavior                                                          |
+|-------------------------------------------|----------------------------------|-------------------------------------------------------------------|
+| `/`                                       | `/_cache/index.html`             | status page with live endpoint UP/DOWN checks                     |
+| `/health`                                 | inline response                  | returns `{"status":"online"}`                                     |
+| `/store.db`                               | `/app/data/store.db`             | `no-store`, byte-range enabled                                    |
+| `/api.php?db_check_hash=true`             | internal API                     | returns `{"hash":"<md5_of_store.db>"}`                            |
+| `/api.php`                                | `/app/data/_cache/store.db.json` | serves JSON if file exists                                        |
+| `/download.php?tid=<TITLE_ID>&check=true` | internal API + SQLite            | returns `{"number_of_downloads":N}`                               |
+| `/download.php?tid=<TITLE_ID>`            | internal API + SQLite            | serves matching PKG file (supports range via nginx internal path) |
+| `/update/remote.md5`                      | `/_cache/remote.md5`             | `no-store`                                                        |
+| `/update/homebrew.elf`                    | `/_cache/homebrew.elf`           | `no-store`                                                        |
+| `/update/homebrew.elf.sig`                | `/_cache/homebrew.elf.sig`       | `no-store`                                                        |
+| `/pkg/**/*.pkg`                           | `/app/data/pkg`                  | long cache (`max-age=31536000`, `immutable`), range               |
+| `/pkg/**/*.(png                           | jpg                              | jpeg                                                              |webp)` | `/app/data/pkg` | 30-day cache |
+| `/pkg/**/*.(json                          | db)`                             | `/app/data/pkg`                                                   | `no-store` |
 
 ## Credits and References
 
