@@ -84,6 +84,29 @@ mkdir -p /app/data/_cache
 ENABLE_TLS_LC="$(printf "%s" "$ENABLE_TLS" | tr '[:upper:]' '[:lower:]')"
 
 GENERATED_AT="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+APP_NAME="hb-store-m1"
+APP_VERSION="unknown"
+if [ -f /app/pyproject.toml ] && command -v python3 >/dev/null 2>&1; then
+  APP_META="$(
+    python3 - <<'PY'
+import tomllib
+from pathlib import Path
+
+name = "hb-store-m1"
+version = "unknown"
+try:
+    project = tomllib.loads(Path("/app/pyproject.toml").read_text("utf-8")).get("project", {})
+    name = str(project.get("name") or name)
+    version = str(project.get("version") or version)
+except Exception:
+    pass
+print(name)
+print(version)
+PY
+  )"
+  APP_NAME="$(printf '%s\n' "$APP_META" | sed -n '1p')"
+  APP_VERSION="$(printf '%s\n' "$APP_META" | sed -n '2p')"
+fi
 
 # Build optional JSON endpoint rows dynamically (defaults + discovered files).
 JSON_ENDPOINTS="$(
@@ -130,7 +153,7 @@ cat > /app/data/_cache/index.html <<EOF
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>HB-Store-M1 Status</title>
+  <title>${APP_NAME} Status</title>
   <style>
     :root { color-scheme: light; }
     body {
@@ -237,7 +260,7 @@ cat > /app/data/_cache/index.html <<EOF
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>HB-Store-M1</h1>
+      <h1>${APP_NAME}</h1>
       <div class="ok">Status: ONLINE</div>
 
       <h2>Health</h2>
@@ -301,6 +324,7 @@ ${JSON_HEALTH_ROWS}
       </table>
 
       <div class="meta">
+        Version ${APP_VERSION}<br>
         Generated at ${GENERATED_AT}
       </div>
     </div>
