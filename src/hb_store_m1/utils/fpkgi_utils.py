@@ -30,6 +30,8 @@ class FPKGIUtils:
         "AP": "ASIA",
         "KP": "ASIA",
     }
+    _HEX_SYSTEM_VER_PATTERN = re.compile(r"^[0-9A-Fa-f]{8}$")
+    _DOT_SYSTEM_VER_PATTERN = re.compile(r"^\d+\.\d+(?:\.\d+)?$")
     _JSON_STEM_BY_APP_TYPE = {
         "app": "APPS",
         "demo": "DEMOS",
@@ -147,6 +149,37 @@ class FPKGIUtils:
         return f"{match.group('month')}-{match.group('day')}-{match.group('year')}"
 
     @staticmethod
+    def _decode_system_ver_hex(hex_value: str) -> str:
+        major = int(hex_value[0:2], 16)
+        minor = int(hex_value[2:4], 16)
+        patch = int(hex_value[4:6], 16)
+        if patch:
+            return f"{major}.{minor:02d}.{patch:02d}"
+        return f"{major}.{minor:02d}"
+
+    @staticmethod
+    def _normalize_min_fw(value: object) -> str | None:
+        raw = FPKGIUtils._string_or_none(value)
+        if not raw:
+            return None
+
+        text = raw.strip()
+        if FPKGIUtils._DOT_SYSTEM_VER_PATTERN.fullmatch(text):
+            return text
+
+        hex_value = text[2:] if text.lower().startswith("0x") else text
+        if FPKGIUtils._HEX_SYSTEM_VER_PATTERN.fullmatch(hex_value):
+            return FPKGIUtils._decode_system_ver_hex(hex_value)
+
+        if text.isdigit() and len(text) > 8:
+            try:
+                return FPKGIUtils._decode_system_ver_hex(f"{int(text):08X}"[-8:])
+            except ValueError:
+                return text
+
+        return text
+
+    @staticmethod
     def _normalize_metadata(values: dict[str, object]) -> dict[str, object]:
         return {
             FPKGI.Column.TITLE_ID.value: FPKGIUtils._string_or_none(
@@ -167,7 +200,7 @@ class FPKGIUtils:
             FPKGI.Column.SIZE.value: FPKGIUtils._to_int(
                 values.get(FPKGI.Column.SIZE.value), 0
             ),
-            FPKGI.Column.MIN_FW.value: FPKGIUtils._string_or_none(
+            FPKGI.Column.MIN_FW.value: FPKGIUtils._normalize_min_fw(
                 values.get(FPKGI.Column.MIN_FW.value)
             ),
             FPKGI.Column.COVER_URL.value: FPKGIUtils._string_or_none(
@@ -346,7 +379,7 @@ class FPKGIUtils:
             FPKGI.Column.VERSION.value: FPKGIUtils._string_or_none(pkg.version),
             FPKGI.Column.RELEASE.value: FPKGIUtils._normalize_release(pkg.release_date),
             FPKGI.Column.SIZE.value: FPKGIUtils._pkg_size(pkg),
-            FPKGI.Column.MIN_FW.value: None,
+            FPKGI.Column.MIN_FW.value: FPKGIUtils._normalize_min_fw(pkg.system_ver),
             FPKGI.Column.COVER_URL.value: URLUtils.canonical_media_url(
                 content_id, "icon0", pkg.icon0_png_path
             ),

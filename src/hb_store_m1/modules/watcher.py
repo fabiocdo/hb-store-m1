@@ -358,6 +358,7 @@ class Watcher:
             category=param_sfo.data[ParamSFOKey.CATEGORY],
             version=param_sfo.data[ParamSFOKey.VERSION],
             pubtoolinfo=param_sfo.data[ParamSFOKey.PUBTOOLINFO],
+            system_ver=(param_sfo.data.get(ParamSFOKey.SYSTEM_VER) or ""),
             pkg_path=pkg_path,
         )
 

@@ -87,6 +87,28 @@ def test_given_pkg_when_upsert_then_writes_data_dict_per_app_type(init_paths):
     assert dlc_data[expected_dlc_url][FPKGI.Column.NAME.value] == "DLC Title"
 
 
+def test_given_pkg_with_system_ver_when_upsert_then_writes_min_fw(init_paths):
+    pkg_path = init_paths.GAME_DIR_PATH / "game.pkg"
+    pkg_path.write_text("data", encoding="utf-8")
+
+    pkg = PKG(
+        title="Game Title",
+        title_id="CUSA00001",
+        content_id="UP0000-TEST00000_00-TEST000000000000",
+        category="GD",
+        version="01.00",
+        system_ver="0x05050000",
+        pkg_path=pkg_path,
+    )
+
+    result = FPKGIUtils.upsert([pkg])
+    game_data = _read_data(FPKGIUtils.json_path_for_app_type("game"))
+    entry = next(iter(game_data.values()))
+
+    assert result.status is Status.OK
+    assert entry[FPKGI.Column.MIN_FW.value] == "5.05"
+
+
 def test_given_unchanged_pkg_when_upsert_then_skips(init_paths):
     pkg_path = init_paths.GAME_DIR_PATH / "game.pkg"
     pkg_path.write_text("data", encoding="utf-8")
@@ -345,6 +367,10 @@ def test_given_helper_inputs_when_normalizing_then_handles_edge_cases(init_paths
     assert FPKGIUtils._normalize_region("br") is None
     assert FPKGIUtils._normalize_release("2026-02-14") == "02-14-2026"
     assert FPKGIUtils._normalize_release("14/02/2026") == "14/02/2026"
+    assert FPKGIUtils._normalize_min_fw("0x05050000") == "5.05"
+    assert FPKGIUtils._normalize_min_fw("050A0000") == "5.10"
+    assert FPKGIUtils._normalize_min_fw("9.00") == "9.00"
+    assert FPKGIUtils._normalize_min_fw("abc") == "abc"
 
     assert FPKGIUtils._content_id_from_pkg_url("") is None
     assert FPKGIUtils._content_id_from_pkg_url("https://x/y/file.txt") is None

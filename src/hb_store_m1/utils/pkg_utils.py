@@ -264,6 +264,7 @@ class PkgUtils:
             category=param_sfo.data[ParamSFOKey.CATEGORY],
             version=param_sfo.data[ParamSFOKey.VERSION],
             pubtoolinfo=param_sfo.data[ParamSFOKey.PUBTOOLINFO],
+            system_ver=(param_sfo.data.get(ParamSFOKey.SYSTEM_VER) or ""),
             icon0_png_path=medias[PKGEntryKey.ICON0_PNG],
             pic0_png_path=(
                 medias[PKGEntryKey.PIC0_PNG] if medias[PKGEntryKey.PIC0_PNG] else None
