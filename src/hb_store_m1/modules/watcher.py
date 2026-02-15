@@ -1,13 +1,14 @@
 import re
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from hb_store_m1.models.globals import Globals
 from hb_store_m1.models.log import LogModule
 from hb_store_m1.models.output import Output, Status
-from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFOKey
+from hb_store_m1.models.pkg.metadata.param_sfo import ParamSFO, ParamSFOKey
 from hb_store_m1.models.pkg.pkg import PKG
 from hb_store_m1.models.pkg.section import Section
 from hb_store_m1.modules.auto_organizer import AutoOrganizer
@@ -54,6 +55,12 @@ class WatchChanges:
             },
             current_cache=raw.get("current_cache"),
         )
+
+
+@dataclass(slots=True)
+class PreparedPkg:
+    pkg_path: Path
+    param_sfo: ParamSFO
 
 
 class Watcher:
@@ -191,6 +198,18 @@ class Watcher:
         if not self._has_missing_fpkgi_json(sections_with_content):
             self._log_no_changes()
             return None
+
+        bootstrap_result = self._fpkgi_utils.bootstrap_from_store_db(
+            sections_with_content
+        )
+        if bootstrap_result.status in (Status.OK, Status.SKIP):
+            self._log_no_changes()
+            return None
+
+        log.log_warn(
+            "Failed to bootstrap missing FPKGI JSON from STORE.DB. "
+            "Falling back to PKG reprocessing."
+        )
 
         current_files = self._build_current_files(cached)
         if not current_files:
@@ -362,26 +381,31 @@ class Watcher:
             pkg_path=pkg_path,
         )
 
-    def _process_pkg(self, pkg_path: Path):
+    def _preprocess_pkg(self, pkg_path: Path) -> Output:
         validation = self._pkg_utils.validate(pkg_path)
         if validation.status not in (Status.OK, Status.WARN):
-            self._file_utils.move_to_error(
-                pkg_path,
-                self._paths.ERRORS_DIR_PATH,
-                "validation_failed",
-            )
-            return None
+            return Output(Status.ERROR, "validation_failed")
 
         extract_output = self._pkg_utils.extract_pkg_data(pkg_path)
         if extract_output.status is not Status.OK or not extract_output.content:
-            self._file_utils.move_to_error(
-                pkg_path,
-                self._paths.ERRORS_DIR_PATH,
-                "extract_data_failed",
-            )
-            return None
+            return Output(Status.ERROR, "extract_data_failed")
 
-        param_sfo = extract_output.content
+        return Output(
+            Status.OK,
+            PreparedPkg(pkg_path=pkg_path, param_sfo=extract_output.content),
+        )
+
+    def _handle_preprocess_failure(self, pkg_path: Path, reason: str) -> None:
+        self._file_utils.move_to_error(
+            pkg_path,
+            self._paths.ERRORS_DIR_PATH,
+            reason,
+        )
+
+    def _finalize_preprocessed_pkg(self, prepared_pkg: PreparedPkg):
+        pkg_path = prepared_pkg.pkg_path
+        param_sfo = prepared_pkg.param_sfo
+
         pkg = self._build_pkg_model(pkg_path, param_sfo)
 
         # Always normalize/move by content_id to guarantee canonical PKG naming.
@@ -418,6 +442,81 @@ class Watcher:
 
         return build_output.content
 
+    @staticmethod
+    def _max_preprocess_workers(envs, num_pkgs: int) -> int:
+        configured_workers = getattr(envs, "WATCHER_PKG_PREPROCESS_WORKERS", 1)
+        try:
+            configured = int(configured_workers)
+        except (TypeError, ValueError):
+            configured = 1
+        return max(1, min(num_pkgs, configured))
+
+    def _process_pkg(self, pkg_path: Path):
+        preprocessed = self._preprocess_pkg(pkg_path)
+        if preprocessed.status is not Status.OK or not preprocessed.content:
+            reason = (
+                preprocessed.content
+                if isinstance(preprocessed.content, str)
+                else "extract_data_failed"
+            )
+            self._handle_preprocess_failure(pkg_path, reason)
+            return None
+
+        return self._finalize_preprocessed_pkg(preprocessed.content)
+
+    def _process_pkgs(self, scanned_pkgs: list[Path]) -> list[PKG]:
+        if not scanned_pkgs:
+            return []
+
+        workers = self._max_preprocess_workers(self._envs, len(scanned_pkgs))
+        if workers <= 1:
+            extracted_pkgs = []
+            for pkg_path in scanned_pkgs:
+                built_pkg = self._process_pkg(pkg_path)
+                if built_pkg is not None:
+                    extracted_pkgs.append(built_pkg)
+            return extracted_pkgs
+
+        log.log_info(
+            f"Parallel PKG preprocessing enabled ({workers} workers)"
+        )
+        preprocess_outputs: dict[Path, Output] = {}
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(self._preprocess_pkg, pkg_path): pkg_path
+                for pkg_path in scanned_pkgs
+            }
+            for future in as_completed(futures):
+                pkg_path = futures[future]
+                try:
+                    preprocess_outputs[pkg_path] = future.result()
+                except Exception as exc:
+                    log.log_error(f"Preprocess failed for {pkg_path.name}: {exc}")
+                    preprocess_outputs[pkg_path] = Output(
+                        Status.ERROR, "extract_data_failed"
+                    )
+
+        extracted_pkgs: list[PKG] = []
+        for pkg_path in scanned_pkgs:
+            output = preprocess_outputs.get(pkg_path)
+            if output is None:
+                self._handle_preprocess_failure(pkg_path, "extract_data_failed")
+                continue
+            if output.status is not Status.OK or not output.content:
+                reason = (
+                    output.content
+                    if isinstance(output.content, str)
+                    else "extract_data_failed"
+                )
+                self._handle_preprocess_failure(pkg_path, reason)
+                continue
+
+            built_pkg = self._finalize_preprocessed_pkg(output.content)
+            if built_pkg is not None:
+                extracted_pkgs.append(built_pkg)
+
+        return extracted_pkgs
+
     def _persist_results(
         self, extracted_pkgs: list, current_cache: dict | None
     ) -> None:
@@ -445,12 +544,8 @@ class Watcher:
     def _run_cycle(self) -> None:
         changes = self._load_changes()
         if not changes:
-            extracted_pkgs = []
             scanned_pkgs = self._collect_non_canonical_pkgs()
-            for pkg_path in scanned_pkgs:
-                built_pkg = self._process_pkg(pkg_path)
-                if built_pkg is not None:
-                    extracted_pkgs.append(built_pkg)
+            extracted_pkgs = self._process_pkgs(scanned_pkgs)
             if scanned_pkgs:
                 self._persist_results(extracted_pkgs, None)
             self._normalize_media_files()
@@ -467,11 +562,7 @@ class Watcher:
         self._handle_removed_content_ids(removed_content_ids)
 
         scanned_pkgs = self._collect_scanned_pkgs(changes)
-        extracted_pkgs = []
-        for pkg_path in scanned_pkgs:
-            built_pkg = self._process_pkg(pkg_path)
-            if built_pkg is not None:
-                extracted_pkgs.append(built_pkg)
+        extracted_pkgs = self._process_pkgs(scanned_pkgs)
 
         self._persist_results(extracted_pkgs, changes.current_cache)
         self._normalize_media_files()

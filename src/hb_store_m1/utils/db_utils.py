@@ -468,6 +468,3 @@ class DBUtils:
             return Output(Status.ERROR, len(content_ids))
         finally:
             conn.close()
-
-
-DBUtils = DBUtils()

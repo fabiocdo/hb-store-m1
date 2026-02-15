@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+import sqlite3
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -47,6 +48,26 @@ class FPKGIUtils:
         "update": "UPDATES",
         "save": "SAVES",
         "unknown": "UNKNOWN",
+    }
+    _DB_APP_TYPE_TO_APP_TYPE = {
+        "app": "app",
+        "dlc": "dlc",
+        "game": "game",
+        "patch": "update",
+        "update": "update",
+        "save": "save",
+        "theme": "theme",
+        "other": "unknown",
+        "unknown": "unknown",
+        "media": "unknown",
+    }
+    _SECTION_TO_APP_TYPE = {
+        "app": "app",
+        "dlc": "dlc",
+        "game": "game",
+        "save": "save",
+        "update": "update",
+        "unknown": "unknown",
     }
 
     @staticmethod
@@ -266,6 +287,77 @@ class FPKGIUtils:
             return 0
 
     @staticmethod
+    def _app_type_from_db_value(value: object) -> str:
+        normalized = FPKGIUtils._normalized_app_type(str(value or ""))
+        return FPKGIUtils._DB_APP_TYPE_TO_APP_TYPE.get(normalized, "unknown")
+
+    @staticmethod
+    def _app_type_from_package_url(value: object) -> str | None:
+        raw = FPKGIUtils._string_or_none(value)
+        if not raw:
+            return None
+
+        parsed = urlparse(raw)
+        path = parsed.path if (parsed.scheme or parsed.netloc) else raw
+        parts = [part for part in path.replace("\\", "/").split("/") if part]
+        for idx, part in enumerate(parts):
+            if part.lower() != "pkg" or idx + 1 >= len(parts):
+                continue
+            return FPKGIUtils._SECTION_TO_APP_TYPE.get(parts[idx + 1].lower())
+        return None
+
+    @staticmethod
+    def _entry_from_store_db_row(
+        row: sqlite3.Row,
+    ) -> tuple[str, str, dict[str, object]] | None:
+        package_raw = row["package"] if "package" in row.keys() else None
+        content_id = FPKGIUtils._string_or_none(row["content_id"])
+        content_id = (content_id or "").upper()
+        if not content_id:
+            content_id = FPKGIUtils._content_id_from_pkg_url(package_raw) or ""
+        if not content_id:
+            return None
+
+        app_type = (
+            FPKGIUtils._app_type_from_package_url(package_raw)
+            or FPKGIUtils._app_type_from_db_value(
+                row["apptype"] if "apptype" in row.keys() else None
+            )
+        )
+        package_url = URLUtils.canonical_pkg_url(content_id, app_type, package_raw)
+        if not package_url:
+            return None
+
+        metadata = {
+            FPKGI.Column.TITLE_ID.value: FPKGIUtils._string_or_none(
+                row["id"] if "id" in row.keys() else None
+            ),
+            FPKGI.Column.REGION.value: FPKGIUtils._region_from_content_id(content_id),
+            FPKGI.Column.NAME.value: FPKGIUtils._string_or_none(
+                row["name"] if "name" in row.keys() else None
+            ),
+            FPKGI.Column.VERSION.value: FPKGIUtils._string_or_none(
+                row["version"] if "version" in row.keys() else None
+            ),
+            FPKGI.Column.RELEASE.value: FPKGIUtils._normalize_release(
+                row["releaseddate"] if "releaseddate" in row.keys() else None
+            ),
+            FPKGI.Column.SIZE.value: FPKGIUtils._to_int(
+                row["Size"] if "Size" in row.keys() else 0, 0
+            ),
+            FPKGI.Column.MIN_FW.value: None,
+            FPKGI.Column.COVER_URL.value: URLUtils.canonical_media_url(
+                content_id,
+                "icon0",
+                row["image"] if "image" in row.keys() else None,
+            )
+            or FPKGIUtils._rewrite_public_url(
+                row["image"] if "image" in row.keys() else None
+            ),
+        }
+        return app_type, package_url, metadata
+
+    @staticmethod
     def _legacy_entries_to_data(
         app_type: str, legacy_entries: list[dict[str, object]]
     ) -> dict[str, dict[str, object]]:
@@ -414,6 +506,84 @@ class FPKGIUtils:
                 continue
             by_content_id.setdefault(content_id, set()).add(pkg_url)
         return by_content_id
+
+    @staticmethod
+    def bootstrap_from_store_db(target_app_types: list[str] | None = None) -> Output:
+        store_db_path = Globals.FILES.STORE_DB_FILE_PATH
+        if not store_db_path.exists():
+            return Output(Status.NOT_FOUND, "STORE.DB not found")
+
+        normalized_targets = {
+            FPKGIUtils._normalized_app_type(app_type)
+            for app_type in (target_app_types or [])
+            if app_type
+        }
+        if normalized_targets:
+            normalized_targets = {
+                FPKGIUtils._DB_APP_TYPE_TO_APP_TYPE.get(app_type, app_type)
+                for app_type in normalized_targets
+            }
+            normalized_targets = {
+                app_type
+                for app_type in normalized_targets
+                if app_type in FPKGIUtils._JSON_STEM_BY_APP_TYPE
+            }
+
+        grouped_entries: dict[str, dict[str, dict[str, object]]] = {}
+        query = (
+            "SELECT content_id, id, name, version, releaseddate, Size, "
+            "apptype, package, image FROM homebrews"
+        )
+
+        conn = None
+        try:
+            conn = sqlite3.connect(str(store_db_path))
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(query).fetchall()
+        except sqlite3.Error as exc:
+            log.log_error(f"Failed to bootstrap FPKGI JSON from STORE.DB: {exc}")
+            return Output(Status.ERROR, "Failed to bootstrap FPKGI from STORE.DB")
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+        for row in rows:
+            parsed = FPKGIUtils._entry_from_store_db_row(row)
+            if not parsed:
+                continue
+            app_type, package_url, metadata = parsed
+            if normalized_targets and app_type not in normalized_targets:
+                continue
+            grouped_entries.setdefault(app_type, {})[package_url] = metadata
+
+        app_types = sorted(normalized_targets or grouped_entries.keys())
+        if not app_types:
+            return Output(Status.SKIP, "Nothing to bootstrap")
+
+        updated_files = 0
+        for app_type in app_types:
+            target_entries = grouped_entries.get(app_type, {})
+            json_path, legacy_path, entries, migrated = FPKGIUtils._read_entries_for_app_type(
+                app_type
+            )
+            if entries is None:
+                return Output(Status.ERROR, "Failed to read FPKGI JSON")
+
+            if migrated or entries != target_entries:
+                FPKGIUtils._write_json(json_path, target_entries)
+                FPKGIUtils._cleanup_legacy_json(json_path, legacy_path)
+                updated_files += 1
+
+        if updated_files:
+            log.log_info(
+                f"Bootstrapped {updated_files} FPKGI JSON files from STORE.DB"
+            )
+            return Output(Status.OK, updated_files)
+
+        return Output(Status.SKIP, "FPKGI JSON already synced with STORE.DB")
 
     @staticmethod
     def upsert(pkgs: list[PKG]) -> Output:
@@ -572,6 +742,3 @@ class FPKGIUtils:
             log.log_info(f"Refreshed URLs in {updated_total} FPKGI JSON files")
             return Output(Status.OK, updated_total)
         return Output(Status.SKIP, "URLs already up to date")
-
-
-FPKGIUtils = FPKGIUtils()

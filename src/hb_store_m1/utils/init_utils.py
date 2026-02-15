@@ -138,6 +138,3 @@ class InitUtils:
             log.log_warn("STORE.DB sanity check skipped: STORE.DB not found")
         else:
             log.log_warn("STORE.DB sanity check failed")
-
-
-InitUtils = InitUtils()

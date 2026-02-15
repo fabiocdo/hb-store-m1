@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -602,3 +603,74 @@ def test_given_refresh_with_duplicate_canonical_url_when_run_then_marks_changed(
 
     assert result.status is Status.OK
     assert canonical_url in data
+
+
+def test_given_store_db_rows_when_bootstrap_then_builds_fpkgi_json_fast(init_paths):
+    db_path = Globals.FILES.STORE_DB_FILE_PATH
+    init_sql_path = Path(__file__).resolve().parents[1] / "init" / "store_db.sql"
+    init_sql = init_sql_path.read_text("utf-8")
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.executescript(init_sql)
+        conn.execute(
+            """
+            INSERT INTO homebrews
+            (content_id, id, name, image, package, version, Size, apptype, releaseddate)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "UP0000-TEST00000_00-TEST000000000000",
+                "CUSA00001",
+                "Game",
+                "http://old.host/app/data/pkg/_media/UP0000-TEST00000_00-TEST000000000000_icon0.png",
+                "http://old.host/app/data/pkg/game/UP0000-TEST00000_00-TEST000000000000.pkg",
+                "01.23",
+                123,
+                "Game",
+                "2026-02-14",
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO homebrews
+            (content_id, id, name, image, package, version, Size, apptype, releaseddate)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "UP0000-TEST00000_00-UPD0000000000000",
+                "CUSA00001",
+                "Patch",
+                "http://old.host/app/data/pkg/_media/UP0000-TEST00000_00-UPD0000000000000_icon0.png",
+                "http://old.host/app/data/pkg/update/UP0000-TEST00000_00-UPD0000000000000.pkg",
+                "01.24",
+                321,
+                "Patch",
+                "2026-02-15",
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = FPKGIUtils.bootstrap_from_store_db(["game", "update"])
+    game_data = _read_data(FPKGIUtils.json_path_for_app_type("game"))
+    update_data = _read_data(FPKGIUtils.json_path_for_app_type("update"))
+
+    game_url = urljoin(
+        Globals.ENVS.SERVER_URL, "/pkg/game/UP0000-TEST00000_00-TEST000000000000.pkg"
+    )
+    update_url = urljoin(
+        Globals.ENVS.SERVER_URL,
+        "/pkg/update/UP0000-TEST00000_00-UPD0000000000000.pkg",
+    )
+
+    assert result.status is Status.OK
+    assert game_data[game_url][FPKGI.Column.NAME.value] == "Game"
+    assert game_data[game_url][FPKGI.Column.RELEASE.value] == "02-14-2026"
+    assert update_data[update_url][FPKGI.Column.NAME.value] == "Patch"
+
+
+def test_given_missing_store_db_when_bootstrap_then_returns_not_found(init_paths):
+    result = FPKGIUtils.bootstrap_from_store_db(["game"])
+    assert result.status is Status.NOT_FOUND

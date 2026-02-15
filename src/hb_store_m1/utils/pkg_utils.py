@@ -134,7 +134,6 @@ class PkgUtils:
             log.log_error(f"PKG {pkg.name} validation failed: {exc}")
             return Output(Status.ERROR, pkg)
 
-        found_error_line = False
         for line in validation_result:
             if "[ERROR]" not in line:
                 continue
@@ -155,10 +154,7 @@ class PkgUtils:
 
         if command_failed:
             details = f": {command_error_message}" if command_error_message else ""
-            if found_error_line:
-                log.log_error(f"PKG {pkg.name} validation failed{details}")
-            else:
-                log.log_error(f"PKG {pkg.name} validation failed{details}")
+            log.log_error(f"PKG {pkg.name} validation failed{details}")
             return Output(Status.ERROR, pkg)
 
         log.log_debug(f"PKG {pkg.name} validation successful")
@@ -276,6 +272,3 @@ class PkgUtils:
         )
         log.log_debug(f"PKG built successfully {pkg.pkg_path.name}")
         return Output(Status.OK, pkg)
-
-
-PkgUtils = PkgUtils()

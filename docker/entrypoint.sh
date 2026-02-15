@@ -23,6 +23,9 @@ LOG_LEVEL=info
 WATCHER_ENABLED=true
 # Interval in seconds between directory scans. Value type: integer.
 WATCHER_PERIODIC_SCAN_SECONDS=30
+# Parallel workers for validate+PARAM.SFO preprocessing. Value type: integer.
+# Keep 1 to disable parallel preprocessing.
+WATCHER_PKG_PREPROCESS_WORKERS=1
 # Enable FPKGI format output. Value type: boolean.
 FPGKI_FORMAT_ENABLED=false
 # Generic timeout (seconds) for lightweight pkgtool commands.
@@ -52,6 +55,7 @@ fi
 : "${LOG_LEVEL:=info}"
 : "${WATCHER_ENABLED:=true}"
 : "${WATCHER_PERIODIC_SCAN_SECONDS:=30}"
+: "${WATCHER_PKG_PREPROCESS_WORKERS:=1}"
 : "${FPGKI_FORMAT_ENABLED:=false}"
 : "${PKGTOOL_TIMEOUT_SECONDS:=300}"
 : "${PKGTOOL_VALIDATE_TIMEOUT_SECONDS:=300}"

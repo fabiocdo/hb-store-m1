@@ -24,6 +24,3 @@ class FPKGI:
         DESC = "desc"
         ICON = "icon"
         BG_IMAGE = "bg_image"
-
-
-FPKGI = FPKGI()

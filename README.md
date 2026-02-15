@@ -168,6 +168,7 @@ docker compose down
 | `LOG_LEVEL` | string | `info` | `debug`, `info`, `warn`, `error`. |
 | `WATCHER_ENABLED` | bool | `true` | Enable/disable watcher loop. |
 | `WATCHER_PERIODIC_SCAN_SECONDS` | int | `30` | Scan loop interval. |
+| `WATCHER_PKG_PREPROCESS_WORKERS` | int | `1` | Parallel workers for validate + PARAM.SFO preprocessing (`1` disables parallel preprocessing). |
 | `FPGKI_FORMAT_ENABLED` | bool | `false` | Generate/update per-type FPKGi JSON output (`GAMES.json`, `DLC.json`, etc.). |
 | `PKGTOOL_TIMEOUT_SECONDS` | int | `300` | Generic timeout for lightweight `pkgtool` commands. |
 | `PKGTOOL_VALIDATE_TIMEOUT_SECONDS` | int | `300` | Base timeout for `pkg_validate`. |

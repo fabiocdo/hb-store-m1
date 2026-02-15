@@ -147,6 +147,3 @@ class URLUtils:
         if not safe_key:
             return None
         return f"{URLUtils._PS4_STOREDATA_ROOT}/{safe_key}_icon0.png"
-
-
-URLUtils = URLUtils()
