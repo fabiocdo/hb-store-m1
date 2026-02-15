@@ -84,7 +84,21 @@ GENERATED_AT="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 # Build optional JSON endpoint rows dynamically (defaults + discovered files).
 JSON_ENDPOINTS="$(
   {
-    printf "%s\n" "app.json" "dlc.json" "game.json" "save.json" "unknown.json" "update.json"
+    printf "%s\n" \
+      "APPS.json" \
+      "DEMOS.json" \
+      "DLC.json" \
+      "EMULATORS.json" \
+      "GAMES.json" \
+      "HOMEBREW.json" \
+      "PS1.json" \
+      "PS2.json" \
+      "PS5.json" \
+      "PSP.json" \
+      "SAVES.json" \
+      "THEMES.json" \
+      "UNKNOWN.json" \
+      "UPDATES.json"
     for json_file in /app/data/*.json; do
       [ -e "$json_file" ] || continue
       basename "$json_file"
