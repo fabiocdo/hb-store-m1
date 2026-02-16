@@ -404,6 +404,7 @@ def test_given_param_and_medias_when_build_pkg_then_returns_model():
             ParamSFOKey.CONTENT_ID: "UP0000-TEST00000_00-TEST000000000000",
             ParamSFOKey.CATEGORY: "GD",
             ParamSFOKey.VERSION: "01.00",
+            ParamSFOKey.APP_VER: "01.01",
             ParamSFOKey.PUBTOOLINFO: "",
         }
     )
@@ -417,3 +418,40 @@ def test_given_param_and_medias_when_build_pkg_then_returns_model():
 
     assert result.status is Status.OK
     assert result.content.content_id == "UP0000-TEST00000_00-TEST000000000000"
+    assert result.content.version == "01.01"
+
+
+def test_given_version_and_app_ver_when_resolve_pkg_version_then_uses_highest():
+    assert (
+        PkgUtils.resolve_pkg_version(
+            {ParamSFOKey.VERSION: "01.00", ParamSFOKey.APP_VER: "01.23"}
+        )
+        == "01.23"
+    )
+    assert (
+        PkgUtils.resolve_pkg_version(
+            {ParamSFOKey.VERSION: "02.00", ParamSFOKey.APP_VER: "01.99"}
+        )
+        == "02.00"
+    )
+
+
+def test_given_missing_or_invalid_versions_when_resolve_pkg_version_then_fallbacks():
+    assert (
+        PkgUtils.resolve_pkg_version(
+            {ParamSFOKey.VERSION: "", ParamSFOKey.APP_VER: "01.05"}
+        )
+        == "01.05"
+    )
+    assert (
+        PkgUtils.resolve_pkg_version(
+            {ParamSFOKey.VERSION: "01.00", ParamSFOKey.APP_VER: ""}
+        )
+        == "01.00"
+    )
+    assert (
+        PkgUtils.resolve_pkg_version(
+            {ParamSFOKey.VERSION: "foo", ParamSFOKey.APP_VER: "01.02"}
+        )
+        == "01.02"
+    )

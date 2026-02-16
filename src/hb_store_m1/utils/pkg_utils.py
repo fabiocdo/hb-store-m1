@@ -22,6 +22,7 @@ log = LogUtils(LogModule.PKG_UTIL)
 
 class PkgUtils:
     _PARAM_REGEX = re.compile(r"^(?P<name>[^:]+?)\s*:\s*[^=]*=\s*(?P<value>.*)$")
+    _VERSION_PARTS_REGEX = re.compile(r"\d+")
 
     @staticmethod
     def _list_pkg_entries(pkg: Path) -> dict[PKGEntryKey, str]:
@@ -81,6 +82,52 @@ class PkgUtils:
             data[enum_key] = value
 
         return ParamSFO(data)
+
+    @staticmethod
+    def _version_key(value: str) -> tuple[int, ...] | None:
+        text = str(value or "").strip()
+        if not text:
+            return None
+        parts = [int(part) for part in PkgUtils._VERSION_PARTS_REGEX.findall(text)]
+        if not parts:
+            return None
+        while len(parts) > 1 and parts[-1] == 0:
+            parts.pop()
+        return tuple(parts)
+
+    @staticmethod
+    def _compare_versions(left: str, right: str) -> int:
+        left_key = PkgUtils._version_key(left)
+        right_key = PkgUtils._version_key(right)
+
+        if left_key is None and right_key is None:
+            left_text = str(left or "").strip()
+            right_text = str(right or "").strip()
+            if left_text == right_text:
+                return 0
+            return 1 if left_text > right_text else -1
+        if left_key is None:
+            return -1
+        if right_key is None:
+            return 1
+
+        max_len = max(len(left_key), len(right_key))
+        left_normalized = left_key + (0,) * (max_len - len(left_key))
+        right_normalized = right_key + (0,) * (max_len - len(right_key))
+        if left_normalized == right_normalized:
+            return 0
+        return 1 if left_normalized > right_normalized else -1
+
+    @staticmethod
+    def resolve_pkg_version(param_sfo_data: dict[ParamSFOKey, str]) -> str:
+        version = str(param_sfo_data.get(ParamSFOKey.VERSION) or "").strip()
+        app_ver = str(param_sfo_data.get(ParamSFOKey.APP_VER) or "").strip()
+
+        if not version:
+            return app_ver
+        if not app_ver:
+            return version
+        return app_ver if PkgUtils._compare_versions(app_ver, version) > 0 else version
 
     @staticmethod
     def read_content_id(pkg: Path) -> str | None:
@@ -258,7 +305,7 @@ class PkgUtils:
             title_id=param_sfo.data[ParamSFOKey.TITLE_ID],
             content_id=param_sfo.data[ParamSFOKey.CONTENT_ID],
             category=param_sfo.data[ParamSFOKey.CATEGORY],
-            version=param_sfo.data[ParamSFOKey.VERSION],
+            version=PkgUtils.resolve_pkg_version(param_sfo.data),
             pubtoolinfo=param_sfo.data[ParamSFOKey.PUBTOOLINFO],
             system_ver=(param_sfo.data.get(ParamSFOKey.SYSTEM_VER) or ""),
             icon0_png_path=medias[PKGEntryKey.ICON0_PNG],

@@ -385,7 +385,7 @@ class Watcher:
             title_id=param_sfo.data[ParamSFOKey.TITLE_ID],
             content_id=param_sfo.data[ParamSFOKey.CONTENT_ID],
             category=param_sfo.data[ParamSFOKey.CATEGORY],
-            version=param_sfo.data[ParamSFOKey.VERSION],
+            version=PkgUtils.resolve_pkg_version(param_sfo.data),
             pubtoolinfo=param_sfo.data[ParamSFOKey.PUBTOOLINFO],
             system_ver=(param_sfo.data.get(ParamSFOKey.SYSTEM_VER) or ""),
             pkg_path=pkg_path,

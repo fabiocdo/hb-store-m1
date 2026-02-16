@@ -688,3 +688,25 @@ def test_given_file_stable_seconds_when_is_pkg_stable_then_requires_unchanged_wi
     pkg_path.write_text("pkg2", encoding="utf-8")
     now += 1
     assert watcher._is_pkg_stable(pkg_path) is False
+
+
+def test_given_app_ver_higher_when_build_pkg_model_then_uses_app_ver(init_paths):
+    watcher = Watcher()
+    pkg_path = init_paths.GAME_DIR_PATH / "sample.pkg"
+    pkg_path.write_text("pkg", encoding="utf-8")
+
+    sfo = ParamSFO(
+        {
+            ParamSFOKey.TITLE: "t",
+            ParamSFOKey.TITLE_ID: "CUSA00001",
+            ParamSFOKey.CONTENT_ID: "UP0000-TEST00000_00-TEST000000000000",
+            ParamSFOKey.CATEGORY: "GD",
+            ParamSFOKey.VERSION: "01.00",
+            ParamSFOKey.APP_VER: "01.10",
+            ParamSFOKey.PUBTOOLINFO: "",
+        }
+    )
+
+    pkg = watcher._build_pkg_model(pkg_path, sfo)
+
+    assert pkg.version == "01.10"
