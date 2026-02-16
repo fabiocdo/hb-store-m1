@@ -202,15 +202,15 @@ def test_given_missing_cache_when_run_cycle_then_removes_db_orphans(
     )
     monkeypatch.setattr(
         db_utils_module.DBUtils,
-        "select_content_ids",
-        lambda: Output(Status.OK, ["KEEP", "DROP"]),
+        "select_content_entries",
+        lambda: Output(Status.OK, [("KEEP", "Game"), ("DROP", "Game")]),
     )
-    deleted = {"ids": []}
+    deleted = {"keys": []}
 
     monkeypatch.setattr(
         db_utils_module.DBUtils,
-        "delete_by_content_ids",
-        lambda ids: deleted.__setitem__("ids", ids) or Output(Status.OK, len(ids)),
+        "delete_by_content_and_type",
+        lambda keys: deleted.__setitem__("keys", keys) or Output(Status.OK, len(keys)),
     )
     monkeypatch.setattr(
         db_utils_module.DBUtils,
@@ -225,7 +225,7 @@ def test_given_missing_cache_when_run_cycle_then_removes_db_orphans(
 
     watcher._run_cycle()
 
-    assert deleted["ids"] == ["DROP"]
+    assert deleted["keys"] == [("DROP", "Game")]
 
 
 def test_given_media_without_suffix_when_content_id_from_media_then_returns_none():
@@ -636,3 +636,55 @@ def test_given_parallel_preprocess_failure_when_process_pkgs_then_moves_to_error
 
     assert [pkg.content_id for pkg in results] == ["b"]
     assert moved["reasons"] == ["validation_failed"]
+
+
+def test_given_file_in_transfer_when_process_pkg_then_skips_without_error_move(
+    init_paths, monkeypatch
+):
+    watcher = Watcher()
+    pkg_path = init_paths.GAME_DIR_PATH / "uploading.pkg"
+    pkg_path.write_text("pkg", encoding="utf-8")
+
+    monkeypatch.setattr(watcher, "_is_pkg_stable", lambda _p: False)
+    moved = {"called": False}
+    monkeypatch.setattr(
+        watcher._file_utils,
+        "move_to_error",
+        lambda *_args, **_kwargs: moved.__setitem__("called", True),
+    )
+    validate_called = {"called": False}
+    monkeypatch.setattr(
+        watcher._pkg_utils,
+        "validate",
+        lambda _p: validate_called.__setitem__("called", True)
+        or Output(Status.OK, _p),
+    )
+
+    assert watcher._process_pkg(pkg_path) is None
+    assert moved["called"] is False
+    assert validate_called["called"] is False
+
+
+def test_given_file_stable_seconds_when_is_pkg_stable_then_requires_unchanged_window(
+    init_paths, monkeypatch
+):
+    watcher = Watcher()
+    pkg_path = init_paths.GAME_DIR_PATH / "stable.pkg"
+    pkg_path.write_text("pkg", encoding="utf-8")
+    monkeypatch.setattr(watcher, "_file_stable_seconds", 10, raising=False)
+    now = 1_000.0
+    monkeypatch.setattr("hb_store_m1.modules.watcher.time.time", lambda: now)
+
+    # First observation starts tracking; it is still considered in-transfer.
+    assert watcher._is_pkg_stable(pkg_path) is False
+
+    now += 5
+    assert watcher._is_pkg_stable(pkg_path) is False
+
+    now += 6
+    assert watcher._is_pkg_stable(pkg_path) is True
+
+    # If file changes after being stable, it should enter transfer tracking again.
+    pkg_path.write_text("pkg2", encoding="utf-8")
+    now += 1
+    assert watcher._is_pkg_stable(pkg_path) is False

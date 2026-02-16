@@ -81,7 +81,7 @@ flowchart TD
     K -->|yes| L[Process changed PKGs]
     L --> M[AutoOrganizer + media extraction]
     M --> N[DBUtils.upsert]
-    M --> O[FPKGIUtils.upsert optional]
+    N --> O[FPKGIUtils.sync_from_store_db optional]
     N --> P[write store-cache.json]
     O --> P
 ```
@@ -95,7 +95,7 @@ flowchart TD
 - Extract:
   - `ICON0_PNG` (required)
   - `PIC0_PNG` and `PIC1_PNG` (optional)
-- Update `store.db` using `upsert` by `content_id`.
+- Update `store.db` using `upsert` by `(content_id, apptype, version)`.
 - Generate app-type JSON files when `FPGKI_FORMAT_ENABLED=true`.
 - Keep incremental cache in `data/_cache/store-cache.json`.
 - Move invalid/conflicting files to `data/_errors`.
@@ -169,6 +169,7 @@ docker compose down
 | `WATCHER_ENABLED`                         | bool   | `true`                | Enable/disable watcher loop.                                                                   |
 | `WATCHER_PERIODIC_SCAN_SECONDS`           | int    | `30`                  | Scan loop interval.                                                                            |
 | `WATCHER_PKG_PREPROCESS_WORKERS`          | int    | `1`                   | Parallel workers for validate + PARAM.SFO preprocessing (`1` disables parallel preprocessing). |
+| `WATCHER_FILE_STABLE_SECONDS`             | int    | `15`                  | Minimum file age before processing to avoid moving files still in transfer.                    |
 | `FPGKI_FORMAT_ENABLED`                    | bool   | `false`               | Generate/update per-type FPKGi JSON output (`GAMES.json`, `DLC.json`, etc.).                   |
 | `PKGTOOL_TIMEOUT_SECONDS`                 | int    | `300`                 | Generic timeout for lightweight `pkgtool` commands.                                            |
 | `PKGTOOL_VALIDATE_TIMEOUT_SECONDS`        | int    | `300`                 | Base timeout for `pkg_validate`.                                                               |
