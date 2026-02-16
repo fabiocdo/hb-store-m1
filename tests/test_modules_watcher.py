@@ -746,6 +746,20 @@ def test_given_file_stable_seconds_when_is_pkg_stable_then_requires_unchanged_wi
     assert watcher._is_pkg_stable(pkg_path) is False
 
 
+def test_given_old_file_on_first_observation_when_is_pkg_stable_then_returns_true(
+    init_paths, monkeypatch
+):
+    watcher = Watcher()
+    pkg_path = init_paths.GAME_DIR_PATH / "already_stable.pkg"
+    pkg_path.write_text("pkg", encoding="utf-8")
+    monkeypatch.setattr(watcher, "_file_stable_seconds", 10, raising=False)
+
+    stat = pkg_path.stat()
+    monkeypatch.setattr("hb_store_m1.modules.watcher.time.time", lambda: stat.st_mtime + 20)
+
+    assert watcher._is_pkg_stable(pkg_path) is True
+
+
 def test_given_app_ver_higher_when_build_pkg_model_then_uses_app_ver(init_paths):
     watcher = Watcher()
     pkg_path = init_paths.GAME_DIR_PATH / "sample.pkg"

@@ -425,6 +425,14 @@ class Watcher:
 
         now = float(time.time())
         previous = self._inflight_pkg_state.get(pkg_path)
+        age_seconds = max(0.0, now - mtime)
+
+        # If file is already older than the transfer window on first observation,
+        # accept immediately to avoid startup-wide false "in transfer" skips.
+        if previous is None and age_seconds >= float(self._file_stable_seconds):
+            self._inflight_pkg_state.pop(pkg_path, None)
+            return True
+
         if previous is None or previous[0] != size or previous[1] != mtime:
             self._inflight_pkg_state[pkg_path] = (size, mtime, now)
             return False
