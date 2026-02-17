@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from homebrew_cdn_m1_server.application.dto.scan_delta import ScanDelta
+from homebrew_cdn_m1_server.domain.workflows.models.scan_delta import ScanDelta
 
 
 def build_delta(

@@ -6,7 +6,7 @@ import pytest
 
 from homebrew_cdn_m1_server.config.settings_loader import SettingsLoader
 from homebrew_cdn_m1_server.config.settings_models import AppConfig
-from homebrew_cdn_m1_server.infrastructure.repositories.fs_package_store import FsPackageStore
+from homebrew_cdn_m1_server.application.adapters.repositories.fs_package_store import FsPackageStore
 
 
 def _make_store(temp_workspace: Path) -> tuple[FsPackageStore, AppConfig]:

@@ -8,8 +8,8 @@ from homebrew_cdn_m1_server.domain.entities.catalog_item import CatalogItem
 from homebrew_cdn_m1_server.domain.entities.param_sfo_snapshot import ParamSfoSnapshot
 from homebrew_cdn_m1_server.domain.value_objects.app_type import AppType
 from homebrew_cdn_m1_server.domain.value_objects.content_id import ContentId
-from homebrew_cdn_m1_server.infrastructure.exporters.fpkgi_json_exporter import FpkgiJsonExporter
-from homebrew_cdn_m1_server.infrastructure.exporters.store_db_exporter import StoreDbExporter
+from homebrew_cdn_m1_server.application.adapters.exporters.fpkgi_json_exporter import FpkgiJsonExporter
+from homebrew_cdn_m1_server.application.adapters.exporters.store_db_exporter import StoreDbExporter
 
 
 def _item(

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Sequence
 
-from homebrew_cdn_m1_server.application.use_cases.export_outputs import ExportOutputs
+from homebrew_cdn_m1_server.domain.workflows.export_outputs import ExportOutputs
 from homebrew_cdn_m1_server.config.settings_models import OutputTarget
 from homebrew_cdn_m1_server.domain.entities.catalog_item import CatalogItem
 

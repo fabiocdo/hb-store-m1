@@ -6,7 +6,7 @@ from homebrew_cdn_m1_server.domain.entities.catalog_item import CatalogItem
 from homebrew_cdn_m1_server.domain.entities.param_sfo_snapshot import ParamSfoSnapshot
 from homebrew_cdn_m1_server.domain.value_objects.app_type import AppType
 from homebrew_cdn_m1_server.domain.value_objects.content_id import ContentId
-from homebrew_cdn_m1_server.infrastructure.repositories.sqlite_unit_of_work import SqliteUnitOfWork
+from homebrew_cdn_m1_server.application.adapters.repositories.sqlite_unit_of_work import SqliteUnitOfWork
 
 
 def _item(path: Path) -> CatalogItem:

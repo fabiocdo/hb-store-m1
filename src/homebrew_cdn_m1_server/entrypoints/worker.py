@@ -9,7 +9,7 @@ from pathlib import Path
 from homebrew_cdn_m1_server.bootstrap.container import Container
 from homebrew_cdn_m1_server.config.logging_setup import configure_logging
 from homebrew_cdn_m1_server.config.settings_loader import SettingsLoader
-from homebrew_cdn_m1_server.infrastructure.scheduler.apscheduler_runner import APSchedulerRunner
+from homebrew_cdn_m1_server.application.adapters.scheduler.apscheduler_runner import APSchedulerRunner
 
 
 def main() -> int:

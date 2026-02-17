@@ -1,5 +1,5 @@
 from homebrew_cdn_m1_server.domain.services import normalize_text
-from homebrew_cdn_m1_server.infrastructure.gateways.pkgtool_gateway import PkgtoolGateway
+from homebrew_cdn_m1_server.application.adapters.gateways.pkgtool_gateway import PkgtoolGateway
 
 
 def test_normalize_text_given_unicode_roman_numeral_then_converts_to_ascii() -> None:
