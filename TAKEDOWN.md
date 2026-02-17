@@ -4,8 +4,8 @@ Use this process to report copyright/IP abuse or other illegal use linked to thi
 
 ## Where to Report
 
-- GitHub issues: https://github.com/fabiocdo/hb-store-m1/issues
-- GitLab issues: https://gitlab.com/fabiocdo/hb-store-m1/-/issues
+- GitHub issues: https://github.com/fabiocdo/homebrew-cdn-m1-server/issues
+- GitLab issues: https://gitlab.com/fabiocdo/homebrew-cdn-m1-server/-/issues
 
 If you need a private report, open an issue asking for private contact handling.
 
