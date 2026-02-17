@@ -45,6 +45,8 @@ COPY assets/512.png /app/init/assets/512.png
 COPY pyproject.toml /app/pyproject.toml
 COPY init/store_db.sql /app/init/store_db.sql
 COPY init/catalog_db.sql /app/init/catalog_db.sql
+COPY init/fpkgi.schema.json /app/init/fpkgi.schema.json
+COPY init/snapshot.schema.json /app/init/snapshot.schema.json
 COPY init/settings.ini /app/init/settings.ini
 
 COPY docker/entrypoint.sh /entrypoint.sh

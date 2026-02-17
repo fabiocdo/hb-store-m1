@@ -3,9 +3,11 @@ from __future__ import annotations
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import override
 
 
 class _DemoteApschedulerSchedulerInfoFilter(logging.Filter):
+    @override
     def filter(self, record: logging.LogRecord) -> bool:
         if (
             record.name in {"apscheduler.scheduler", "apscheduler.executors.default"}

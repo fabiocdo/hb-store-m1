@@ -1,20 +1,22 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+import logging
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable, final
 
-from homebrew_cdn_m1_server.domain.protocols.logger_port import LoggerPort
-from homebrew_cdn_m1_server.domain.protocols.output_exporter_port import OutputExporterPort
-from homebrew_cdn_m1_server.domain.protocols.unit_of_work_port import UnitOfWorkPort
-from homebrew_cdn_m1_server.config.settings_models import OutputTarget
+from homebrew_cdn_m1_server.application.repositories.sqlite_unit_of_work import SqliteUnitOfWork
+from homebrew_cdn_m1_server.domain.protocols.output_exporter_protocol import OutputExporterProtocol
+from homebrew_cdn_m1_server.domain.models.output_target import OutputTarget
 
 
+@final
 class ExportOutputs:
     def __init__(
         self,
-        uow_factory: Callable[[], UnitOfWorkPort],
-        exporters: Iterable[OutputExporterPort],
-        logger: LoggerPort,
+        uow_factory: Callable[[], SqliteUnitOfWork],
+        exporters: Iterable[OutputExporterProtocol],
+        logger: logging.Logger,
     ) -> None:
         self._uow_factory = uow_factory
         self._exporters = {exporter.target: exporter for exporter in exporters}
@@ -33,10 +35,10 @@ class ExportOutputs:
                 continue
             files = exporter.export(items)
             exported.extend(files)
-            self._logger.info(
-                "Exportacao concluida: destino: %s, arquivos: %d",
-                target.value,
-                len(files),
+            self._logger.debug(
+                "%s Export completed: %d updated",
+                target.value.upper(),
+                len(items),
             )
 
         for target, exporter in self._exporters.items():
@@ -46,7 +48,7 @@ class ExportOutputs:
             if not removed_files:
                 continue
             self._logger.info(
-                "Saida desativada removida: destino: %s, arquivos: %d",
+                "Disabled output cleaned: target: %s, files: %d",
                 target.value,
                 len(removed_files),
             )

@@ -1,5 +1,7 @@
-from homebrew_cdn_m1_server.domain.services import normalize_text
-from homebrew_cdn_m1_server.application.adapters.gateways.pkgtool_gateway import PkgtoolGateway
+from homebrew_cdn_m1_server.application.gateways.pkgtool_gateway import (
+    PkgtoolGateway,
+    normalize_text,
+)
 
 
 def test_normalize_text_given_unicode_roman_numeral_then_converts_to_ascii() -> None:
@@ -13,7 +15,7 @@ def test_parse_sfo_entries_given_roman_numeral_title_then_stores_normalized_valu
         "Entry Name : utf8 = TITLE",
     ]
 
-    parsed = PkgtoolGateway._parse_sfo_entries(lines)
+    parsed = PkgtoolGateway.parse_sfo_entries(lines)
 
     assert parsed["TITLE"] == "Resident Evil IV"
     assert parsed["TITLE_ID"] == "CUSA99999"

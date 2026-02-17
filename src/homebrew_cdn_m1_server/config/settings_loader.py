@@ -1,23 +1,22 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar, final
 
-from homebrew_cdn_m1_server.config.settings_models import (
-    AppConfig,
-    OutputTarget,
-    RuntimePaths,
-    UserSettings,
-)
+from homebrew_cdn_m1_server.config.settings_models import UserSettings
+from homebrew_cdn_m1_server.domain.models.output_target import OutputTarget
+from homebrew_cdn_m1_server.domain.models.app_config import AppConfig, RuntimePaths
 
 
+@final
 class SettingsLoader:
-    _KEY_MAP = {
+    _KEY_MAP: ClassVar[dict[str, str]] = {
         "SERVER_IP": "server_ip",
         "SERVER_PORT": "server_port",
         "ENABLE_TLS": "enable_tls",
         "LOG_LEVEL": "log_level",
-        "WATCHER_PKG_PREPROCESS_WORKERS": "watcher_pkg_preprocess_workers",
-        "WATCHER_CRON_EXPRESSION": "watcher_cron_expression",
+        "RECONCILE_PKG_PREPROCESS_WORKERS": "reconcile_pkg_preprocess_workers",
+        "RECONCILE_CRON_EXPRESSION": "reconcile_cron_expression",
         "EXPORT_TARGETS": "output_targets",
         "PKGTOOL_TIMEOUT_SECONDS": "pkgtool_timeout_seconds",
     }
@@ -53,7 +52,7 @@ class SettingsLoader:
                 continue
             if target in {
                 "server_port",
-                "watcher_pkg_preprocess_workers",
+                "reconcile_pkg_preprocess_workers",
                 "pkgtool_timeout_seconds",
             }:
                 text = str(value or "").strip()
@@ -68,7 +67,7 @@ class SettingsLoader:
                 mapped[target] = cls._parse_bool(value)
                 continue
             if target == "output_targets":
-                parsed_targets = []
+                parsed_targets: list[OutputTarget] = []
                 for item in str(value or "").split(","):
                     normalized = item.strip().lower()
                     if not normalized:
@@ -78,7 +77,14 @@ class SettingsLoader:
                     except ValueError:
                         continue
                 if parsed_targets:
-                    mapped[target] = tuple(dict.fromkeys(parsed_targets))
+                    seen: set[OutputTarget] = set()
+                    deduped: list[OutputTarget] = []
+                    for parsed in parsed_targets:
+                        if parsed in seen:
+                            continue
+                        seen.add(parsed)
+                        deduped.append(parsed)
+                    mapped[target] = tuple(deduped)
                 continue
 
             mapped[target] = value
@@ -122,7 +128,7 @@ class SettingsLoader:
             unknown_dir=pkg_root / "unknown",
             catalog_db_path=catalog_dir / "catalog.db",
             store_db_path=hb_store_share_dir / "store.db",
-            snapshot_path=internal_dir / "snapshot" / "pkg-snapshot.json",
+            snapshot_path=catalog_dir / "pkgs-snapshot.json",
             settings_path=settings_path,
             pkgtool_bin_path=app_root / "bin" / "pkgtool",
         )

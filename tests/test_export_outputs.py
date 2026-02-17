@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+import logging
 from pathlib import Path
-from typing import Sequence
+from types import TracebackType
+from typing import cast, final
 
+from homebrew_cdn_m1_server.application.repositories.sqlite_unit_of_work import SqliteUnitOfWork
 from homebrew_cdn_m1_server.domain.workflows.export_outputs import ExportOutputs
-from homebrew_cdn_m1_server.config.settings_models import OutputTarget
-from homebrew_cdn_m1_server.domain.entities.catalog_item import CatalogItem
+from homebrew_cdn_m1_server.domain.models.output_target import OutputTarget
+from homebrew_cdn_m1_server.domain.models.catalog_item import CatalogItem
 
 
+@final
 class _FakeCatalogRepository:
     def __init__(self, items: Sequence[CatalogItem]) -> None:
         self._items = list(items)
@@ -26,6 +31,7 @@ class _FakeCatalogRepository:
         return 0
 
 
+@final
 class _FakeUnitOfWork:
     def __init__(self, items: Sequence[CatalogItem]) -> None:
         self.catalog = _FakeCatalogRepository(items)
@@ -33,8 +39,15 @@ class _FakeUnitOfWork:
     def __enter__(self) -> "_FakeUnitOfWork":
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
-        _ = (exc_type, exc, tb)
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        _ = exc_type
+        _ = exc
+        _ = tb
 
     def commit(self) -> None:
         return None
@@ -43,6 +56,7 @@ class _FakeUnitOfWork:
         return None
 
 
+@final
 class _FakeLogger:
     def __init__(self) -> None:
         self.infos: list[str] = []
@@ -68,6 +82,7 @@ class _FakeLogger:
         self.error(msg, *args)
 
 
+@final
 class _FakeExporter:
     def __init__(
         self,
@@ -75,11 +90,11 @@ class _FakeExporter:
         export_result: Sequence[Path],
         cleanup_result: Sequence[Path],
     ) -> None:
-        self.target = target
-        self._export_result = list(export_result)
-        self._cleanup_result = list(cleanup_result)
-        self.export_calls = 0
-        self.cleanup_calls = 0
+        self.target: OutputTarget = target
+        self._export_result: list[Path] = list(export_result)
+        self._cleanup_result: list[Path] = list(cleanup_result)
+        self.export_calls: int = 0
+        self.cleanup_calls: int = 0
 
     def export(self, items: Sequence[CatalogItem]) -> list[Path]:
         _ = items
@@ -104,10 +119,14 @@ def test_export_outputs_given_disabled_target_when_run_then_cleans_stale_output(
         cleanup_result=[Path("/tmp/GAMES.json"), Path("/tmp/DLC.json")],
     )
 
+    def _uow_factory() -> SqliteUnitOfWork:
+        return cast(SqliteUnitOfWork, cast(object, _FakeUnitOfWork(items=[])))
+
+    logger_like = cast(logging.Logger, cast(object, logger))
     use_case = ExportOutputs(
-        uow_factory=lambda: _FakeUnitOfWork(items=[]),
+        uow_factory=_uow_factory,
         exporters=[hb_exporter, fpkgi_exporter],
-        logger=logger,
+        logger=logger_like,
     )
 
     exported = use_case((OutputTarget.HB_STORE,))
@@ -118,6 +137,6 @@ def test_export_outputs_given_disabled_target_when_run_then_cleans_stale_output(
     assert fpkgi_exporter.export_calls == 0
     assert fpkgi_exporter.cleanup_calls == 1
     assert (
-        "Saida desativada removida: destino: fpkgi, arquivos: 2"
+        "Disabled output cleaned: target: fpkgi, files: 2"
         in logger.infos
     )

@@ -3,13 +3,37 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import cast
 
-from homebrew_cdn_m1_server.domain.entities.catalog_item import CatalogItem
-from homebrew_cdn_m1_server.domain.entities.param_sfo_snapshot import ParamSfoSnapshot
-from homebrew_cdn_m1_server.domain.value_objects.app_type import AppType
-from homebrew_cdn_m1_server.domain.value_objects.content_id import ContentId
-from homebrew_cdn_m1_server.application.adapters.exporters.fpkgi_json_exporter import FpkgiJsonExporter
-from homebrew_cdn_m1_server.application.adapters.exporters.store_db_exporter import StoreDbExporter
+import pytest
+
+from homebrew_cdn_m1_server.domain.models.catalog_item import CatalogItem
+from homebrew_cdn_m1_server.domain.models.param_sfo_snapshot import ParamSfoSnapshot
+from homebrew_cdn_m1_server.domain.models.app_type import AppType
+from homebrew_cdn_m1_server.domain.models.content_id import ContentId
+from homebrew_cdn_m1_server.application.exporters.fpkgi_json_exporter import FpkgiJsonExporter
+from homebrew_cdn_m1_server.application.exporters.store_db_exporter import StoreDbExporter
+
+FPKGI_SCHEMA = Path(__file__).resolve().parents[1] / "init" / "fpkgi.schema.json"
+
+
+def _read_json_object(path: Path) -> dict[str, object]:
+    obj = cast(object, json.loads(path.read_text("utf-8")))
+    assert isinstance(obj, dict)
+    return cast(dict[str, object], obj)
+
+
+def _read_data_rows(path: Path) -> dict[str, dict[str, object]]:
+    payload = _read_json_object(path)
+    data_obj = payload.get("DATA")
+    assert isinstance(data_obj, dict)
+    data_map = cast(dict[object, object], data_obj)
+    rows: dict[str, dict[str, object]] = {}
+    for key_obj, value_obj in data_map.items():
+        assert isinstance(key_obj, str)
+        assert isinstance(value_obj, dict)
+        rows[key_obj] = cast(dict[str, object], value_obj)
+    return rows
 
 
 def _item(
@@ -51,7 +75,7 @@ def test_exporters_given_catalog_items_when_export_then_generates_store_db_and_j
 
     pkg_path = share_dir / "pkg" / "game" / "UP0000-TEST00000_00-TEST000000000000.pkg"
     pkg_path.parent.mkdir(parents=True, exist_ok=True)
-    pkg_path.write_bytes(b"x")
+    _ = pkg_path.write_bytes(b"x")
 
     items = [
         _item(pkg_path, "UP0000-TEST00000_00-TEST000000000000", AppType.GAME),
@@ -62,23 +86,30 @@ def test_exporters_given_catalog_items_when_export_then_generates_store_db_and_j
 
     assert exported_db == [store_output]
     conn = sqlite3.connect(str(store_output))
-    row = conn.execute("SELECT content_id, apptype, image FROM homebrews").fetchone()
+    row_obj = cast(
+        object,
+        conn.execute("SELECT content_id, apptype, image FROM homebrews").fetchone(),
+    )
     conn.close()
+    row = cast(tuple[str, str, str] | None, row_obj)
     assert row == (
         "UP0000-TEST00000_00-TEST000000000000",
         "Game",
         "http://127.0.0.1/pkg/media/UP0000-TEST00000_00-TEST000000000000_icon0.png",
     )
 
-    json_exporter = FpkgiJsonExporter(share_dir / "fpkgi", "http://127.0.0.1")
+    json_exporter = FpkgiJsonExporter(
+        share_dir / "fpkgi",
+        "http://127.0.0.1",
+        FPKGI_SCHEMA,
+    )
     exported_json = json_exporter.export(items)
 
     games_json = share_dir / "fpkgi" / "GAMES.json"
     assert games_json in exported_json
-    payload = json.loads(games_json.read_text("utf-8"))
-    assert "DATA" in payload
-    assert len(payload["DATA"]) == 1
-    item = payload["DATA"]["http://127.0.0.1/pkg/game/UP0000-TEST00000_00-TEST000000000000.pkg"]
+    data_rows = _read_data_rows(games_json)
+    assert len(data_rows) == 1
+    item = data_rows["http://127.0.0.1/pkg/game/UP0000-TEST00000_00-TEST000000000000.pkg"]
     assert item["cover_url"] == "http://127.0.0.1/pkg/media/UP0000-TEST00000_00-TEST000000000000_icon0.png"
 
 
@@ -90,13 +121,17 @@ def test_fpkgi_exporter_given_single_game_when_export_then_generates_all_json_st
 
     pkg_path = share_dir / "pkg" / "game" / "UP0000-TEST00000_00-TEST000000000010.pkg"
     pkg_path.parent.mkdir(parents=True, exist_ok=True)
-    pkg_path.write_bytes(b"x")
+    _ = pkg_path.write_bytes(b"x")
 
     items = [
         _item(pkg_path, "UP0000-TEST00000_00-TEST000000000010", AppType.GAME),
     ]
 
-    exporter = FpkgiJsonExporter(share_dir / "fpkgi", "http://127.0.0.1")
+    exporter = FpkgiJsonExporter(
+        share_dir / "fpkgi",
+        "http://127.0.0.1",
+        FPKGI_SCHEMA,
+    )
     exported = exporter.export(items)
 
     expected_stems = (
@@ -119,12 +154,14 @@ def test_fpkgi_exporter_given_single_game_when_export_then_generates_all_json_st
     for stem in expected_stems:
         destination = share_dir / "fpkgi" / f"{stem}.json"
         assert destination in exported
-        payload = json.loads(destination.read_text("utf-8"))
-        assert "DATA" in payload
+        payload = _read_json_object(destination)
+        data_obj = payload.get("DATA")
+        assert isinstance(data_obj, dict)
+        data_map = cast(dict[object, object], data_obj)
         if stem == "GAMES":
-            assert len(payload["DATA"]) == 1
+            assert len(data_map) == 1
         else:
-            assert payload["DATA"] == {}
+            assert data_map == {}
 
 
 def test_fpkgi_exporter_given_system_ver_when_export_then_normalizes_min_fw(
@@ -135,21 +172,24 @@ def test_fpkgi_exporter_given_system_ver_when_export_then_normalizes_min_fw(
 
     pkg_a = share_dir / "pkg" / "game" / "UP0000-TEST00000_00-TEST000000000001.pkg"
     pkg_a.parent.mkdir(parents=True, exist_ok=True)
-    pkg_a.write_bytes(b"a")
+    _ = pkg_a.write_bytes(b"a")
 
     pkg_b = share_dir / "pkg" / "game" / "UP0000-TEST00000_00-TEST000000000002.pkg"
-    pkg_b.write_bytes(b"b")
+    _ = pkg_b.write_bytes(b"b")
 
     items = [
         _item(pkg_a, "UP0000-TEST00000_00-TEST000000000001", AppType.GAME, "0x05050000"),
         _item(pkg_b, "UP0000-TEST00000_00-TEST000000000002", AppType.GAME, ""),
     ]
 
-    exporter = FpkgiJsonExporter(share_dir / "fpkgi", "http://127.0.0.1")
-    exporter.export(items)
+    exporter = FpkgiJsonExporter(
+        share_dir / "fpkgi",
+        "http://127.0.0.1",
+        FPKGI_SCHEMA,
+    )
+    _ = exporter.export(items)
 
-    payload = json.loads((share_dir / "fpkgi" / "GAMES.json").read_text("utf-8"))
-    data = payload["DATA"]
+    data = _read_data_rows(share_dir / "fpkgi" / "GAMES.json")
     assert (
         data["http://127.0.0.1/pkg/game/UP0000-TEST00000_00-TEST000000000001.pkg"][
             "min_fw"
@@ -172,13 +212,13 @@ def test_fpkgi_exporter_given_pkg_sizes_when_export_then_uses_dynamic_size_units
 
     pkg_small = share_dir / "pkg" / "app" / "UP0000-TEST00000_00-TEST000000000003.pkg"
     pkg_small.parent.mkdir(parents=True, exist_ok=True)
-    pkg_small.write_bytes(b"a")
+    _ = pkg_small.write_bytes(b"a")
 
     pkg_medium = share_dir / "pkg" / "app" / "UP0000-TEST00000_00-TEST000000000004.pkg"
-    pkg_medium.write_bytes(b"b")
+    _ = pkg_medium.write_bytes(b"b")
 
     pkg_large = share_dir / "pkg" / "app" / "UP0000-TEST00000_00-TEST000000000005.pkg"
-    pkg_large.write_bytes(b"c")
+    _ = pkg_large.write_bytes(b"c")
 
     items = [
         _item(
@@ -201,11 +241,14 @@ def test_fpkgi_exporter_given_pkg_sizes_when_export_then_uses_dynamic_size_units
         ),
     ]
 
-    exporter = FpkgiJsonExporter(share_dir / "fpkgi", "http://127.0.0.1")
-    exporter.export(items)
+    exporter = FpkgiJsonExporter(
+        share_dir / "fpkgi",
+        "http://127.0.0.1",
+        FPKGI_SCHEMA,
+    )
+    _ = exporter.export(items)
 
-    payload = json.loads((share_dir / "fpkgi" / "APPS.json").read_text("utf-8"))
-    data = payload["DATA"]
+    data = _read_data_rows(share_dir / "fpkgi" / "APPS.json")
 
     assert (
         data["http://127.0.0.1/pkg/app/UP0000-TEST00000_00-TEST000000000003.pkg"][
@@ -238,11 +281,11 @@ def test_store_db_exporter_given_existing_db_when_cleanup_then_removes_file(
 
     pkg_path = share_dir / "pkg" / "game" / "UP0000-TEST00000_00-TEST000000000000.pkg"
     pkg_path.parent.mkdir(parents=True, exist_ok=True)
-    pkg_path.write_bytes(b"x")
+    _ = pkg_path.write_bytes(b"x")
 
     item = _item(pkg_path, "UP0000-TEST00000_00-TEST000000000000", AppType.GAME)
     exporter = StoreDbExporter(store_output, store_sql, "http://127.0.0.1")
-    exporter.export([item])
+    _ = exporter.export([item])
     assert store_output.exists() is True
 
     removed = exporter.cleanup()
@@ -258,11 +301,11 @@ def test_fpkgi_exporter_given_existing_outputs_when_cleanup_then_removes_all_kno
     output_dir.mkdir(parents=True, exist_ok=True)
     managed = [output_dir / "GAMES.json", output_dir / "DLC.json", output_dir / "APPS.json"]
     for path in managed:
-        path.write_text('{"DATA":{}}', encoding="utf-8")
+        _ = path.write_text('{"DATA":{}}', encoding="utf-8")
     extra = output_dir / "CUSTOM.json"
-    extra.write_text("{}", encoding="utf-8")
+    _ = extra.write_text("{}", encoding="utf-8")
 
-    exporter = FpkgiJsonExporter(output_dir, "http://127.0.0.1")
+    exporter = FpkgiJsonExporter(output_dir, "http://127.0.0.1", FPKGI_SCHEMA)
     removed = exporter.cleanup()
 
     assert set(removed) == set(managed)
@@ -280,17 +323,28 @@ def test_fpkgi_exporter_given_stale_json_when_export_then_resets_managed_file_to
     output_dir.mkdir(parents=True, exist_ok=True)
 
     stale = output_dir / "APPS.json"
-    stale.write_text('{"DATA":{"old":"data"}}', encoding="utf-8")
+    _ = stale.write_text('{"DATA":{"old":"data"}}', encoding="utf-8")
 
     pkg_path = share_dir / "pkg" / "game" / "UP0000-TEST00000_00-TEST000000000099.pkg"
     pkg_path.parent.mkdir(parents=True, exist_ok=True)
-    pkg_path.write_bytes(b"x")
+    _ = pkg_path.write_bytes(b"x")
     items = [_item(pkg_path, "UP0000-TEST00000_00-TEST000000000099", AppType.GAME)]
 
-    exporter = FpkgiJsonExporter(output_dir, "http://127.0.0.1")
+    exporter = FpkgiJsonExporter(output_dir, "http://127.0.0.1", FPKGI_SCHEMA)
     exported = exporter.export(items)
 
     assert (output_dir / "GAMES.json") in exported
     assert stale.exists() is True
-    stale_payload = json.loads(stale.read_text("utf-8"))
+    stale_payload = _read_json_object(stale)
     assert stale_payload == {"DATA": {}}
+
+
+def test_fpkgi_exporter_given_outdated_schema_when_init_then_raises(temp_workspace: Path):
+    output_dir = temp_workspace / "data" / "share" / "fpkgi"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    bad_schema = temp_workspace / "bad-fpkgi.schema.json"
+    _ = bad_schema.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="out of sync"):
+        _ = FpkgiJsonExporter(output_dir, "http://127.0.0.1", bad_schema)

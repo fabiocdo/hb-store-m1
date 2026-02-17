@@ -1,4 +1,4 @@
-from homebrew_cdn_m1_server.domain.services.package_diff import build_delta
+from homebrew_cdn_m1_server.domain.workflows.reconcile_catalog import build_delta
 
 
 def test_build_delta_given_previous_and_current_then_classifies_changes():

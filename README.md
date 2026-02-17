@@ -1,36 +1,31 @@
 # homebrew-cdn-m1-server
 
-Static CDN pipeline for PS4 Homebrew catalogs.
+PS4 static CDN pipeline for `hb-store` (`store.db`) and `fPKGi` (`*.json`).
 
-- Internal source of truth: `data/internal/catalog/catalog.db`
-- Public share root: `data/share`
-- Public outputs: `store.db`, `*.json`, `/pkg/**`, `/update/*`, `/index.html`
+## What it does
 
-## How it works
+1. Watches `data/share/pkg/**/*.pkg` on a reconcile schedule.
+2. Probes each PKG with `pkgtool` (`PARAM.SFO` + media).
+3. Moves PKG to canonical path: `data/share/pkg/<app_type>/<CONTENT_ID>.pkg`.
+4. Upserts full metadata into internal catalog: `data/internal/catalog/catalog.db`.
+5. Exports selected targets:
+   - `hb-store` -> `data/share/hb-store/store.db`
+   - `fpkgi` -> `data/share/fpkgi/*.json`
+6. Serves public content through nginx from `data/share`.
 
-1. Scan `data/share/pkg/**.pkg` and compare with snapshot cache.
-2. For added/updated packages:
-- read `PARAM.SFO` with `pkgtool`
-- extract media (`ICON0`, optional `PIC0`/`PIC1`)
-- move package to canonical path `/pkg/<app_type>/<CONTENT_ID>.pkg`
-- upsert full metadata into internal `catalog.db`
-3. Remove catalog rows for missing files.
-4. Export selected outputs (`hb-store`, `fpkgi`).
+Broken PKGs are moved to `data/internal/errors`.
 
-Invalid packages are moved to `data/internal/errors`.
+## Quick start (Docker Compose)
 
-## Public endpoints
+### 1) Prepare config
 
-- `/`
-- `/index.html`
-- `/store.db`
-- `/update/remote.md5`
-- `/update/homebrew.elf`
-- `/update/homebrew.elf.sig`
-- `/pkg/**`
-- `/*.json` (known fPKGi files)
+Copy defaults:
 
-## Settings (`configs/settings.ini`)
+```bash
+cp init/settings.ini configs/settings.ini
+```
+
+Edit `configs/settings.ini` as needed:
 
 ```ini
 # Host clients use to reach the service. Value type: string.
@@ -42,28 +37,64 @@ ENABLE_TLS=false
 # Logging verbosity (debug | info | warn | error). Value type: string.
 LOG_LEVEL=info
 # Keep 1 to disable parallel preprocessing.
-WATCHER_PKG_PREPROCESS_WORKERS=1
+RECONCILE_PKG_PREPROCESS_WORKERS=1
 # Cron expression for reconcile schedule (use https://crontab.guru/). Value type: string.
-WATCHER_CRON_EXPRESSION=*/5 * * * *
+RECONCILE_CRON_EXPRESSION=*/5 * * * *
 # Comma-separated export targets. Supported: hb-store, fpkgi.
 EXPORT_TARGETS=hb-store,fpkgi
 # Generic timeout (seconds) for lightweight pkgtool commands.
 PKGTOOL_TIMEOUT_SECONDS=300
 ```
 
-`SERVER_PORT` can be empty:
-- `ENABLE_TLS=false` -> default `80`
-- `ENABLE_TLS=true` -> default `443`
+If `ENABLE_TLS=true`, place cert files in `configs/certs/`:
 
-## Init files
+- `configs/certs/tls.crt`
+- `configs/certs/tls.key`
 
-- `init/settings.ini`
-- `init/catalog_db.sql`
-- `init/store_db.sql`
+### 2) Put your PKGs
 
-## Development
+Drop PKGs under:
+
+- `data/share/pkg/`
+
+The worker scans recursively (except `data/share/pkg/media`) and reorganizes to canonical folders (`app`, `game`, `dlc`, `update`, `save`, `unknown`).
+
+### 3) Run
+
+```bash
+docker compose up --build -d
+docker compose logs -f homebrew-cdn-m1-server
+```
+
+### 4) Check outputs
+
+Public share root:
+
+- `data/share/index.html`
+- `data/share/hb-store/store.db` (served as `/store.db`)
+- `data/share/pkg/**`
+- `data/share/hb-store/update/homebrew.elf`
+- `data/share/hb-store/update/homebrew.elf.sig`
+- `data/share/hb-store/update/remote.md5`
+- `data/share/fpkgi/*.json`
+
+Internal (not public):
+
+- `data/internal/catalog/catalog.db`
+- `data/internal/catalog/pkgs-snapshot.json`
+- `data/internal/errors/*`
+- `data/internal/logs/app_errors.log`
+
+## Local Python run (without Docker)
 
 ```bash
 python -m pip install -e .[test]
-pytest
+cp init/settings.ini configs/settings.ini
+python -m homebrew_cdn_m1_server
 ```
+
+Requires:
+
+- Python 3.12+
+- `bin/pkgtool` available (or compatible path configured by runtime layout)
+- nginx if you want the same serving layer as container

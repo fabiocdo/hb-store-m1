@@ -1,32 +1,44 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import logging
 from pathlib import Path
-from typing import Callable
+from typing import Callable, final
 
-from homebrew_cdn_m1_server.domain.protocols.logger_port import LoggerPort
-from homebrew_cdn_m1_server.domain.protocols.package_probe_port import PackageProbePort
-from homebrew_cdn_m1_server.domain.protocols.package_store_port import PackageStorePort
-from homebrew_cdn_m1_server.domain.protocols.unit_of_work_port import UnitOfWorkPort
-from homebrew_cdn_m1_server.domain.entities.catalog_item import CatalogItem
-from homebrew_cdn_m1_server.domain.entities.param_sfo_snapshot import ParamSfoSnapshot
-from homebrew_cdn_m1_server.domain.services.package_fingerprint import fingerprint_pkg
-
-
-@dataclass(frozen=True, slots=True)
-class IngestResult:
-    item: CatalogItem | None
-    created: bool
-    updated: bool
+from homebrew_cdn_m1_server.application.repositories.filesystem_repository import (
+    FilesystemRepository,
+)
+from homebrew_cdn_m1_server.application.repositories.sqlite_unit_of_work import SqliteUnitOfWork
+from homebrew_cdn_m1_server.domain.protocols.package_probe_protocol import PackageProbeProtocol
+from homebrew_cdn_m1_server.domain.models.catalog_item import CatalogItem
+from homebrew_cdn_m1_server.domain.models.param_sfo_snapshot import ParamSfoSnapshot
+from homebrew_cdn_m1_server.domain.models.results import IngestResult
 
 
+def fingerprint_pkg(path: Path, size: int, mtime_ns: int) -> str:
+    digest = hashlib.blake2b(digest_size=16)
+    digest.update(f"{size}:{mtime_ns}".encode("utf-8"))
+
+    with path.open("rb") as stream:
+        head = stream.read(64 * 1024)
+        digest.update(head)
+
+        if size > 64 * 1024:
+            tail_size = min(size, 64 * 1024)
+            _ = stream.seek(max(0, size - tail_size))
+            digest.update(stream.read(tail_size))
+
+    return digest.hexdigest()
+
+
+@final
 class IngestPackage:
     def __init__(
         self,
-        uow_factory: Callable[[], UnitOfWorkPort],
-        package_probe: PackageProbePort,
-        package_store: PackageStorePort,
-        logger: LoggerPort,
+        uow_factory: Callable[[], SqliteUnitOfWork],
+        package_probe: PackageProbeProtocol,
+        package_store: FilesystemRepository,
+        logger: logging.Logger,
     ) -> None:
         self._uow_factory = uow_factory
         self._package_probe = package_probe
@@ -38,7 +50,7 @@ class IngestPackage:
             probe = self._package_probe.probe(pkg_path)
         except Exception as exc:
             self._logger.error("Failed to probe %s: %s", pkg_path.name, exc)
-            self._package_store.move_to_errors(pkg_path, "probe_failed")
+            _ = self._package_store.move_to_errors(pkg_path, "probe_failed")
             return IngestResult(item=None, created=False, updated=False)
 
         try:
@@ -49,7 +61,7 @@ class IngestPackage:
             )
         except Exception as exc:
             self._logger.error("Failed to move %s to canonical path: %s", pkg_path.name, exc)
-            self._package_store.move_to_errors(pkg_path, "organizer_failed")
+            _ = self._package_store.move_to_errors(pkg_path, "organizer_failed")
             return IngestResult(item=None, created=False, updated=False)
 
         try:
@@ -57,7 +69,7 @@ class IngestPackage:
             pkg_fp = fingerprint_pkg(canonical_path, size, mtime_ns)
         except Exception as exc:
             self._logger.error("Failed to fingerprint %s: %s", canonical_path.name, exc)
-            self._package_store.move_to_errors(canonical_path, "fingerprint_failed")
+            _ = self._package_store.move_to_errors(canonical_path, "fingerprint_failed")
             return IngestResult(item=None, created=False, updated=False)
 
         item = CatalogItem(

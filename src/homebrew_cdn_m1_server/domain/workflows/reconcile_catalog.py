@@ -1,32 +1,53 @@
 from __future__ import annotations
 
+import logging
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from filelock import FileLock, Timeout
 from pathlib import Path
-from typing import Callable
+from typing import Callable, final
 
-from homebrew_cdn_m1_server.domain.workflows.models.reconcile_result import ReconcileResult
-from homebrew_cdn_m1_server.domain.protocols.lock_port import LockPort
-from homebrew_cdn_m1_server.domain.protocols.logger_port import LoggerPort
-from homebrew_cdn_m1_server.domain.protocols.package_store_port import PackageStorePort
-from homebrew_cdn_m1_server.domain.protocols.snapshot_store_port import SnapshotStorePort
-from homebrew_cdn_m1_server.domain.protocols.unit_of_work_port import UnitOfWorkPort
+from homebrew_cdn_m1_server.application.repositories.filesystem_repository import (
+    FilesystemRepository,
+)
+from homebrew_cdn_m1_server.application.repositories.json_snapshot_repository import (
+    JsonSnapshotRepository,
+)
+from homebrew_cdn_m1_server.application.repositories.sqlite_unit_of_work import SqliteUnitOfWork
 from homebrew_cdn_m1_server.domain.workflows.export_outputs import ExportOutputs
-from homebrew_cdn_m1_server.domain.workflows.ingest_package import IngestPackage, IngestResult
-from homebrew_cdn_m1_server.config.settings_models import OutputTarget
-from homebrew_cdn_m1_server.domain.services.package_diff import build_delta
+from homebrew_cdn_m1_server.domain.workflows.ingest_package import IngestPackage
+from homebrew_cdn_m1_server.domain.models.output_target import OutputTarget
+from homebrew_cdn_m1_server.domain.models.results import IngestResult, ReconcileResult, ScanDelta
 
 
+def build_delta(
+    previous: dict[str, tuple[int, int]],
+    current: dict[str, tuple[int, int]],
+) -> ScanDelta:
+    previous_keys = set(previous)
+    current_keys = set(current)
+
+    added = sorted(current_keys - previous_keys)
+    removed = sorted(previous_keys - current_keys)
+    updated = sorted(
+        key for key in previous_keys & current_keys if previous[key] != current[key]
+    )
+
+    return ScanDelta(added=tuple(added), updated=tuple(updated), removed=tuple(removed))
+
+
+@final
 class ReconcileCatalog:
     def __init__(
         self,
-        uow_factory: Callable[[], UnitOfWorkPort],
-        package_store: PackageStorePort,
-        snapshot_store: SnapshotStorePort,
+        uow_factory: Callable[[], SqliteUnitOfWork],
+        package_store: FilesystemRepository,
+        snapshot_store: JsonSnapshotRepository,
         ingest_package: IngestPackage,
         export_outputs: ExportOutputs,
-        lock: LockPort,
-        logger: LoggerPort,
+        lock_path: Path,
+        lock_timeout_seconds: float,
+        logger: logging.Logger,
         worker_count: int,
         output_targets: tuple[OutputTarget, ...],
     ) -> None:
@@ -35,7 +56,8 @@ class ReconcileCatalog:
         self._snapshot_store = snapshot_store
         self._ingest_package = ingest_package
         self._export_outputs = export_outputs
-        self._lock = lock
+        self._lock = FileLock(str(lock_path))
+        self._lock_timeout_seconds = float(lock_timeout_seconds)
         self._logger = logger
         self._worker_count = max(1, int(worker_count))
         self._output_targets = output_targets
@@ -82,7 +104,9 @@ class ReconcileCatalog:
         return self._split_results([str(p) for p in candidates], results)
 
     def __call__(self) -> ReconcileResult:
-        if not self._lock.acquire():
+        try:
+            _ = self._lock.acquire(timeout=self._lock_timeout_seconds)
+        except Timeout:
             self._logger.warning("Reconcile skipped: another cycle is still running")
             return ReconcileResult(0, 0, 0, 0, tuple())
 
@@ -104,13 +128,14 @@ class ReconcileCatalog:
             exported_files = self._export_outputs(self._output_targets)
             self._snapshot_store.save(final_snapshot)
 
-            self._logger.info(
-                "Sincronizacao concluida: adicionados: %d, atualizados: %d, removidos: %d, falhas: %d, exportados: %d",
+            has_changes = bool(added or updated or removed or failed)
+            log_fn = self._logger.info if has_changes else self._logger.debug
+            log_fn(
+                "Reconcile completed: added: %d, updated: %d, removed: %d, failed: %d",
                 added,
                 updated,
                 removed,
                 failed,
-                len(exported_files),
             )
             return ReconcileResult(
                 added=added,
