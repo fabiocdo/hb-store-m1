@@ -137,9 +137,13 @@
       border-bottom: 1px solid var(--line);
       vertical-align: middle;
     }
-    th:nth-child(1), td:nth-child(1) { width: 68%; }
-    th:nth-child(2), td:nth-child(2) { width: 16%; text-align: center; }
-    th:nth-child(3), td:nth-child(3) { width: 16%; text-align: right; }
+    th:nth-child(1), td:nth-child(1) { width: 70%; }
+    th:nth-child(2), td:nth-child(2) { width: 15%; text-align: center; }
+    th:nth-child(3), td:nth-child(3) {
+      width: 15%;
+      text-align: right;
+      padding-right: 18px;
+    }
     code {
       color: #cbd5e1;
       background: #1e293b;
@@ -148,10 +152,13 @@
       font-size: 0.84rem;
     }
     .endpoint-cell code {
-      display: block;
+      display: inline;
       white-space: normal;
       overflow-wrap: anywhere;
       word-break: break-word;
+      background: transparent;
+      border-radius: 0;
+      padding: 0;
     }
     .status {
       font-weight: 600;

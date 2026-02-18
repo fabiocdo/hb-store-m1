@@ -109,7 +109,7 @@ class SettingsLoader:
             hb_store_share_dir=hb_store_share_dir,
             fpkgi_share_dir=fpkgi_share_dir,
             catalog_dir=catalog_dir,
-            cache_dir=internal_dir / "snapshot",
+            cache_dir=catalog_dir,
             logs_dir=internal_dir / "logs",
             errors_dir=internal_dir / "errors",
             hb_store_update_dir=hb_store_share_dir / "update",
