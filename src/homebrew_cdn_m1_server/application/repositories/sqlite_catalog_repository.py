@@ -92,6 +92,72 @@ class SqliteCatalogRepository:
             row,
         )
 
+    def get_download_count(self, title_id: str) -> int:
+        key = str(title_id or "").strip()
+        if not key:
+            return 0
+        row_obj = cast(
+            object,
+            self._conn.execute(
+                "SELECT downloads FROM download_counters WHERE title_id = ? LIMIT 1",
+                (key,),
+            ).fetchone(),
+        )
+        row = cast(tuple[object] | None, row_obj)
+        if row is None:
+            return 0
+        value = row[0]
+        if value is None:
+            return 0
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, int):
+            return max(0, value)
+        if isinstance(value, float):
+            return max(0, int(value))
+        if isinstance(value, str):
+            try:
+                return max(0, int(value.strip()))
+            except ValueError:
+                return 0
+        if isinstance(value, (bytes, bytearray)):
+            try:
+                return max(0, int(bytes(value).decode("utf-8", errors="ignore").strip()))
+            except ValueError:
+                return 0
+        if isinstance(value, memoryview):
+            try:
+                return max(0, int(value.tobytes().decode("utf-8", errors="ignore").strip()))
+            except ValueError:
+                return 0
+        return 0
+
+    def increment_download_count(self, title_id: str, seed: int = 0) -> int:
+        key = str(title_id or "").strip()
+        if not key:
+            return 0
+
+        now = datetime.now(UTC).replace(microsecond=0).isoformat()
+        seed_count = max(0, int(seed))
+        _ = self._conn.execute(
+            """
+            INSERT INTO download_counters (title_id, downloads, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(title_id) DO NOTHING
+            """,
+            (key, seed_count, now, now),
+        )
+        _ = self._conn.execute(
+            """
+            UPDATE download_counters
+            SET downloads = downloads + 1,
+                updated_at = ?
+            WHERE title_id = ?
+            """,
+            (now, key),
+        )
+        return self.get_download_count(key)
+
     @staticmethod
     def _row_text(row: Mapping[str, object], key: str) -> str:
         value = row.get(key)
@@ -185,7 +251,7 @@ class SqliteCatalogRepository:
                 raw=sfo_raw,
                 hash=cls._row_text(row, "sfo_hash"),
             ),
-            downloads=0,
+            downloads=cls._row_int(row, "downloads"),
         )
 
     def list_items(self) -> list[CatalogItem]:
@@ -194,13 +260,31 @@ class SqliteCatalogRepository:
             list[sqlite3.Row],
             self._conn.execute(
             """
-            SELECT content_id, title_id, title, app_type, category, version,
-                   pubtoolinfo, system_ver, release_date, pkg_path,
-                   pkg_size, pkg_mtime_ns, pkg_fingerprint,
-                   icon0_path, pic0_path, pic1_path,
-                   sfo_json, sfo_raw, sfo_hash
-            FROM catalog_items
-            ORDER BY app_type, content_id, version
+            SELECT
+                ci.content_id,
+                ci.title_id,
+                ci.title,
+                ci.app_type,
+                ci.category,
+                ci.version,
+                ci.pubtoolinfo,
+                ci.system_ver,
+                ci.release_date,
+                ci.pkg_path,
+                ci.pkg_size,
+                ci.pkg_mtime_ns,
+                ci.pkg_fingerprint,
+                ci.icon0_path,
+                ci.pic0_path,
+                ci.pic1_path,
+                ci.sfo_json,
+                ci.sfo_raw,
+                ci.sfo_hash,
+                COALESCE(dc.downloads, 0) AS downloads
+            FROM catalog_items AS ci
+            LEFT JOIN download_counters AS dc
+                ON dc.title_id = ci.title_id
+            ORDER BY ci.app_type, ci.content_id, ci.version
             """
             ).fetchall(),
         )

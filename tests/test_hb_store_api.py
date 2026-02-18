@@ -278,6 +278,13 @@ def test_hb_store_api_server_given_requests_when_called_then_returns_compatible_
             == "http://127.0.0.1/pkg/game/UP0000-TEST00000_00-TEST000000000100.pkg"
         )
 
+        conn.request("GET", "/download.php?tid=CUSA00100&check=true")
+        response = conn.getresponse()
+        body = response.read()
+        assert response.status == 200
+        payload = _decode_json_dict(body)
+        assert payload["number_of_downloads"] == "43"
+
         conn.request("GET", "/download.php?tid=UNKNOWN")
         response = conn.getresponse()
         body = response.read()
@@ -286,4 +293,130 @@ def test_hb_store_api_server_given_requests_when_called_then_returns_compatible_
         assert payload["error"] == "title_id_not_found"
         conn.close()
     finally:
+        server.stop()
+
+
+def test_hb_store_api_resolver_given_missing_and_invalid_values_when_count_then_defaults_to_zero(
+    temp_workspace: Path,
+) -> None:
+    catalog_db = temp_workspace / "data" / "internal" / "catalog" / "catalog.db"
+    store_db = temp_workspace / "data" / "share" / "hb-store" / "store.db"
+
+    resolver = HbStoreApiResolver(
+        catalog_db_path=catalog_db,
+        store_db_path=store_db,
+        base_url="http://127.0.0.1",
+    )
+    assert resolver.store_db_hash() == ""
+    assert resolver.download_count("") == "0"
+    assert resolver.download_count("CUSA00999") == "0"
+    assert resolver.increment_download_count("CUSA00999") == 0
+    assert resolver.resolve_download_url("CUSA00999") is None
+    assert HbStoreApiResolver._version_key("") == tuple()
+    assert HbStoreApiResolver._parse_counter_value(memoryview(b" 21 ")) == 21
+    assert HbStoreApiResolver._parse_counter_value(bytearray(b"abc")) is None
+    assert HbStoreApiResolver._parse_counter_value(True) == 1
+    assert HbStoreApiResolver._parse_counter_value(12.9) == 12
+
+    _init_catalog_db(catalog_db)
+    _init_store_db(store_db)
+    with sqlite3.connect(str(store_db)) as conn:
+        _ = conn.execute(
+            """
+            INSERT INTO homebrews (
+                content_id, id, name, desc, image, package, version,
+                picpath, desc_1, desc_2, ReviewStars, Size, Author,
+                apptype, pv, main_icon_path, main_menu_pic, releaseddate,
+                number_of_downloads, github, video, twitter, md5
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "UP0000-TEST00000_00-TEST000000009999",
+                "CUSA00999",
+                "Test title",
+                None,
+                "http://127.0.0.1/pkg/media/icon0.png",
+                "",
+                "01.00",
+                None,
+                None,
+                None,
+                None,
+                "1 B",
+                None,
+                "Game",
+                None,
+                None,
+                None,
+                "2025-01-01",
+                "invalid-count",
+                None,
+                None,
+                None,
+                None,
+            ),
+        )
+        conn.commit()
+
+    resolver = HbStoreApiResolver(
+        catalog_db_path=catalog_db,
+        store_db_path=store_db,
+        base_url="http://127.0.0.1",
+    )
+    assert resolver.download_count("CUSA00999") == "0"
+
+
+def test_hb_store_api_server_given_head_and_restart_when_called_then_stays_stable(
+    temp_workspace: Path,
+) -> None:
+    catalog_db = temp_workspace / "data" / "internal" / "catalog" / "catalog.db"
+    store_db = temp_workspace / "data" / "share" / "hb-store" / "store.db"
+    _init_catalog_db(catalog_db)
+    _init_store_db(store_db)
+    _insert_catalog_row(
+        catalog_db,
+        content_id="UP0000-TEST00000_00-TEST000000000200",
+        title_id="CUSA00200",
+        app_type="game",
+        version="01.00",
+        updated_at="2025-01-01T00:00:00+00:00",
+    )
+    _insert_store_row(
+        store_db,
+        content_id="UP0000-TEST00000_00-TEST000000000200",
+        title_id="CUSA00200",
+        package_url="http://127.0.0.1/pkg/game/UP0000-TEST00000_00-TEST000000000200.pkg",
+    )
+
+    server = HbStoreApiServer(
+        resolver=HbStoreApiResolver(
+            catalog_db_path=catalog_db,
+            store_db_path=store_db,
+            base_url="http://127.0.0.1",
+        ),
+        logger=logging.getLogger("tests.hb_store_api"),
+        host="127.0.0.1",
+        port=0,
+    )
+    assert server.port == 0
+    server.start()
+    running_port = server.port
+    assert running_port > 0
+    server.start()
+
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", running_port, timeout=3)
+        conn.request("HEAD", "/download.php?tid=CUSA00200")
+        response = conn.getresponse()
+        body = response.read()
+        assert response.status == 302
+        assert body == b""
+        conn.request("HEAD", "/unknown")
+        response = conn.getresponse()
+        body = response.read()
+        assert response.status == 404
+        assert body == b""
+        conn.close()
+    finally:
+        server.stop()
         server.stop()

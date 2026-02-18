@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import sqlite3
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -15,12 +16,38 @@ from urllib.parse import parse_qs, urlparse
 @final
 class HbStoreApiResolver:
     _VERSION_PARTS_REGEX: ClassVar[re.Pattern[str]] = re.compile(r"\d+")
-    _COUNT_ROW_SQL: ClassVar[str] = """
+    _STORE_COUNT_ROW_SQL: ClassVar[str] = """
         SELECT number_of_downloads
         FROM homebrews
         WHERE id = ?
         ORDER BY pid DESC
         LIMIT 1
+    """
+    _CATALOG_COUNT_ROW_SQL: ClassVar[str] = """
+        SELECT downloads
+        FROM download_counters
+        WHERE title_id = ?
+        LIMIT 1
+    """
+    _SEED_COUNTER_SQL: ClassVar[str] = """
+        INSERT INTO download_counters (title_id, downloads, created_at, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(title_id) DO NOTHING
+    """
+    _INCREMENT_COUNTER_SQL: ClassVar[str] = """
+        UPDATE download_counters
+        SET downloads = downloads + 1,
+            updated_at = ?
+        WHERE title_id = ?
+    """
+    _COUNTER_SCHEMA_SQL: ClassVar[str] = """
+        CREATE TABLE IF NOT EXISTS download_counters
+        (
+            title_id   TEXT PRIMARY KEY,
+            downloads  INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
     """
     _CATALOG_ROW_SQL: ClassVar[str] = """
         SELECT
@@ -54,44 +81,108 @@ class HbStoreApiResolver:
                 digest.update(chunk)
         return digest.hexdigest()
 
-    def download_count(self, title_id: str) -> str:
-        if not title_id or not self._store_db_path.exists():
-            return "0"
+    @staticmethod
+    def _parse_counter_value(value: object) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(value)
+        if isinstance(value, str):
+            try:
+                return int(value.strip())
+            except ValueError:
+                return None
+        if isinstance(value, (bytes, bytearray)):
+            try:
+                return int(bytes(value).decode("utf-8", errors="ignore").strip())
+            except ValueError:
+                return None
+        if isinstance(value, memoryview):
+            try:
+                return int(value.tobytes().decode("utf-8", errors="ignore").strip())
+            except ValueError:
+                return None
+        return None
 
+    def _catalog_download_count(self, title_id: str) -> int | None:
+        if not title_id or not self._catalog_db_path.exists():
+            return None
         try:
-            with sqlite3.connect(str(self._store_db_path)) as conn:
-                row_obj = cast(object, conn.execute(self._COUNT_ROW_SQL, (title_id,)).fetchone())
+            with sqlite3.connect(str(self._catalog_db_path)) as conn:
+                _ = conn.executescript(self._COUNTER_SCHEMA_SQL)
+                row_obj = cast(
+                    object,
+                    conn.execute(self._CATALOG_COUNT_ROW_SQL, (title_id,)).fetchone(),
+                )
         except sqlite3.Error:
-            return "0"
+            return None
 
         row = cast(tuple[object] | None, row_obj)
         if row is None:
+            return None
+        parsed = self._parse_counter_value(row[0])
+        if parsed is None:
+            return None
+        return max(0, parsed)
+
+    def _store_download_count(self, title_id: str) -> int | None:
+        if not title_id or not self._store_db_path.exists():
+            return None
+        try:
+            with sqlite3.connect(str(self._store_db_path)) as conn:
+                row_obj = cast(
+                    object,
+                    conn.execute(self._STORE_COUNT_ROW_SQL, (title_id,)).fetchone(),
+                )
+        except sqlite3.Error:
+            return None
+
+        row = cast(tuple[object] | None, row_obj)
+        if row is None:
+            return None
+        parsed = self._parse_counter_value(row[0])
+        if parsed is None:
+            return None
+        return max(0, parsed)
+
+    def download_count(self, title_id: str) -> str:
+        key = str(title_id or "").strip()
+        if not key:
             return "0"
-        value = row[0]
-        if value is None:
-            return "0"
-        if isinstance(value, bool):
-            return str(int(value))
-        if isinstance(value, int):
-            return str(value)
-        if isinstance(value, float):
-            return str(int(value))
-        if isinstance(value, str):
-            try:
-                return str(int(value.strip()))
-            except ValueError:
-                return "0"
-        if isinstance(value, (bytes, bytearray)):
-            try:
-                return str(int(bytes(value).decode("utf-8", errors="ignore").strip()))
-            except ValueError:
-                return "0"
-        if isinstance(value, memoryview):
-            try:
-                return str(int(value.tobytes().decode("utf-8", errors="ignore").strip()))
-            except ValueError:
-                return "0"
+
+        from_catalog = self._catalog_download_count(key)
+        if from_catalog is not None:
+            return str(from_catalog)
+
+        from_store = self._store_download_count(key)
+        if from_store is not None:
+            return str(from_store)
         return "0"
+
+    def increment_download_count(self, title_id: str) -> int:
+        key = str(title_id or "").strip()
+        if not key or not self._catalog_db_path.exists():
+            return 0
+
+        seed = self._store_download_count(key) or 0
+        now = datetime.now(UTC).replace(microsecond=0).isoformat()
+        try:
+            with sqlite3.connect(str(self._catalog_db_path)) as conn:
+                _ = conn.executescript(self._COUNTER_SCHEMA_SQL)
+                _ = conn.execute(self._SEED_COUNTER_SQL, (key, seed, now, now))
+                _ = conn.execute(self._INCREMENT_COUNTER_SQL, (now, key))
+                conn.commit()
+        except sqlite3.Error:
+            return seed
+
+        updated = self._catalog_download_count(key)
+        if updated is None:
+            return seed
+        return updated
 
     @classmethod
     def _version_key(cls, value: str) -> tuple[int, ...]:
@@ -260,6 +351,9 @@ class HbStoreApiServer:
                             send_body=send_body,
                         )
                         return
+
+                    if send_body:
+                        _ = resolver.increment_download_count(title_id)
 
                     self.send_response(302)
                     self.send_header("Location", destination)

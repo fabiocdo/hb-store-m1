@@ -42,11 +42,15 @@ def test_sqlite_repo_given_upsert_and_prune_then_persists_and_deletes(temp_works
     with SqliteUnitOfWork(db_path) as uow:
         uow.catalog.init_schema(sql)
         uow.catalog.upsert(_item(pkg_a))
+        assert uow.catalog.get_download_count("CUSA00001") == 0
+        assert uow.catalog.increment_download_count("CUSA00001") == 1
+        assert uow.catalog.increment_download_count("CUSA00001") == 2
         uow.commit()
 
     with SqliteUnitOfWork(db_path) as uow:
         items = uow.catalog.list_items()
         assert len(items) == 1
+        assert items[0].downloads == 2
         removed = uow.catalog.delete_by_pkg_paths_not_in(set())
         uow.commit()
 

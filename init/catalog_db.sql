@@ -28,3 +28,13 @@ CREATE TABLE IF NOT EXISTS catalog_items
 CREATE INDEX IF NOT EXISTS catalog_items_content_id_idx ON catalog_items (content_id);
 CREATE INDEX IF NOT EXISTS catalog_items_pkg_path_idx ON catalog_items (pkg_path);
 CREATE INDEX IF NOT EXISTS catalog_items_app_type_idx ON catalog_items (app_type);
+
+CREATE TABLE IF NOT EXISTS download_counters
+(
+    title_id   TEXT PRIMARY KEY,
+    downloads  INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS download_counters_downloads_idx ON download_counters (downloads);

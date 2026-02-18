@@ -206,7 +206,6 @@ def test_fpkgi_exporter_given_single_game_when_export_then_generates_all_json_st
         "PSP",
         "SAVES",
         "THEMES",
-        "UNKNOWN",
         "UPDATES",
     )
     assert len(exported) == len(expected_stems)
@@ -221,6 +220,33 @@ def test_fpkgi_exporter_given_single_game_when_export_then_generates_all_json_st
             assert len(data_map) == 1
         else:
             assert data_map == {}
+
+
+def test_fpkgi_exporter_given_unknown_app_type_when_export_then_routes_to_homebrew(
+    temp_workspace: Path,
+):
+    share_dir = temp_workspace / "data" / "share"
+    share_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = share_dir / "fpkgi"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    pkg_path = share_dir / "pkg" / "unknown" / "UP0000-TEST00000_00-TEST000000009900.pkg"
+    pkg_path.parent.mkdir(parents=True, exist_ok=True)
+    _ = pkg_path.write_bytes(b"x")
+
+    legacy_unknown = output_dir / "UNKNOWN.json"
+    _ = legacy_unknown.write_text('{"DATA":{"legacy":"value"}}', encoding="utf-8")
+
+    item = _item(pkg_path, "UP0000-TEST00000_00-TEST000000009900", AppType.UNKNOWN)
+    exporter = FpkgiJsonExporter(output_dir, "http://127.0.0.1", FPKGI_SCHEMA)
+    _ = exporter.export([item])
+
+    homebrew_rows = _read_data_rows(output_dir / "HOMEBREW.json")
+    assert (
+        "http://127.0.0.1/pkg/unknown/UP0000-TEST00000_00-TEST000000009900.pkg"
+        in homebrew_rows
+    )
+    assert legacy_unknown.exists() is False
 
 
 def test_fpkgi_exporter_given_system_ver_when_export_then_normalizes_min_fw(

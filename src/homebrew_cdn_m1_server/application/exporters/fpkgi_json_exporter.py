@@ -32,9 +32,9 @@ class FpkgiJsonExporter(OutputExporterProtocol):
         "PSP",
         "SAVES",
         "THEMES",
-        "UNKNOWN",
         "UPDATES",
     )
+    _LEGACY_STEMS_TO_CLEAN: ClassVar[tuple[str, ...]] = ("UNKNOWN",)
 
     _STEM_BY_APP_TYPE: ClassVar[dict[str, str]] = {
         "app": "APPS",
@@ -42,7 +42,7 @@ class FpkgiJsonExporter(OutputExporterProtocol):
         "game": "GAMES",
         "save": "SAVES",
         "update": "UPDATES",
-        "unknown": "UNKNOWN",
+        "unknown": "HOMEBREW",
     }
 
     _REGION_BY_PREFIX: ClassVar[dict[str, str]] = {
@@ -192,6 +192,9 @@ class FpkgiJsonExporter(OutputExporterProtocol):
                 continue
             if managed.exists():
                 _ = managed.unlink()
+        for legacy in self._legacy_files():
+            if legacy.exists():
+                _ = legacy.unlink()
 
         return exported
 
@@ -203,7 +206,15 @@ class FpkgiJsonExporter(OutputExporterProtocol):
                 continue
             _ = managed.unlink()
             removed.append(managed)
+        for legacy in self._legacy_files():
+            if not legacy.exists():
+                continue
+            _ = legacy.unlink()
+            removed.append(legacy)
         return removed
 
     def _managed_files(self) -> list[Path]:
         return [self._output_dir / f"{stem}.json" for stem in self._MANAGED_STEMS]
+
+    def _legacy_files(self) -> list[Path]:
+        return [self._output_dir / f"{stem}.json" for stem in self._LEGACY_STEMS_TO_CLEAN]
