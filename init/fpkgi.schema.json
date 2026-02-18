@@ -18,18 +18,26 @@
           "type": "string"
         },
         "region": {
-          "minLength": 1,
-          "title": "Region",
-          "type": "string"
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
         },
         "release": {
           "title": "Release",
           "type": "string"
         },
         "size": {
-          "minLength": 1,
+          "minimum": 0,
           "title": "Size",
-          "type": "string"
+          "type": "integer"
         },
         "title_id": {
           "minLength": 1,
@@ -44,7 +52,6 @@
       },
       "required": [
         "title_id",
-        "region",
         "name",
         "version",
         "release",

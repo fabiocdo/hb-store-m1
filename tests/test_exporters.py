@@ -300,6 +300,34 @@ def test_fpkgi_exporter_given_system_ver_when_export_then_normalizes_min_fw(
     )
 
 
+def test_fpkgi_exporter_given_unknown_region_prefix_when_export_then_writes_null_region(
+    temp_workspace: Path,
+):
+    share_dir = temp_workspace / "data" / "share"
+    share_dir.mkdir(parents=True, exist_ok=True)
+
+    pkg_path = share_dir / "pkg" / "game" / "ZZ0000-TEST00000_00-TEST000000000007.pkg"
+    pkg_path.parent.mkdir(parents=True, exist_ok=True)
+    _ = pkg_path.write_bytes(b"z")
+
+    items = [
+        _item(pkg_path, "ZZ0000-TEST00000_00-TEST000000000007", AppType.GAME),
+    ]
+
+    exporter = FpkgiJsonExporter(
+        share_dir / "fpkgi",
+        "http://127.0.0.1",
+        FPKGI_SCHEMA,
+    )
+    _ = exporter.export(items)
+
+    data = _read_data_rows(share_dir / "fpkgi" / "GAMES.json")
+    assert (
+        data["http://127.0.0.1/pkg/game/ZZ0000-TEST00000_00-TEST000000000007.pkg"]["region"]
+        is None
+    )
+
+
 def test_fpkgi_exporter_given_pkg_sizes_when_export_then_writes_bytes_only(
     temp_workspace: Path,
 ):
@@ -350,19 +378,19 @@ def test_fpkgi_exporter_given_pkg_sizes_when_export_then_writes_bytes_only(
         data["http://127.0.0.1/pkg/app/UP0000-TEST00000_00-TEST000000000003.pkg"][
             "size"
         ]
-        == "512000"
+        == 512000
     )
     assert (
         data["http://127.0.0.1/pkg/app/UP0000-TEST00000_00-TEST000000000004.pkg"][
             "size"
         ]
-        == "26214400"
+        == 26214400
     )
     assert (
         data["http://127.0.0.1/pkg/app/UP0000-TEST00000_00-TEST000000000005.pkg"][
             "size"
         ]
-        == "3221225472"
+        == 3221225472
     )
 
 

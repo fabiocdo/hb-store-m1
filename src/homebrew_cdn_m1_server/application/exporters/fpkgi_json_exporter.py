@@ -84,8 +84,8 @@ class FpkgiJsonExporter(OutputExporterProtocol):
         return f"{self._base_url}/pkg/media/{item.content_id.value}_icon0.png"
 
     @classmethod
-    def _region(cls, content_id: str) -> str:
-        return cls._REGION_BY_PREFIX.get(content_id[:2].upper(), "UNKNOWN")
+    def _region(cls, content_id: str) -> str | None:
+        return cls._REGION_BY_PREFIX.get(content_id[:2].upper())
 
     @staticmethod
     def _release(value: str) -> str:
@@ -141,8 +141,8 @@ class FpkgiJsonExporter(OutputExporterProtocol):
         return raw
 
     @staticmethod
-    def _format_size(item: CatalogItem) -> str:
-        return str(int(item.pkg_size))
+    def _format_size(item: CatalogItem) -> int:
+        return int(item.pkg_size)
 
     @override
     def export(self, items: Sequence[CatalogItem]) -> list[Path]:

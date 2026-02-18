@@ -10,11 +10,11 @@ class FpkgiItem(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", strict=True)
 
     title_id: str = Field(min_length=1)
-    region: str = Field(min_length=1)
+    region: str | None = Field(default=None, min_length=1)
     name: str = Field(min_length=1)
     version: str = Field(min_length=1)
     release: str
-    size: str = Field(min_length=1)
+    size: int = Field(ge=0)
     min_fw: str
     cover_url: str = Field(min_length=1)
 
