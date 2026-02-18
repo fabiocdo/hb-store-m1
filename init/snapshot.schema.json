@@ -1,0 +1,12 @@
+{
+  "additionalProperties": {
+    "items": {
+      "type": "integer"
+    },
+    "maxItems": 2,
+    "minItems": 2,
+    "type": "array"
+  },
+  "title": "SnapshotDocument",
+  "type": "object"
+}

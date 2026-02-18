@@ -1,421 +1,110 @@
-# hb-store-m1
-
-[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25-brightgreen)](https://github.com/fabiocdo/hb-store-m1)
-[![Docker Hub](https://img.shields.io/docker/v/fabiocdo/hb-store-m1?label=dockerhub&sort=semver)](https://hub.docker.com/repository/docker/fabiocdo/hb-store-m1)
-[![Docker Pulls](https://img.shields.io/docker/pulls/fabiocdo/hb-store-m1)](https://hub.docker.com/repository/docker/fabiocdo/hb-store-m1)
+[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25-brightgreen)](https://github.com/fabiocdo/homebrew-cdn-m1-server)
+[![Docker Hub](https://img.shields.io/docker/v/fabiocdo/homebrew-cdn-m1-server?label=dockerhub&sort=semver)](https://hub.docker.com/repository/docker/fabiocdo/homebrew-cdn-m1-server)
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/V7V11U8HWX)
-
-Local CDN for PS4 Homebrew PKGs, with automatic organization, media extraction, SQLite indexing (`store.db`), and optional fPKGi JSON output.
 
 ![hb-store-m1](assets/512.png)
 
-## Project Links
+# homebrew-cdn-m1-server
 
-- GitLab: https://gitlab.com/fabiocdo/hb-store-m1
-- GitHub: https://github.com/fabiocdo/hb-store-m1
-- Docker Hub: https://hub.docker.com/repository/docker/fabiocdo/hb-store-m1
+PS4 static CDN pipeline for `hb-store` (`store.db`) and `fPKGi` (`*.json`).
 
-## Open Source and Community Intent
+## What it does
 
-This project is open source, built as a community utility, and maintained as a hobby/non-profit effort.
+1. Watches `data/share/pkg/**/*.pkg` on a reconcile schedule.
+2. Probes each PKG with `pkgtool` (`PARAM.SFO` + media).
+3. Moves PKG to canonical path: `data/share/pkg/<app_type>/<CONTENT_ID>.pkg`.
+4. Upserts full metadata into internal catalog: `data/internal/catalog/catalog.db`.
+5. Exports selected targets:
+   - `hb-store` -> `data/share/hb-store/store.db`
+   - `fpkgi` -> `data/share/fpkgi/*.json`
+6. Serves public content through nginx from `data/share`.
+7. Exposes PS4-Store API endpoints:
+   - `/api.php?db_check_hash=true`
+   - `/download.php?tid=<TITLE_ID>&check=true`
+   - `/download.php?tid=<TITLE_ID>`
 
-- Anyone can use, modify, and distribute it.
-- Commercial intent is not the project's goal.
-- Credits are kindly requested when redistributing forks/derivatives.
-- Feedback is welcome via issues/PRs on GitLab or GitHub.
-- GitLab issues: https://gitlab.com/fabiocdo/hb-store-m1/-/issues
-- GitHub issues: https://github.com/fabiocdo/hb-store-m1/issues
+Broken PKGs are moved to `data/internal/errors`.
 
-## Legal and Safety
+## Quick start (Docker Compose)
 
-This project provides software tooling only. It does not include proprietary game content.
+### 1) Prepare config
 
-- Operators and users are fully responsible for legal use of their deployments.
-- Unauthorized hosting/distribution of copyrighted content is prohibited.
-- Abuse/IP infringement reports should follow `TAKEDOWN.md`.
-- Usage restrictions and prohibited behavior are documented in `AUP.md`.
-- Liability and legal scope are documented in `LEGAL.md`.
-- Maintainers act only on project-controlled resources/channels, not third-party self-hosted instances.
+Copy defaults:
 
-Quick links:
-
-- `LEGAL.md`
-- `AUP.md`
-- `TAKEDOWN.md`
-
-## Overview
-
-The service runs in a single container with two processes:
-
-- `nginx` serving files from `/app/data`
-- `python -u -m hb_store_m1` running the watcher in the background
-
-Main pipeline:
-
-1. Initialize directories, database, and base assets.
-2. Detect PKG/PNG changes via cache (`store-cache.json`).
-3. Extract `PARAM.SFO` first; run validation only if extraction fails.
-4. Move/rename to canonical destination using `content_id`.
-5. Update `store.db` and optional `*.json` files by app type.
-
-## Runtime Architecture
-
-```mermaid
-flowchart TD
-    A[Container start] --> B[/entrypoint.sh/]
-    B --> C[Load configs/settings.env]
-    B --> D[Generate /etc/nginx/conf.d/servers.conf]
-    B --> E[nginx -t]
-    B --> F[python -u -m hb_store_m1]
-    B --> G[nginx -g daemon off]
-
-    F --> H[InitUtils.init_all]
-    H --> H1[init_directories]
-    H --> H2[init_db]
-    H --> H3[init_assets]
-
-    F --> I[Watcher loop]
-    I --> J[CacheUtils.compare_pkg_cache]
-    J --> K{Changes found?}
-    K -->|no| I
-    K -->|yes| L[Process changed PKGs]
-    L --> M[AutoOrganizer + media extraction]
-    M --> N[DBUtils.upsert]
-    N --> O[FPKGIUtils.sync_from_store_db optional]
-    N --> P[write store-cache.json]
-    O --> P
+```bash
+cp init/settings.ini configs/settings.ini
 ```
 
-## Current Features
+Edit `configs/settings.ini` as needed:
 
-- Serve PKGs with `Accept-Ranges` and long cache headers.
-- Organize PKGs by type into:
-  - `game`, `dlc`, `update`, `save`, `unknown`
-- Rename PKGs to `<CONTENT_ID>.pkg`.
-- Extract:
-  - `ICON0_PNG` (required)
-  - `PIC0_PNG` and `PIC1_PNG` (optional)
-- App version is resolved as the highest value between `VERSION` and `APP_VER` from `PARAM.SFO`.
-- Update `store.db` using `upsert` by `(content_id, apptype, version)`.
-- Generate app-type JSON files when `FPGKI_FORMAT_ENABLED=true`.
-- Keep incremental cache in `data/_cache/store-cache.json`.
-- Move invalid/conflicting files to `data/_errors`.
-- Persist `WARN/ERROR` logs to `data/_logs/app_errors.log`.
-
-## Repository Structure
-
-```text
-.
-|-- Dockerfile
-|-- docker-compose.yml
-|-- docker/
-|   |-- entrypoint.sh
-|   |-- nginx/
-|   |   |-- nginx.template.conf
-|   |   `-- common.locations.conf
-|-- src/hb_store_m1/
-|   |-- main.py
-|   |-- modules/
-|   |   |-- watcher.py
-|   |   `-- auto_organizer.py
-|   |-- utils/
-|   |   |-- init_utils.py
-|   |   |-- cache_utils.py
-|   |   |-- pkg_utils.py
-|   |   |-- db_utils.py
-|   |   |-- fpkgi_utils.py
-|   |   |-- file_utils.py
-|   |   `-- log_utils.py
-|   |-- helpers/
-|   |   |-- pkgtool.py
-|   |   `-- store_assets_client.py
-|   `-- models/
-|       |-- globals.py
-|       `-- ...
-|-- init/
-|   `-- store_db.sql
-`-- tests/
+```ini
+# Leave any value empty to set it as null (no implicit default).
+# Host clients use to reach the service. Value type: string.
+SERVER_IP=127.0.0.1
+# Port that nginx listens on inside the container. Leave empty to set null. Value type: integer.
+SERVER_PORT=80
+# Set true to serve TLS/HTTPS; If enabled, "tls.crt" and "tls.key" are required and must live under configs/certs/. Value type: boolean.
+ENABLE_TLS=false
+# Logging verbosity (debug | info | warn | error). Value type: string.
+LOG_LEVEL=info
+# Keep 1 to disable parallel preprocessing.
+RECONCILE_PKG_PREPROCESS_WORKERS=1
+# Cron expression for reconcile schedule (use https://crontab.guru/). Value type: string.
+RECONCILE_CRON_EXPRESSION=*/5 * * * *
+# Comma-separated export targets. Supported: hb-store, fpkgi.
+EXPORT_TARGETS=hb-store,fpkgi
+# Generic timeout (seconds) for lightweight pkgtool commands.
+PKGTOOL_TIMEOUT_SECONDS=300
 ```
 
-## Run with Docker Compose
+If `ENABLE_TLS=true`, place cert files in `configs/certs/`:
 
-### 1) Start
+- `configs/certs/tls.crt`
+- `configs/certs/tls.key`
+
+### 2) Put your PKGs
+
+Drop PKGs under:
+
+- `data/share/pkg/`
+
+The worker scans recursively (except `data/share/pkg/media`) and reorganizes to canonical folders (`app`, `game`, `dlc`, `update`, `save`, `unknown`).
+
+### 3) Run
 
 ```bash
 docker compose up --build -d
+docker compose logs -f homebrew-cdn-m1-server
 ```
 
-### 2) Follow logs
+### 4) Validate service health in browser
 
-```bash
-docker compose logs -f hb-store-m1
-```
+Open in your browser:
 
-### 3) Stop
+- `http://<SERVER_IP>:<SERVER_PORT>/` when `ENABLE_TLS=false`
+- `https://<SERVER_IP>:<SERVER_PORT>/` when `ENABLE_TLS=true`
+- If `SERVER_PORT` is null/empty, omit `:<SERVER_PORT>`.
 
-```bash
-docker compose down
-```
+The page must load and show the CDN health/status screen.
 
-## Configuration (`configs/settings.env`)
+### 5) Check outputs
 
-`entrypoint.sh` creates this file automatically on first run.
+Public share root:
 
-| Variable                                  | Type   | Default in entrypoint | Description                                                                                    |
-|-------------------------------------------|--------|-----------------------|------------------------------------------------------------------------------------------------|
-| `SERVER_IP`                               | string | `127.0.0.1`           | Host used to build URLs (`SERVER_URL`).                                                        |
-| `SERVER_PORT`                             | int    | `80`                  | Nginx port inside container.                                                                   |
-| `ENABLE_TLS`                              | bool   | `false`               | `true` requires `configs/certs/tls.crt` and `tls.key`.                                         |
-| `LOG_LEVEL`                               | string | `info`                | `debug`, `info`, `warn`, `error`.                                                              |
-| `WATCHER_ENABLED`                         | bool   | `true`                | Enable/disable watcher loop.                                                                   |
-| `WATCHER_PERIODIC_SCAN_SECONDS`           | int    | `30`                  | Scan loop interval.                                                                            |
-| `WATCHER_PKG_PREPROCESS_WORKERS`          | int    | `1`                   | Parallel workers for extract-first preprocessing (`1` disables parallel preprocessing).          |
-| `WATCHER_FILE_STABLE_SECONDS`             | int    | `15`                  | Minimum file age before processing to avoid moving files still in transfer.                    |
-| `FPGKI_FORMAT_ENABLED`                    | bool   | `false`               | Generate/update per-type FPKGi JSON output (`GAMES.json`, `DLC.json`, etc.).                   |
-| `PKGTOOL_TIMEOUT_SECONDS`                 | int    | `300`                 | Generic timeout for lightweight `pkgtool` commands.                                            |
-| `PKGTOOL_VALIDATE_TIMEOUT_SECONDS`        | int    | `300`                 | Base timeout for `pkg_validate`.                                                               |
-| `PKGTOOL_VALIDATE_TIMEOUT_PER_GB_SECONDS` | int    | `45`                  | Extra timeout budget per GiB for `pkg_validate`.                                               |
-| `PKGTOOL_VALIDATE_TIMEOUT_MAX_SECONDS`    | int    | `3600`                | Upper cap for `pkg_validate` timeout (`0` disables cap).                                       |
+- `data/share/index.html`
+- `data/share/hb-store/store.db` (served as `/store.db`)
+- `data/share/pkg/**`
+- `data/share/hb-store/update/homebrew.elf`
+- `data/share/hb-store/update/homebrew.elf.sig`
+- `data/share/hb-store/update/remote.md5`
+- `data/share/fpkgi/*.json`
+- `GET /api.php?db_check_hash=true` (hb-store hash API)
+- `GET /download.php?tid=<TITLE_ID>&check=true` (hb-store counter API)
+- `GET /download.php?tid=<TITLE_ID>` (hb-store redirect API)
 
-Notes:
+Internal (not public):
 
-- The environment variable name is `FPGKI_FORMAT_ENABLED` (kept as-is in code).
-- Python runs with `-u` (unbuffered) in the entrypoint.
-- If `ENABLE_TLS=true` and certs are missing, container startup fails.
-- Validation timeout is adaptive for large files:
-  - `max(PKGTOOL_VALIDATE_TIMEOUT_SECONDS, ceil(size_gib) * PKGTOOL_VALIDATE_TIMEOUT_PER_GB_SECONDS)`,
-  - capped by `PKGTOOL_VALIDATE_TIMEOUT_MAX_SECONDS` when this value is greater than `0`.
-
-## Volumes
-
-Current `docker-compose.yml`:
-
-```yaml
-services:
-  hb-store-m1:
-    build: .
-    image: fabiocdo/hb-store-m1:latest
-    container_name: hb-store-m1
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./data:/app/data
-      - ./configs:/app/configs
-    restart: unless-stopped
-```
-
-Port mapping note:
-
-- If `SERVER_PORT` in `configs/settings.env` is different from `80` or `443`, you must publish that same port in `docker-compose.yml`.
-- Example: for `SERVER_PORT=8443`, add `- "8443:8443"` under `ports`.
-
-## Data Layout (`/app/data`)
-
-```text
-/app/data
-|-- _cache/
-|   |-- store-cache.json
-|   |-- homebrew.elf
-|   |-- homebrew.elf.sig
-|   `-- remote.md5
-|-- _errors/
-|   `-- *.pkg
-|-- _logs/
-|   `-- app_errors.log
-|-- pkg/
-|   |-- app/
-|   |-- dlc/
-|   |-- game/
-|   |-- save/
-|   |-- update/
-|   |-- unknown/
-|   `-- _media/
-|-- store.db
-|-- APPS.json
-|-- DLC.json
-|-- GAMES.json
-|-- SAVES.json
-|-- UPDATES.json
-`-- UNKNOWN.json
-```
-
-Important notes:
-
-- `store-cache.json` stores metadata (`size|mtime_ns|filename`), not PKG content.
-- Cache generation is lightweight and does not call `pkgtool`; for new/changed files it uses filename stem as key.
-- After successful processing/normalization, keys converge to canonical `content_id` values.
-- `data/_errors` receives PKGs that fail validation/conflict/processing rules.
-- FPKGi JSON files are written as:
-  - root object with `DATA`
-  - keys as package URLs
-  - values with `title_id`, `region`, `name`, `version`, `release`, `size`, `min_fw`, `cover_url`
-
-## PKG Processing Flow
-
-```mermaid
-sequenceDiagram
-    participant W as Watcher
-    participant C as CacheUtils
-    participant P as PkgUtils
-    participant A as AutoOrganizer
-    participant D as DBUtils
-    participant F as FPKGIUtils
-
-    W->>C: compare_pkg_cache()
-    C-->>W: changed sections + current files
-    W->>P: extract_pkg_data(pkg)
-    alt extract failed
-        W->>P: validate(pkg) fallback
-        alt validate failed
-            W->>W: move_to_error(validation_failed)
-        else validate ok/warn
-            W->>W: move_to_error(extract_data_failed)
-        end
-    else extract ok
-        W->>A: run(pkg)
-        alt organizer failure
-            W->>W: move_to_error(organizer_failed)
-        else success
-            W->>P: extract_pkg_medias(pkg)
-            W->>P: build_pkg(...)
-            W->>D: upsert(pkgs)
-            opt FPGKI_FORMAT_ENABLED=true
-                W->>F: sync_from_store_db()
-            end
-            W->>C: write_pkg_cache()
-        end
-    end
-```
-
-## Type/Region Mapping
-
-From the `PKG` model:
-
-- Category -> app type:
-  - `AC` -> `dlc`
-  - `GC`/`GD` -> `game`
-  - `GP` -> `update`
-  - `SD` -> `save`
-  - others -> `unknown`
-- `content_id` prefix -> region:
-  - `UP` USA, `EP` EUR, `JP` JAP, `HP/AP/KP` ASIA, others `UNKNOWN`
-
-## Exposed HTTP Endpoints (nginx)
-
-| Endpoint                                  | Source                           | Behavior                                                          |
-|-------------------------------------------|----------------------------------|-------------------------------------------------------------------|
-| `/`                                       | `/_cache/index.html`             | status page with live endpoint UP/DOWN checks                     |
-| `/health`                                 | inline response                  | returns `{"status":"online"}`                                     |
-| `/store.db`                               | `/app/data/store.db`             | `no-store`, byte-range enabled                                    |
-| `/api.php?db_check_hash=true`             | internal API                     | returns `{"hash":"<md5_of_store.db>"}`                            |
-| `/api.php`                                | `/app/data/_cache/store.db.json` | serves JSON if file exists                                        |
-| `/download.php?tid=<TITLE_ID>&check=true` | internal API + SQLite            | returns `{"number_of_downloads":N}`                               |
-| `/download.php?tid=<TITLE_ID>`            | internal API + SQLite            | serves matching PKG file (supports range via nginx internal path) |
-| `/update/remote.md5`                      | `/_cache/remote.md5`             | `no-store`                                                        |
-| `/update/homebrew.elf`                    | `/_cache/homebrew.elf`           | `no-store`                                                        |
-| `/update/homebrew.elf.sig`                | `/_cache/homebrew.elf.sig`       | `no-store`                                                        |
-| `/pkg/**/*.pkg`                           | `/app/data/pkg`                  | long cache (`max-age=31536000`, `immutable`), range               |
-| `/pkg/**/*.(png                           | jpg                              | jpeg                                                              |webp)` | `/app/data/pkg` | 30-day cache |
-| `/pkg/**/*.(json                          | db)`                             | `/app/data/pkg`                                                   | `no-store` |
-
-## Credits and References
-
-Project/client references:
-
-- PS4-Store client base reference: https://github.com/LightningMods/PS4-Store
-- FPKGi ecosystem/reference format: https://github.com/ItsJokerZz/FPKGi
-
-Core tooling/runtime references:
-
-- OpenOrbis toolchain (used in Dockerfile for `pkgtool`): https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain
-- OpenOrbis toolchain Docker image: https://hub.docker.com/r/openorbisofficial/toolchain
-- Python official image (`python:3.12-slim`): https://hub.docker.com/_/python
-- Nginx: https://nginx.org
-- SQLite: https://www.sqlite.org
-
-Python dependencies (`pyproject.toml`):
-
-- PyGithub: https://github.com/PyGithub/PyGithub
-- pydantic: https://github.com/pydantic/pydantic
-- tabulate: https://github.com/astanin/python-tabulate
-- pytest: https://github.com/pytest-dev/pytest
-- pytest-cov: https://github.com/pytest-dev/pytest-cov
-
-## Local Development (without Docker)
-
-Requirements:
-
-- Python 3.12+
-- working `bin/pkgtool`
-- native runtime libraries required by `pkgtool`
-
-Run:
-
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -U pip
-pip install -e .
-python -m hb_store_m1
-```
-
-Tests:
-
-```bash
-.venv/bin/pytest -q
-.venv/bin/pytest --cov=hb_store_m1 --cov-report=term-missing --cov-fail-under=90
-```
-
-## Troubleshooting
-
-### `docker compose up` does not start the service
-
-- Check:
-  - `docker compose logs hb-store-m1`
-  - `nginx -t` output (already executed by entrypoint)
-- Common cause: `ENABLE_TLS=true` without `configs/certs/tls.crt` and `tls.key`.
-
-### Valid PKG moved to `_errors`
-
-- Check `data/_logs/app_errors.log`.
-- Common reasons:
-  - `PARAM.SFO` extraction failure
-  - fallback validation failure (only after extraction failed)
-  - missing `ICON0_PNG`
-  - destination conflict (`content_id.pkg` already exists)
-
-### `No usable version of libssl was found`
-
-- This means a native dependency required by `pkgtool` is missing.
-- Current Dockerfile already copies `libssl.so.1.1` and `libcrypto.so.1.1` from toolchain.
-
-### Large PKGs (`>20GB`) timing out in `pkg_validate`
-
-- Validation is now fallback-only (called when extraction fails), so this should happen less frequently.
-- Increase timeout knobs in `configs/settings.env`, for example:
-
-```env
-PKGTOOL_VALIDATE_TIMEOUT_SECONDS=300
-PKGTOOL_VALIDATE_TIMEOUT_PER_GB_SECONDS=90
-PKGTOOL_VALIDATE_TIMEOUT_MAX_SECONDS=7200
-```
-
-- For very large files, increase `PKGTOOL_VALIDATE_TIMEOUT_PER_GB_SECONDS` first.
-- If `settings.env` already existed, add these variables manually (the entrypoint does not overwrite existing files).
-
-### App version in banner did not update
-
-Rebuild and restart:
-
-```bash
-docker compose up --build -d
-```
-
-The app reads version from `pyproject.toml` when available, with fallback to installed package metadata.
-
-## License
-
-This project is licensed under GNU GPLv3. See `LICENSE`.
-
-Gentle request (non-binding): if you publish a fork or derivative, please keep credits to the original project and upstream references.
+- `data/internal/catalog/catalog.db`
+- `data/internal/catalog/pkgs-snapshot.json`
+- `data/internal/errors/*`
+- `data/internal/logs/app_errors.log`

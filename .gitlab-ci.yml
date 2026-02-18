@@ -5,7 +5,7 @@ stages:
   - publish
 
 variables:
-  DOCKER_IMAGE: "fabiocdo/hb-store-m1"
+  DOCKER_IMAGE: "fabiocdo/homebrew-cdn-m1-server"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
   DOCKER_BUILDKIT: "1"
@@ -33,8 +33,8 @@ test:
         path: coverage.xml
   script:
     - python -m pip install -U pip
-    - python -m pip install .
-    - python -m pytest --cov=hb_store_m1 --cov-report=term-missing --cov-report=xml --cov-fail-under=90
+    - python -m pip install '.[test]'
+    - python -m pytest --cov=homebrew_cdn_m1_server --cov-report=term-missing --cov-report=xml --cov-fail-under=90
 
 mirror_to_github:
   image:
