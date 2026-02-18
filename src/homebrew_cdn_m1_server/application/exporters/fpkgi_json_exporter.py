@@ -19,8 +19,6 @@ from homebrew_cdn_m1_server.domain.models.catalog_item import CatalogItem
 @final
 class FpkgiJsonExporter(OutputExporterProtocol):
     target: OutputTarget = OutputTarget.FPKGI
-    _BYTES_PER_MB: ClassVar[int] = 1024 * 1024
-    _BYTES_PER_GB: ClassVar[int] = 1024 * 1024 * 1024
     _MANAGED_STEMS: ClassVar[tuple[str, ...]] = (
         "APPS",
         "DEMOS",
@@ -109,10 +107,19 @@ class FpkgiJsonExporter(OutputExporterProtocol):
     def _decode_system_ver_hex(cls, hex_value: str) -> str:
         major = cls._byte_to_decimal(hex_value[0:2])
         minor = cls._byte_to_decimal(hex_value[2:4])
-        patch = cls._byte_to_decimal(hex_value[4:6])
-        if patch:
-            return f"{major}.{minor:02d}.{patch:02d}"
-        return f"{major}.{minor:02d}"
+        return f"{major:02d}.{minor:02d}"
+
+    @staticmethod
+    def _normalize_min_fw_dot(value: str) -> str:
+        parts = str(value or "").split(".")
+        if len(parts) < 2:
+            return value
+        try:
+            major = int(parts[0])
+            minor = int(parts[1])
+        except ValueError:
+            return value
+        return f"{major:02d}.{minor:02d}"
 
     @classmethod
     def _normalize_min_fw(cls, value: str) -> str:
@@ -120,7 +127,7 @@ class FpkgiJsonExporter(OutputExporterProtocol):
         if not raw:
             return ""
         if cls._DOT_SYSTEM_VER_PATTERN.fullmatch(raw):
-            return raw
+            return cls._normalize_min_fw_dot(raw)
 
         hex_value = raw[2:] if raw.lower().startswith("0x") else raw
         if cls._HEX_SYSTEM_VER_PATTERN.fullmatch(hex_value):
@@ -133,14 +140,9 @@ class FpkgiJsonExporter(OutputExporterProtocol):
                 return raw
         return raw
 
-    @classmethod
-    def _format_size(cls, item: CatalogItem) -> str:
-        size = int(item.pkg_size)
-        if size < cls._BYTES_PER_MB:
-            return f"{size} B"
-        if size < cls._BYTES_PER_GB:
-            return f"{item.to_mb():.2f} MB"
-        return f"{item.to_gb():.2f} GB"
+    @staticmethod
+    def _format_size(item: CatalogItem) -> str:
+        return str(int(item.pkg_size))
 
     @override
     def export(self, items: Sequence[CatalogItem]) -> list[Path]:

@@ -26,6 +26,10 @@ from homebrew_cdn_m1_server.application.repositories.filesystem_repository impor
 from homebrew_cdn_m1_server.application.repositories.json_snapshot_repository import (
     JsonSnapshotRepository,
 )
+from homebrew_cdn_m1_server.application.hb_store_api import (
+    HbStoreApiResolver,
+    HbStoreApiServer,
+)
 from homebrew_cdn_m1_server.application.repositories.sqlite_unit_of_work import SqliteUnitOfWork
 from homebrew_cdn_m1_server.application.scheduler.apscheduler_runner import APSchedulerRunner
 from homebrew_cdn_m1_server.config.logging_setup import configure_logging
@@ -51,6 +55,14 @@ class WorkerApp:
             media_dir=config.paths.media_dir,
         )
         self._github_assets = GithubAssetsGateway()
+        self._hb_store_api = HbStoreApiServer(
+            resolver=HbStoreApiResolver(
+                catalog_db_path=config.paths.catalog_db_path,
+                store_db_path=config.paths.store_db_path,
+                base_url=config.base_url,
+            ),
+            logger=self._log,
+        )
 
     @classmethod
     def run_from_env(cls) -> int:
@@ -156,6 +168,7 @@ class WorkerApp:
 
     def start(self) -> None:
         self._initialize_layout_and_schema()
+        self._start_hb_store_api()
         self._sync_hb_store_assets_on_startup()
         reconcile = self._build_reconcile_use_case()
         _ = reconcile()
@@ -178,6 +191,9 @@ class WorkerApp:
         self._scheduler = scheduler
         self._log.info("Service started")
 
+    def _start_hb_store_api(self) -> None:
+        self._hb_store_api.start()
+
     def run(self) -> int:
         self._install_signal_handlers()
         self.start()
@@ -189,12 +205,16 @@ class WorkerApp:
         return 0
 
     def shutdown(self) -> None:
+        self._stop_hb_store_api()
         scheduler = self._scheduler
         if scheduler is None:
             return
         self._scheduler = None
         scheduler.shutdown()
         self._log.info("Service stopped")
+
+    def _stop_hb_store_api(self) -> None:
+        self._hb_store_api.stop()
 
     def _install_signal_handlers(self) -> None:
         def _stop_handler(_signum: int, _frame: FrameType | None) -> None:

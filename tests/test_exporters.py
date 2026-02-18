@@ -177,9 +177,13 @@ def test_fpkgi_exporter_given_system_ver_when_export_then_normalizes_min_fw(
     pkg_b = share_dir / "pkg" / "game" / "UP0000-TEST00000_00-TEST000000000002.pkg"
     _ = pkg_b.write_bytes(b"b")
 
+    pkg_c = share_dir / "pkg" / "game" / "UP0000-TEST00000_00-TEST000000000006.pkg"
+    _ = pkg_c.write_bytes(b"c")
+
     items = [
         _item(pkg_a, "UP0000-TEST00000_00-TEST000000000001", AppType.GAME, "0x05050000"),
         _item(pkg_b, "UP0000-TEST00000_00-TEST000000000002", AppType.GAME, ""),
+        _item(pkg_c, "UP0000-TEST00000_00-TEST000000000006", AppType.GAME, "09.00.80"),
     ]
 
     exporter = FpkgiJsonExporter(
@@ -194,7 +198,7 @@ def test_fpkgi_exporter_given_system_ver_when_export_then_normalizes_min_fw(
         data["http://127.0.0.1/pkg/game/UP0000-TEST00000_00-TEST000000000001.pkg"][
             "min_fw"
         ]
-        == "5.05"
+        == "05.05"
     )
     assert (
         data["http://127.0.0.1/pkg/game/UP0000-TEST00000_00-TEST000000000002.pkg"][
@@ -202,9 +206,15 @@ def test_fpkgi_exporter_given_system_ver_when_export_then_normalizes_min_fw(
         ]
         == ""
     )
+    assert (
+        data["http://127.0.0.1/pkg/game/UP0000-TEST00000_00-TEST000000000006.pkg"][
+            "min_fw"
+        ]
+        == "09.00"
+    )
 
 
-def test_fpkgi_exporter_given_pkg_sizes_when_export_then_uses_dynamic_size_units(
+def test_fpkgi_exporter_given_pkg_sizes_when_export_then_writes_bytes_only(
     temp_workspace: Path,
 ):
     share_dir = temp_workspace / "data" / "share"
@@ -254,19 +264,19 @@ def test_fpkgi_exporter_given_pkg_sizes_when_export_then_uses_dynamic_size_units
         data["http://127.0.0.1/pkg/app/UP0000-TEST00000_00-TEST000000000003.pkg"][
             "size"
         ]
-        == "512000 B"
+        == "512000"
     )
     assert (
         data["http://127.0.0.1/pkg/app/UP0000-TEST00000_00-TEST000000000004.pkg"][
             "size"
         ]
-        == "25.00 MB"
+        == "26214400"
     )
     assert (
         data["http://127.0.0.1/pkg/app/UP0000-TEST00000_00-TEST000000000005.pkg"][
             "size"
         ]
-        == "3.00 GB"
+        == "3221225472"
     )
 
 

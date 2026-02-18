@@ -20,3 +20,7 @@ def test_parse_sfo_entries_given_roman_numeral_title_then_stores_normalized_valu
     assert parsed["TITLE"] == "Resident Evil IV"
     assert parsed["TITLE_ID"] == "CUSA99999"
     assert "Entry Name" not in parsed
+
+
+def test_normalize_text_given_trademark_symbol_then_preserves_symbol() -> None:
+    assert normalize_text("Game™ Edition") == "Game™ Edition"

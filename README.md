@@ -18,6 +18,10 @@ PS4 static CDN pipeline for `hb-store` (`store.db`) and `fPKGi` (`*.json`).
    - `hb-store` -> `data/share/hb-store/store.db`
    - `fpkgi` -> `data/share/fpkgi/*.json`
 6. Serves public content through nginx from `data/share`.
+7. Exposes PS4-Store API endpoints:
+   - `/api.php?db_check_hash=true`
+   - `/download.php?tid=<TITLE_ID>&check=true`
+   - `/download.php?tid=<TITLE_ID>`
 
 Broken PKGs are moved to `data/internal/errors`.
 
@@ -94,6 +98,9 @@ Public share root:
 - `data/share/hb-store/update/homebrew.elf.sig`
 - `data/share/hb-store/update/remote.md5`
 - `data/share/fpkgi/*.json`
+- `GET /api.php?db_check_hash=true` (hb-store hash API)
+- `GET /download.php?tid=<TITLE_ID>&check=true` (hb-store counter API)
+- `GET /download.php?tid=<TITLE_ID>` (hb-store redirect API)
 
 Internal (not public):
 

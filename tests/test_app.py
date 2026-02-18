@@ -196,6 +196,8 @@ def test_worker_app_start_given_cron_expression_when_called_then_schedules_cron(
     monkeypatch.setattr(app_module, "APSchedulerRunner", _scheduler_factory)
     monkeypatch.setattr(app, "_initialize_layout_and_schema", lambda: None)
     monkeypatch.setattr(app, "_sync_hb_store_assets_on_startup", lambda: None)
+    monkeypatch.setattr(app, "_start_hb_store_api", lambda: None)
+    monkeypatch.setattr(app, "_stop_hb_store_api", lambda: None)
     monkeypatch.setattr(app, "_build_reconcile_use_case", _build_reconcile)
 
     app.start()
@@ -233,6 +235,8 @@ def test_worker_app_start_given_empty_cron_when_called_then_schedules_interval(
     monkeypatch.setattr(app_module, "APSchedulerRunner", _scheduler_factory)
     monkeypatch.setattr(app, "_initialize_layout_and_schema", lambda: None)
     monkeypatch.setattr(app, "_sync_hb_store_assets_on_startup", lambda: None)
+    monkeypatch.setattr(app, "_start_hb_store_api", lambda: None)
+    monkeypatch.setattr(app, "_stop_hb_store_api", lambda: None)
     monkeypatch.setattr(app, "_build_reconcile_use_case", _build_reconcile)
 
     app.start()

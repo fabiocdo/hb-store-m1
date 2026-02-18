@@ -32,6 +32,7 @@ read_setting() {
 
 SERVER_PORT="$(read_setting SERVER_PORT)"
 ENABLE_TLS="$(read_setting ENABLE_TLS)"
+EXPORT_TARGETS="$(read_setting EXPORT_TARGETS)"
 
 TLS_ENABLED=false
 case "$(printf '%s' "${ENABLE_TLS:-false}" | tr '[:upper:]' '[:lower:]')" in
@@ -95,8 +96,25 @@ if [ -f "$PYPROJECT_FILE" ]; then
 fi
 
 if [ -f "$INDEX_TEMPLATE_FILE" ]; then
+  normalized_targets="$(printf '%s' "${EXPORT_TARGETS:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+
+  HB_STORE_ENABLED=false
+  FPKGI_ENABLED=false
+
+  case ",$normalized_targets," in
+    *,hb-store,*) HB_STORE_ENABLED=true ;;
+  esac
+
+  case ",$normalized_targets," in
+    *,fpkgi,*) FPKGI_ENABLED=true ;;
+  esac
+
   mkdir -p "$(dirname "$PUBLIC_INDEX_FILE")"
-  sed -e "s|__APP_VERSION__|$APP_VERSION|g" "$INDEX_TEMPLATE_FILE" > "$PUBLIC_INDEX_FILE"
+  sed \
+    -e "s|__APP_VERSION__|$APP_VERSION|g" \
+    -e "s|__HB_STORE_ENABLED__|$HB_STORE_ENABLED|g" \
+    -e "s|__FPKGI_ENABLED__|$FPKGI_ENABLED|g" \
+    "$INDEX_TEMPLATE_FILE" > "$PUBLIC_INDEX_FILE"
 fi
 
 if [ -f "$ASSET_512_TEMPLATE_FILE" ]; then
