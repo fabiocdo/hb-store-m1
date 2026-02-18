@@ -1,0 +1,336 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+import json
+import sqlite3
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import cast, final
+
+from homebrew_cdn_m1_server.domain.models.catalog_item import CatalogItem
+from homebrew_cdn_m1_server.domain.models.param_sfo_snapshot import ParamSfoSnapshot
+from homebrew_cdn_m1_server.domain.models.app_type import AppType
+from homebrew_cdn_m1_server.domain.models.content_id import ContentId
+
+
+@final
+class SqliteCatalogRepository:
+    def __init__(self, conn: sqlite3.Connection, db_path: Path) -> None:
+        self._conn = conn
+        self._db_path = db_path
+
+    def init_schema(self, schema_sql: str) -> None:
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        _ = self._conn.executescript(schema_sql)
+        self._ensure_catalog_columns()
+
+    def _ensure_catalog_columns(self) -> None:
+        self._ensure_column("catalog_items", "publisher", "TEXT")
+
+    def _ensure_column(self, table: str, column: str, column_type: str) -> None:
+        rows = cast(
+            list[tuple[object, ...]],
+            self._conn.execute(f"PRAGMA table_info({table})").fetchall(),
+        )
+        if not rows:
+            return
+        names = {str(row[1]) for row in rows if len(row) > 1}
+        if column in names:
+            return
+        _ = self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+
+    @staticmethod
+    def _to_row(item: CatalogItem) -> dict[str, object]:
+        now = datetime.now(UTC).replace(microsecond=0).isoformat()
+        return {
+            "content_id": item.content_id.value,
+            "title_id": item.title_id,
+            "title": item.title,
+            "publisher": item.publisher,
+            "app_type": item.app_type.value,
+            "category": item.category,
+            "version": item.version,
+            "pubtoolinfo": item.pubtoolinfo,
+            "system_ver": item.system_ver,
+            "release_date": item.release_date,
+            "pkg_path": str(item.pkg_path),
+            "pkg_size": int(item.pkg_size),
+            "pkg_mtime_ns": int(item.pkg_mtime_ns),
+            "pkg_fingerprint": item.pkg_fingerprint,
+            "icon0_path": str(item.icon0_path) if item.icon0_path else None,
+            "pic0_path": str(item.pic0_path) if item.pic0_path else None,
+            "pic1_path": str(item.pic1_path) if item.pic1_path else None,
+            "sfo_json": json.dumps(item.sfo.fields, ensure_ascii=True, sort_keys=True),
+            "sfo_raw": item.sfo.raw,
+            "sfo_hash": item.sfo.hash,
+            "updated_at": now,
+            "created_at": now,
+        }
+
+    def upsert(self, item: CatalogItem) -> None:
+        row = self._to_row(item)
+        _ = self._conn.execute(
+            """
+            INSERT INTO catalog_items (
+                content_id, title_id, title, publisher, app_type, category, version,
+                pubtoolinfo, system_ver, release_date, pkg_path,
+                pkg_size, pkg_mtime_ns, pkg_fingerprint,
+                icon0_path, pic0_path, pic1_path,
+                sfo_json, sfo_raw, sfo_hash,
+                created_at, updated_at
+            ) VALUES (
+                :content_id, :title_id, :title, :publisher, :app_type, :category, :version,
+                :pubtoolinfo, :system_ver, :release_date, :pkg_path,
+                :pkg_size, :pkg_mtime_ns, :pkg_fingerprint,
+                :icon0_path, :pic0_path, :pic1_path,
+                :sfo_json, :sfo_raw, :sfo_hash,
+                :created_at, :updated_at
+            )
+            ON CONFLICT(content_id, app_type, version)
+            DO UPDATE SET
+                title_id=excluded.title_id,
+                title=excluded.title,
+                publisher=excluded.publisher,
+                category=excluded.category,
+                pubtoolinfo=excluded.pubtoolinfo,
+                system_ver=excluded.system_ver,
+                release_date=excluded.release_date,
+                pkg_path=excluded.pkg_path,
+                pkg_size=excluded.pkg_size,
+                pkg_mtime_ns=excluded.pkg_mtime_ns,
+                pkg_fingerprint=excluded.pkg_fingerprint,
+                icon0_path=excluded.icon0_path,
+                pic0_path=excluded.pic0_path,
+                pic1_path=excluded.pic1_path,
+                sfo_json=excluded.sfo_json,
+                sfo_raw=excluded.sfo_raw,
+                sfo_hash=excluded.sfo_hash,
+                updated_at=excluded.updated_at
+            """,
+            row,
+        )
+
+    def get_download_count(self, title_id: str) -> int:
+        key = str(title_id or "").strip()
+        if not key:
+            return 0
+        row_obj = cast(
+            object,
+            self._conn.execute(
+                "SELECT downloads FROM download_counters WHERE title_id = ? LIMIT 1",
+                (key,),
+            ).fetchone(),
+        )
+        row = cast(tuple[object] | None, row_obj)
+        if row is None:
+            return 0
+        value = row[0]
+        if value is None:
+            return 0
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, int):
+            return max(0, value)
+        if isinstance(value, float):
+            return max(0, int(value))
+        if isinstance(value, str):
+            try:
+                return max(0, int(value.strip()))
+            except ValueError:
+                return 0
+        if isinstance(value, (bytes, bytearray)):
+            try:
+                return max(0, int(bytes(value).decode("utf-8", errors="ignore").strip()))
+            except ValueError:
+                return 0
+        if isinstance(value, memoryview):
+            try:
+                return max(0, int(value.tobytes().decode("utf-8", errors="ignore").strip()))
+            except ValueError:
+                return 0
+        return 0
+
+    def increment_download_count(self, title_id: str, seed: int = 0) -> int:
+        key = str(title_id or "").strip()
+        if not key:
+            return 0
+
+        now = datetime.now(UTC).replace(microsecond=0).isoformat()
+        seed_count = max(0, int(seed))
+        _ = self._conn.execute(
+            """
+            INSERT INTO download_counters (title_id, downloads, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(title_id) DO NOTHING
+            """,
+            (key, seed_count, now, now),
+        )
+        _ = self._conn.execute(
+            """
+            UPDATE download_counters
+            SET downloads = downloads + 1,
+                updated_at = ?
+            WHERE title_id = ?
+            """,
+            (now, key),
+        )
+        return self.get_download_count(key)
+
+    @staticmethod
+    def _row_text(row: Mapping[str, object], key: str) -> str:
+        value = row.get(key)
+        if value is None:
+            return ""
+        return str(value)
+
+    @staticmethod
+    def _row_int(row: Mapping[str, object], key: str) -> int:
+        value = row.get(key)
+        if value is None:
+            return 0
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(value)
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError:
+                return 0
+        if isinstance(value, (bytes, bytearray)):
+            try:
+                return int(value.decode("utf-8", errors="ignore").strip())
+            except ValueError:
+                return 0
+        if isinstance(value, memoryview):
+            try:
+                return int(value.tobytes().decode("utf-8", errors="ignore").strip())
+            except ValueError:
+                return 0
+        try:
+            return int(str(value))
+        except ValueError:
+            return 0
+
+    @staticmethod
+    def _row_optional_path(row: Mapping[str, object], key: str) -> Path | None:
+        value = row.get(key)
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        return Path(text)
+
+    @classmethod
+    def _parse_row(cls, row: Mapping[str, object]) -> CatalogItem:
+        sfo_json_text = cls._row_text(row, "sfo_json") or "{}"
+        fields_obj = cast(object, json.loads(sfo_json_text))
+        fields: dict[str, str] = {}
+        if isinstance(fields_obj, dict):
+            for key, value in cast(dict[object, object], fields_obj).items():
+                fields[str(key)] = str(value)
+
+        sfo_raw_obj = row.get("sfo_raw")
+        sfo_raw: bytes
+        if isinstance(sfo_raw_obj, bytes):
+            sfo_raw = sfo_raw_obj
+        elif isinstance(sfo_raw_obj, bytearray):
+            sfo_raw = bytes(sfo_raw_obj)
+        elif isinstance(sfo_raw_obj, memoryview):
+            sfo_raw = sfo_raw_obj.tobytes()
+        else:
+            sfo_raw = b""
+
+        content_id_raw = cls._row_text(row, "content_id")
+        app_type_raw = cls._row_text(row, "app_type") or "unknown"
+
+        return CatalogItem(
+            content_id=ContentId.parse(content_id_raw),
+            title_id=cls._row_text(row, "title_id"),
+            title=cls._row_text(row, "title"),
+            app_type=AppType(app_type_raw),
+            category=cls._row_text(row, "category"),
+            version=cls._row_text(row, "version"),
+            pubtoolinfo=cls._row_text(row, "pubtoolinfo"),
+            system_ver=cls._row_text(row, "system_ver"),
+            release_date=cls._row_text(row, "release_date"),
+            pkg_path=Path(cls._row_text(row, "pkg_path")),
+            pkg_size=cls._row_int(row, "pkg_size"),
+            pkg_mtime_ns=cls._row_int(row, "pkg_mtime_ns"),
+            pkg_fingerprint=cls._row_text(row, "pkg_fingerprint"),
+            icon0_path=cls._row_optional_path(row, "icon0_path"),
+            pic0_path=cls._row_optional_path(row, "pic0_path"),
+            pic1_path=cls._row_optional_path(row, "pic1_path"),
+            sfo=ParamSfoSnapshot(
+                fields=fields,
+                raw=sfo_raw,
+                hash=cls._row_text(row, "sfo_hash"),
+            ),
+            publisher=(cls._row_text(row, "publisher").strip() or None),
+            downloads=cls._row_int(row, "downloads"),
+        )
+
+    def list_items(self) -> list[CatalogItem]:
+        self._conn.row_factory = sqlite3.Row
+        rows = cast(
+            list[sqlite3.Row],
+            self._conn.execute(
+            """
+            SELECT
+                ci.content_id,
+                ci.title_id,
+                ci.title,
+                ci.publisher,
+                ci.app_type,
+                ci.category,
+                ci.version,
+                ci.pubtoolinfo,
+                ci.system_ver,
+                ci.release_date,
+                ci.pkg_path,
+                ci.pkg_size,
+                ci.pkg_mtime_ns,
+                ci.pkg_fingerprint,
+                ci.icon0_path,
+                ci.pic0_path,
+                ci.pic1_path,
+                ci.sfo_json,
+                ci.sfo_raw,
+                ci.sfo_hash,
+                COALESCE(dc_pkg.downloads, dc_content.downloads, dc_title.downloads, 0) AS downloads
+            FROM catalog_items AS ci
+            LEFT JOIN download_counters AS dc_pkg
+                ON dc_pkg.title_id = ci.content_id || '@' || ci.version
+            LEFT JOIN download_counters AS dc_content
+                ON dc_content.title_id = ci.content_id
+            LEFT JOIN download_counters AS dc_title
+                ON dc_title.title_id = ci.title_id
+            ORDER BY ci.app_type, ci.content_id, ci.version
+            """
+            ).fetchall(),
+        )
+
+        items: list[CatalogItem] = []
+        for row in rows:
+            try:
+                row_map = cast(dict[str, object], dict(row))
+                items.append(self._parse_row(row_map))
+            except Exception:
+                continue
+        return items
+
+    def delete_by_pkg_paths_not_in(self, existing_pkg_paths: set[str]) -> int:
+        cursor = self._conn.cursor()
+        if not existing_pkg_paths:
+            deleted = cursor.execute("DELETE FROM catalog_items").rowcount
+            return int(deleted or 0)
+
+        placeholders = ",".join("?" for _ in existing_pkg_paths)
+        deleted = cursor.execute(
+            f"DELETE FROM catalog_items WHERE pkg_path NOT IN ({placeholders})",
+            tuple(existing_pkg_paths),
+        ).rowcount
+        return int(deleted or 0)

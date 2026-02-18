@@ -1,0 +1,78 @@
+{
+  "$defs": {
+    "FpkgiItem": {
+      "additionalProperties": false,
+      "properties": {
+        "cover_url": {
+          "minLength": 1,
+          "title": "Cover Url",
+          "type": "string"
+        },
+        "min_fw": {
+          "title": "Min Fw",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "release": {
+          "title": "Release",
+          "type": "string"
+        },
+        "size": {
+          "minimum": 0,
+          "title": "Size",
+          "type": "integer"
+        },
+        "title_id": {
+          "minLength": 1,
+          "title": "Title Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title_id",
+        "name",
+        "version",
+        "release",
+        "size",
+        "min_fw",
+        "cover_url"
+      ],
+      "title": "FpkgiItem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "DATA": {
+      "additionalProperties": {
+        "$ref": "#/$defs/FpkgiItem"
+      },
+      "title": "Data",
+      "type": "object"
+    }
+  },
+  "title": "FpkgiDocument",
+  "type": "object"
+}
