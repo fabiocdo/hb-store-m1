@@ -549,7 +549,7 @@ def test_hb_store_api_server_given_same_content_different_version_when_download_
         catalog_db,
         content_id=cid,
         title_id="CUSA00400",
-        app_type="game",
+        app_type="update",
         version="02.00",
         updated_at="2025-01-02T00:00:00+00:00",
     )
@@ -593,3 +593,41 @@ def test_hb_store_api_server_given_same_content_different_version_when_download_
         conn.close()
     finally:
         server.stop()
+
+
+def test_hb_store_api_resolver_given_tid_only_with_game_and_update_when_resolve_then_prefers_game(
+    temp_workspace: Path,
+) -> None:
+    catalog_db = temp_workspace / "data" / "internal" / "catalog" / "catalog.db"
+    store_db = temp_workspace / "data" / "share" / "hb-store" / "store.db"
+    _init_catalog_db(catalog_db)
+    _init_store_db(store_db)
+
+    cid = "UP0000-TEST00000_00-TEST000000000501"
+    _insert_catalog_row(
+        catalog_db,
+        content_id=cid,
+        title_id="CUSA00500",
+        app_type="game",
+        version="01.00",
+        updated_at="2025-01-01T00:00:00+00:00",
+    )
+    _insert_catalog_row(
+        catalog_db,
+        content_id=cid,
+        title_id="CUSA00500",
+        app_type="update",
+        version="09.99",
+        updated_at="2025-01-02T00:00:00+00:00",
+    )
+
+    resolver = HbStoreApiResolver(
+        catalog_db_path=catalog_db,
+        store_db_path=store_db,
+        base_url="http://127.0.0.1",
+    )
+
+    assert (
+        resolver.resolve_download_url("CUSA00500")
+        == f"http://127.0.0.1/pkg/game/{cid}.pkg"
+    )

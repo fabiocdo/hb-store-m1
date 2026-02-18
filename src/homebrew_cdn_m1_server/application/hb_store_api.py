@@ -16,6 +16,14 @@ from urllib.parse import parse_qs, urlparse
 @final
 class HbStoreApiResolver:
     _VERSION_PARTS_REGEX: ClassVar[re.Pattern[str]] = re.compile(r"\d+")
+    _APP_TYPE_PRIORITY: ClassVar[dict[str, int]] = {
+        "game": 50,
+        "app": 40,
+        "update": 30,
+        "dlc": 20,
+        "save": 10,
+        "unknown": 0,
+    }
     _STORE_COUNT_ROW_SQL: ClassVar[str] = """
         SELECT number_of_downloads
         FROM homebrews
@@ -58,14 +66,14 @@ class HbStoreApiResolver:
         FROM catalog_items
         WHERE title_id = ?
     """
-    _CATALOG_BY_CONTENT_ROW_SQL: ClassVar[str] = """
+    _CATALOG_BY_CONTENT_ROWS_SQL: ClassVar[str] = """
         SELECT
             COALESCE(content_id, ''),
-            COALESCE(app_type, '')
+            COALESCE(app_type, ''),
+            COALESCE(version, ''),
+            COALESCE(updated_at, '')
         FROM catalog_items
         WHERE content_id = ?
-        ORDER BY COALESCE(updated_at, '') DESC
-        LIMIT 1
     """
     _PACKAGE_ROW_SQL: ClassVar[str] = """
         SELECT COALESCE(package, '')
@@ -229,6 +237,36 @@ class HbStoreApiResolver:
             _ = parts.pop()
         return tuple(parts)
 
+    @classmethod
+    def _app_type_priority(cls, app_type: str) -> int:
+        normalized = str(app_type or "").strip().lower()
+        return cls._APP_TYPE_PRIORITY.get(normalized, -1)
+
+    @classmethod
+    def _best_catalog_row(
+        cls,
+        rows: list[tuple[str, str, str, str]],
+        preferred_version: str | None = None,
+    ) -> tuple[str, str, str, str] | None:
+        if not rows:
+            return None
+
+        target_version = cls._normalize_version(preferred_version)
+        if target_version:
+            version_filtered = [row for row in rows if cls._normalize_version(str(row[2] or "")) == target_version]
+            if version_filtered:
+                rows = version_filtered
+
+        return max(
+            rows,
+            key=lambda row: (
+                cls._app_type_priority(str(row[1] or "")),
+                cls._version_key(str(row[2] or "")),
+                str(row[3] or ""),
+                str(row[0] or ""),
+            ),
+        )
+
     def _package_url_from_catalog(self, title_id: str) -> str | None:
         if not title_id or not self._catalog_db_path.exists():
             return None
@@ -243,15 +281,9 @@ class HbStoreApiResolver:
         if not rows:
             return None
 
-        best = max(
-            rows,
-            key=lambda row: (
-                self._version_key(str(row[2] or "")),
-                str(row[3] or ""),
-                str(row[1] or ""),
-                str(row[0] or ""),
-            ),
-        )
+        best = self._best_catalog_row(rows, None)
+        if best is None:
+            return None
 
         content_id = str(best[0] or "").strip()
         app_type = str(best[1] or "").strip().lower()
@@ -263,25 +295,30 @@ class HbStoreApiResolver:
             return f"{self._base_url}{route}"
         return route
 
-    def _package_url_from_catalog_content_id(self, content_id: str | None) -> str | None:
+    def _package_url_from_catalog_content_id(
+        self,
+        content_id: str | None,
+        version: str | None = None,
+    ) -> str | None:
         cid = self._normalize_content_id(content_id)
         if not cid or not self._catalog_db_path.exists():
             return None
 
         try:
             with sqlite3.connect(str(self._catalog_db_path)) as conn:
-                row_obj = cast(
+                rows_obj = cast(
                     object,
-                    conn.execute(self._CATALOG_BY_CONTENT_ROW_SQL, (cid,)).fetchone(),
+                    conn.execute(self._CATALOG_BY_CONTENT_ROWS_SQL, (cid,)).fetchall(),
                 )
         except sqlite3.Error:
             return None
 
-        row = cast(tuple[object, object] | None, row_obj)
-        if row is None:
+        rows = cast(list[tuple[str, str, str, str]], rows_obj)
+        best = self._best_catalog_row(rows, version)
+        if best is None:
             return None
-        content_value = str(row[0] or "").strip()
-        app_type = str(row[1] or "").strip().lower()
+        content_value = str(best[0] or "").strip()
+        app_type = str(best[1] or "").strip().lower()
         if not content_value or not app_type:
             return None
         route = f"/pkg/{app_type}/{content_value}.pkg"
@@ -312,15 +349,25 @@ class HbStoreApiResolver:
             return None
         return package_url
 
-    def resolve_download_url(self, title_id: str, content_id: str | None = None) -> str | None:
+    def resolve_download_url(
+        self,
+        title_id: str,
+        content_id: str | None = None,
+        version: str | None = None,
+    ) -> str | None:
         return (
-            self._package_url_from_catalog_content_id(content_id)
+            self._package_url_from_catalog_content_id(content_id, version)
             or self._package_url_from_catalog(title_id)
             or self._package_url_from_store_db(title_id)
         )
 
-    def resolve_download_pkg_path(self, title_id: str, content_id: str | None = None) -> str | None:
-        destination = self.resolve_download_url(title_id, content_id)
+    def resolve_download_pkg_path(
+        self,
+        title_id: str,
+        content_id: str | None = None,
+        version: str | None = None,
+    ) -> str | None:
+        destination = self.resolve_download_url(title_id, content_id, version)
         if not destination:
             return None
         parsed = urlparse(destination)
@@ -425,7 +472,7 @@ class HbStoreApiServer:
                         )
                         return
 
-                    pkg_path = resolver.resolve_download_pkg_path(title_id, content_id)
+                    pkg_path = resolver.resolve_download_pkg_path(title_id, content_id, version)
                     if not pkg_path:
                         self._write_json(
                             {"error": "title_id_not_found"},
