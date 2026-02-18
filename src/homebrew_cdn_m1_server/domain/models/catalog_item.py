@@ -31,6 +31,7 @@ class CatalogItem:
     pic0_path: Path | None
     pic1_path: Path | None
     sfo: ParamSfoSnapshot
+    publisher: str | None = None
     downloads: int = 0
 
     def to_mb(self) -> float:

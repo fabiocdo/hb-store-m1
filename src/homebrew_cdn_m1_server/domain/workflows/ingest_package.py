@@ -10,6 +10,9 @@ from homebrew_cdn_m1_server.application.repositories.filesystem_repository impor
 )
 from homebrew_cdn_m1_server.application.repositories.sqlite_unit_of_work import SqliteUnitOfWork
 from homebrew_cdn_m1_server.domain.protocols.package_probe_protocol import PackageProbeProtocol
+from homebrew_cdn_m1_server.domain.protocols.publisher_lookup_protocol import (
+    PublisherLookupProtocol,
+)
 from homebrew_cdn_m1_server.domain.models.catalog_item import CatalogItem
 from homebrew_cdn_m1_server.domain.models.param_sfo_snapshot import ParamSfoSnapshot
 from homebrew_cdn_m1_server.domain.models.results import IngestResult
@@ -39,11 +42,13 @@ class IngestPackage:
         package_probe: PackageProbeProtocol,
         package_store: FilesystemRepository,
         logger: logging.Logger,
+        publisher_lookup: PublisherLookupProtocol | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._package_probe = package_probe
         self._package_store = package_store
         self._logger = logger
+        self._publisher_lookup = publisher_lookup
 
     def __call__(self, pkg_path: Path) -> IngestResult:
         try:
@@ -72,6 +77,17 @@ class IngestPackage:
             _ = self._package_store.move_to_errors(canonical_path, "fingerprint_failed")
             return IngestResult(item=None, created=False, updated=False)
 
+        publisher: str | None = None
+        if self._publisher_lookup is not None:
+            try:
+                publisher = self._publisher_lookup.lookup_by_title_id(probe.title_id)
+            except Exception as exc:
+                self._logger.warning(
+                    "Publisher lookup failed for title_id: %s, error: %s",
+                    probe.title_id,
+                    exc,
+                )
+
         item = CatalogItem(
             content_id=probe.content_id,
             title_id=probe.title_id,
@@ -94,6 +110,7 @@ class IngestPackage:
                 raw=probe.sfo_raw,
                 hash=probe.sfo_hash,
             ),
+            publisher=publisher,
         )
 
         with self._uow_factory() as uow:

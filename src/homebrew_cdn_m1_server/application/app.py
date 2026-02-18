@@ -19,6 +19,9 @@ from homebrew_cdn_m1_server.application.exporters.store_db_exporter import Store
 from homebrew_cdn_m1_server.application.gateways.github_assets_gateway import (
     GithubAssetsGateway,
 )
+from homebrew_cdn_m1_server.application.gateways.orbispatches_publisher_gateway import (
+    OrbisPatchesPublisherGateway,
+)
 from homebrew_cdn_m1_server.application.gateways.pkgtool_gateway import PkgtoolGateway
 from homebrew_cdn_m1_server.application.repositories.filesystem_repository import (
     FilesystemRepository,
@@ -55,6 +58,7 @@ class WorkerApp:
             media_dir=config.paths.media_dir,
         )
         self._github_assets = GithubAssetsGateway()
+        self._publisher_lookup = OrbisPatchesPublisherGateway()
         self._hb_store_api = HbStoreApiServer(
             resolver=HbStoreApiResolver(
                 catalog_db_path=config.paths.catalog_db_path,
@@ -97,6 +101,7 @@ class WorkerApp:
             package_probe=self._pkgtool,
             package_store=self._package_store,
             logger=self._log,
+            publisher_lookup=self._publisher_lookup,
         )
 
         exporters = [
@@ -104,6 +109,7 @@ class WorkerApp:
                 output_db_path=self._config.paths.store_db_path,
                 init_sql_path=self._config.paths.init_dir / "store_db.sql",
                 base_url=self._config.base_url,
+                publisher_lookup=self._publisher_lookup,
             ),
             FpkgiJsonExporter(
                 output_dir=self._config.paths.fpkgi_share_dir,

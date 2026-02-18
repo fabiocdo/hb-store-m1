@@ -22,6 +22,22 @@ class SqliteCatalogRepository:
     def init_schema(self, schema_sql: str) -> None:
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         _ = self._conn.executescript(schema_sql)
+        self._ensure_catalog_columns()
+
+    def _ensure_catalog_columns(self) -> None:
+        self._ensure_column("catalog_items", "publisher", "TEXT")
+
+    def _ensure_column(self, table: str, column: str, column_type: str) -> None:
+        rows = cast(
+            list[tuple[object, ...]],
+            self._conn.execute(f"PRAGMA table_info({table})").fetchall(),
+        )
+        if not rows:
+            return
+        names = {str(row[1]) for row in rows if len(row) > 1}
+        if column in names:
+            return
+        _ = self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
 
     @staticmethod
     def _to_row(item: CatalogItem) -> dict[str, object]:
@@ -30,6 +46,7 @@ class SqliteCatalogRepository:
             "content_id": item.content_id.value,
             "title_id": item.title_id,
             "title": item.title,
+            "publisher": item.publisher,
             "app_type": item.app_type.value,
             "category": item.category,
             "version": item.version,
@@ -55,14 +72,14 @@ class SqliteCatalogRepository:
         _ = self._conn.execute(
             """
             INSERT INTO catalog_items (
-                content_id, title_id, title, app_type, category, version,
+                content_id, title_id, title, publisher, app_type, category, version,
                 pubtoolinfo, system_ver, release_date, pkg_path,
                 pkg_size, pkg_mtime_ns, pkg_fingerprint,
                 icon0_path, pic0_path, pic1_path,
                 sfo_json, sfo_raw, sfo_hash,
                 created_at, updated_at
             ) VALUES (
-                :content_id, :title_id, :title, :app_type, :category, :version,
+                :content_id, :title_id, :title, :publisher, :app_type, :category, :version,
                 :pubtoolinfo, :system_ver, :release_date, :pkg_path,
                 :pkg_size, :pkg_mtime_ns, :pkg_fingerprint,
                 :icon0_path, :pic0_path, :pic1_path,
@@ -73,6 +90,7 @@ class SqliteCatalogRepository:
             DO UPDATE SET
                 title_id=excluded.title_id,
                 title=excluded.title,
+                publisher=excluded.publisher,
                 category=excluded.category,
                 pubtoolinfo=excluded.pubtoolinfo,
                 system_ver=excluded.system_ver,
@@ -251,6 +269,7 @@ class SqliteCatalogRepository:
                 raw=sfo_raw,
                 hash=cls._row_text(row, "sfo_hash"),
             ),
+            publisher=(cls._row_text(row, "publisher").strip() or None),
             downloads=cls._row_int(row, "downloads"),
         )
 
@@ -264,6 +283,7 @@ class SqliteCatalogRepository:
                 ci.content_id,
                 ci.title_id,
                 ci.title,
+                ci.publisher,
                 ci.app_type,
                 ci.category,
                 ci.version,

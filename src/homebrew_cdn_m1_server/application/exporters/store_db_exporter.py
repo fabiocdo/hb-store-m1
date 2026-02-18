@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import final, override
 
 from homebrew_cdn_m1_server.domain.protocols.output_exporter_protocol import OutputExporterProtocol
+from homebrew_cdn_m1_server.domain.protocols.publisher_lookup_protocol import (
+    PublisherLookupProtocol,
+)
 from homebrew_cdn_m1_server.domain.models.output_target import OutputTarget
 from homebrew_cdn_m1_server.domain.models.catalog_item import CatalogItem
 
@@ -16,13 +19,17 @@ class StoreDbExporter(OutputExporterProtocol):
     _BYTES_PER_MB: int = 1024 * 1024
     _BYTES_PER_GB: int = 1024 * 1024 * 1024
 
-    def __init__(self, output_db_path: Path, init_sql_path: Path, base_url: str) -> None:
+    def __init__(
+        self,
+        output_db_path: Path,
+        init_sql_path: Path,
+        base_url: str,
+        publisher_lookup: PublisherLookupProtocol | None = None,
+    ) -> None:
         self._output_db_path = output_db_path
         self._init_sql_path = init_sql_path
         self._base_url = base_url.rstrip("/")
-
-    def _canonical_pkg_url(self, item: CatalogItem) -> str:
-        return f"{self._base_url}/pkg/{item.app_type.value}/{item.content_id.value}.pkg"
+        self._publisher_lookup = publisher_lookup
 
     def _download_url(self, item: CatalogItem) -> str:
         return (
@@ -42,7 +49,18 @@ class StoreDbExporter(OutputExporterProtocol):
             return f"{normalized / cls._BYTES_PER_MB:.2f} MB"
         return f"{normalized} B"
 
+    def _resolve_publisher(self, item: CatalogItem) -> str | None:
+        if item.publisher:
+            return item.publisher
+        if self._publisher_lookup is None:
+            return None
+        try:
+            return self._publisher_lookup.lookup_by_title_id(item.title_id)
+        except Exception:
+            return None
+
     def _row(self, item: CatalogItem) -> tuple[object, ...]:
+        author = self._resolve_publisher(item)
         row = {
             "content_id": item.content_id.value,
             "id": item.title_id,
@@ -56,7 +74,7 @@ class StoreDbExporter(OutputExporterProtocol):
             "desc_2": None,
             "ReviewStars": None,
             "Size": self._format_store_size(item.pkg_size),
-            "Author": None,
+            "Author": author,
             "apptype": item.app_type.store_db_label,
             "pv": None,
             "main_icon_path": self._canonical_media_url(item, "pic0") if item.pic0_path else None,

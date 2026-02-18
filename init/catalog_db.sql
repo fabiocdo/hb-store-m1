@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS catalog_items
     content_id      TEXT NOT NULL,
     title_id        TEXT NOT NULL,
     title           TEXT NOT NULL,
+    publisher       TEXT,
     app_type        TEXT NOT NULL,
     category        TEXT NOT NULL,
     version         TEXT NOT NULL,

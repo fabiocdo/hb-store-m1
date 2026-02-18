@@ -13,6 +13,9 @@ from homebrew_cdn_m1_server.domain.models.app_type import AppType
 from homebrew_cdn_m1_server.domain.models.content_id import ContentId
 from homebrew_cdn_m1_server.application.exporters.fpkgi_json_exporter import FpkgiJsonExporter
 from homebrew_cdn_m1_server.application.exporters.store_db_exporter import StoreDbExporter
+from homebrew_cdn_m1_server.domain.protocols.publisher_lookup_protocol import (
+    PublisherLookupProtocol,
+)
 
 FPKGI_SCHEMA = Path(__file__).resolve().parents[1] / "init" / "fpkgi.schema.json"
 
@@ -42,6 +45,7 @@ def _item(
     app_type: AppType,
     system_ver: str = "09.00",
     pkg_size: int = 2048,
+    publisher: str | None = None,
 ) -> CatalogItem:
     return CatalogItem(
         content_id=ContentId.parse(content_id),
@@ -61,6 +65,7 @@ def _item(
         pic0_path=None,
         pic1_path=None,
         sfo=ParamSfoSnapshot(fields={"TITLE": "My Test"}, raw=b"sfo", hash="hash"),
+        publisher=publisher,
     )
 
 
@@ -78,7 +83,12 @@ def test_exporters_given_catalog_items_when_export_then_generates_store_db_and_j
     _ = pkg_path.write_bytes(b"x")
 
     items = [
-        _item(pkg_path, "UP0000-TEST00000_00-TEST000000000000", AppType.GAME),
+        _item(
+            pkg_path,
+            "UP0000-TEST00000_00-TEST000000000000",
+            AppType.GAME,
+            publisher="Mojang",
+        ),
     ]
 
     store_exporter = StoreDbExporter(store_output, store_sql, "http://127.0.0.1")
@@ -88,15 +98,18 @@ def test_exporters_given_catalog_items_when_export_then_generates_store_db_and_j
     conn = sqlite3.connect(str(store_output))
     row_obj = cast(
         object,
-        conn.execute("SELECT content_id, apptype, image, package FROM homebrews").fetchone(),
+        conn.execute(
+            "SELECT content_id, apptype, image, package, Author FROM homebrews"
+        ).fetchone(),
     )
     conn.close()
-    row = cast(tuple[str, str, str, str] | None, row_obj)
+    row = cast(tuple[str, str, str, str, str] | None, row_obj)
     assert row == (
         "UP0000-TEST00000_00-TEST000000000000",
         "Game",
         "http://127.0.0.1/pkg/media/UP0000-TEST00000_00-TEST000000000000_icon0.png",
         "http://127.0.0.1/download.php?tid=CUSA00001&cid=UP0000-TEST00000_00-TEST000000000000&ver=01.00",
+        "Mojang",
     )
 
     json_exporter = FpkgiJsonExporter(
@@ -171,6 +184,45 @@ def test_store_db_exporter_given_pkg_sizes_when_export_then_writes_human_readabl
         ("UP0000-TEST00000_00-TEST000000000102", "20.00 MB"),
         ("UP0000-TEST00000_00-TEST000000000103", "3.00 GB"),
     ]
+
+
+def test_store_db_exporter_given_missing_item_publisher_when_export_then_uses_lookup(
+    temp_workspace: Path,
+):
+    class _FakePublisherLookup:
+        def lookup_by_title_id(self, _title_id: str) -> str | None:
+            return "Resolved Publisher"
+
+    share_dir = temp_workspace / "data" / "share"
+    share_dir.mkdir(parents=True, exist_ok=True)
+
+    store_sql = (Path(__file__).resolve().parents[1] / "init" / "store_db.sql")
+    store_output = share_dir / "hb-store" / "store.db"
+
+    pkg_path = share_dir / "pkg" / "game" / "UP0000-TEST00000_00-TEST000000000222.pkg"
+    pkg_path.parent.mkdir(parents=True, exist_ok=True)
+    _ = pkg_path.write_bytes(b"x")
+
+    item = _item(
+        pkg_path,
+        "UP0000-TEST00000_00-TEST000000000222",
+        AppType.GAME,
+        publisher=None,
+    )
+
+    exporter = StoreDbExporter(
+        store_output,
+        store_sql,
+        "http://127.0.0.1",
+        publisher_lookup=cast(PublisherLookupProtocol, cast(object, _FakePublisherLookup())),
+    )
+    _ = exporter.export([item])
+
+    conn = sqlite3.connect(str(store_output))
+    row_obj = cast(object, conn.execute("SELECT Author FROM homebrews").fetchone())
+    conn.close()
+    row = cast(tuple[str] | None, row_obj)
+    assert row == ("Resolved Publisher",)
 
 
 def test_fpkgi_exporter_given_single_game_when_export_then_generates_all_json_stems(

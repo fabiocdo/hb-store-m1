@@ -28,6 +28,7 @@ def _item(path: Path) -> CatalogItem:
         pic0_path=None,
         pic1_path=None,
         sfo=ParamSfoSnapshot(fields={"CONTENT_ID": "UP0000-TEST00000_00-TEST000000000000"}, raw=b"x", hash="h"),
+        publisher="Mojang",
     )
 
 
@@ -51,6 +52,7 @@ def test_sqlite_repo_given_upsert_and_prune_then_persists_and_deletes(temp_works
         items = uow.catalog.list_items()
         assert len(items) == 1
         assert items[0].downloads == 2
+        assert items[0].publisher == "Mojang"
         removed = uow.catalog.delete_by_pkg_paths_not_in(set())
         uow.commit()
 
